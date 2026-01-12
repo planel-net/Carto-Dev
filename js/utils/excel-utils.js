@@ -24,8 +24,8 @@ async function readTable(tableName, useCache = true) {
         }
     }
 
-    return await Excel.run(async (context) => {
-        try {
+    try {
+        return await Excel.run(async (context) => {
             const table = context.workbook.tables.getItem(tableName);
             const headerRange = table.getHeaderRowRange();
             const bodyRange = table.getDataBodyRange();
@@ -56,11 +56,12 @@ async function readTable(tableName, useCache = true) {
             });
 
             return result;
-        } catch (error) {
-            console.error(`Erreur lecture table ${tableName}:`, error);
-            throw error;
-        }
-    });
+        });
+    } catch (error) {
+        console.warn(`Table ${tableName} non trouvée ou erreur:`, error.message);
+        // Retourner des données vides au lieu de lever une erreur
+        return { headers: [], rows: [], data: [] };
+    }
 }
 
 /**
@@ -280,36 +281,43 @@ async function countByColumn(tableName, columnName) {
  * @returns {Promise<Object>} Statistiques
  */
 async function getMigrationStats(tableName, statusField) {
-    const { data } = await readTable(tableName);
-    const total = data.length;
+    try {
+        const { data } = await readTable(tableName);
+        const total = data.length;
 
-    if (total === 0) {
+        console.log(`[getMigrationStats] ${tableName}: ${total} lignes`);
+
+        if (total === 0) {
+            return { total: 0, migre: 0, enCours: 0, nonMigre: 0, bloque: 0, percentMigre: 0 };
+        }
+
+        let migre = 0, enCours = 0, nonMigre = 0, bloque = 0;
+
+        data.forEach(row => {
+            const status = (row[statusField] || '').toLowerCase();
+            if (status.includes('migré') || status === 'oui') {
+                migre++;
+            } else if (status.includes('cours')) {
+                enCours++;
+            } else if (status.includes('bloqué')) {
+                bloque++;
+            } else {
+                nonMigre++;
+            }
+        });
+
+        return {
+            total,
+            migre,
+            enCours,
+            nonMigre,
+            bloque,
+            percentMigre: Math.round((migre / total) * 100)
+        };
+    } catch (error) {
+        console.error(`[getMigrationStats] Erreur pour ${tableName}:`, error);
         return { total: 0, migre: 0, enCours: 0, nonMigre: 0, bloque: 0, percentMigre: 0 };
     }
-
-    let migre = 0, enCours = 0, nonMigre = 0, bloque = 0;
-
-    data.forEach(row => {
-        const status = (row[statusField] || '').toLowerCase();
-        if (status.includes('migré') || status === 'oui') {
-            migre++;
-        } else if (status.includes('cours')) {
-            enCours++;
-        } else if (status.includes('bloqué')) {
-            bloque++;
-        } else {
-            nonMigre++;
-        }
-    });
-
-    return {
-        total,
-        migre,
-        enCours,
-        nonMigre,
-        bloque,
-        percentMigre: Math.round((migre / total) * 100)
-    };
 }
 
 /**

@@ -118,22 +118,14 @@ async function lockWorkbook() {
                 }
             }
 
+            // Vérifier que le mot de passe existe
+            if (!password) {
+                return { success: false, message: 'Mot de passe non configuré dans la feuille mdp.' };
+            }
+
             // Protéger le classeur avec mot de passe
-            context.workbook.protection.protect({
-                allowAutoFilter: false,
-                allowDeleteColumns: false,
-                allowDeleteRows: false,
-                allowEditObjects: false,
-                allowEditScenarios: false,
-                allowFormatCells: false,
-                allowFormatColumns: false,
-                allowFormatRows: false,
-                allowInsertColumns: false,
-                allowInsertHyperlinks: false,
-                allowInsertRows: false,
-                allowPivotTables: false,
-                allowSort: false
-            }, password);
+            // Note: workbook.protection.protect() prend uniquement le mot de passe
+            context.workbook.protection.protect(password);
 
             await context.sync();
 
