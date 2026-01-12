@@ -1,6 +1,10 @@
 /* ===========================================
    APP.JS - Application principale et routing
    Application Carto
+
+   NOTE: Cette app tourne dans un DIALOG et ne peut pas
+   accéder directement à Excel. Elle utilise ExcelBridge
+   pour communiquer avec le taskpane.
    =========================================== */
 
 /**
@@ -9,7 +13,8 @@
 const AppState = {
     currentPage: 'migration',
     currentTable: null,
-    isLoading: false
+    isLoading: false,
+    bridgeReady: false
 };
 
 /**
@@ -17,20 +22,100 @@ const AppState = {
  */
 Office.onReady((info) => {
     console.log('[App] Office.onReady called, host:', info.host);
-    console.log('[App] Office.HostType.Excel:', Office.HostType.Excel);
+    console.log('[App] Running in DIALOG mode - using ExcelBridge for data');
 
-    // Dans une dialog, info.host peut être différent
-    // Essayer d'initialiser quand même
-    if (info.host === Office.HostType.Excel) {
-        console.log('[App] Host is Excel, initializing...');
-        initializeApp();
+    // Initialiser ExcelBridge pour la communication avec le taskpane
+    if (typeof ExcelBridge !== 'undefined') {
+        ExcelBridge.init();
+        AppState.bridgeReady = true;
+        console.log('[App] ExcelBridge initialized');
     } else {
-        console.log('[App] Host is not Excel, but trying to initialize anyway for dialog context');
-        // Tenter l'initialisation même si le host n'est pas explicitement Excel
-        // Car dans une dialog, le contexte peut être différent
-        initializeApp();
+        console.error('[App] ExcelBridge not found! Data loading will fail.');
     }
+
+    // Initialiser l'application
+    initializeApp();
 });
+
+/**
+ * ============================================
+ * WRAPPERS EXCEL - Communication via Bridge
+ * Ces fonctions remplacent les appels directs
+ * à Excel qui ne fonctionnent pas dans un dialog
+ * ============================================
+ */
+
+// Override readTable pour utiliser le bridge
+async function readTable(tableName, useCache = true) {
+    console.log(`[App] readTable via bridge: ${tableName}`);
+    if (!AppState.bridgeReady) {
+        console.error('[App] Bridge not ready');
+        return { headers: [], rows: [], data: [] };
+    }
+    try {
+        return await ExcelBridge.readTable(tableName, useCache);
+    } catch (error) {
+        console.error(`[App] readTable error: ${error.message}`);
+        return { headers: [], rows: [], data: [] };
+    }
+}
+
+// Override getMigrationStats pour utiliser le bridge
+async function getMigrationStats(tableName, statusField) {
+    console.log(`[App] getMigrationStats via bridge: ${tableName}`);
+    if (!AppState.bridgeReady) {
+        return { total: 0, migre: 0, enCours: 0, nonMigre: 0, bloque: 0, percentMigre: 0 };
+    }
+    try {
+        return await ExcelBridge.getMigrationStats(tableName, statusField);
+    } catch (error) {
+        console.error(`[App] getMigrationStats error: ${error.message}`);
+        return { total: 0, migre: 0, enCours: 0, nonMigre: 0, bloque: 0, percentMigre: 0 };
+    }
+}
+
+// Override addTableRow pour utiliser le bridge
+async function addTableRow(tableName, rowData) {
+    console.log(`[App] addTableRow via bridge: ${tableName}`);
+    if (!AppState.bridgeReady) throw new Error('Bridge not ready');
+    return await ExcelBridge.addTableRow(tableName, rowData);
+}
+
+// Override updateTableRow pour utiliser le bridge
+async function updateTableRow(tableName, rowIndex, rowData) {
+    console.log(`[App] updateTableRow via bridge: ${tableName}`);
+    if (!AppState.bridgeReady) throw new Error('Bridge not ready');
+    return await ExcelBridge.updateTableRow(tableName, rowIndex, rowData);
+}
+
+// Override deleteTableRow pour utiliser le bridge
+async function deleteTableRow(tableName, rowIndex) {
+    console.log(`[App] deleteTableRow via bridge: ${tableName}`);
+    if (!AppState.bridgeReady) throw new Error('Bridge not ready');
+    return await ExcelBridge.deleteTableRow(tableName, rowIndex);
+}
+
+// Override getUniqueValues pour utiliser le bridge
+async function getUniqueValues(tableName, columnName) {
+    console.log(`[App] getUniqueValues via bridge: ${tableName}.${columnName}`);
+    if (!AppState.bridgeReady) return [];
+    return await ExcelBridge.getUniqueValues(tableName, columnName);
+}
+
+// Override searchTable pour utiliser le bridge
+async function searchTable(tableName, searchTerm, searchFields) {
+    console.log(`[App] searchTable via bridge: ${tableName}`);
+    if (!AppState.bridgeReady) return [];
+    return await ExcelBridge.searchTable(tableName, searchTerm, searchFields);
+}
+
+// Invalider le cache (envoie commande au taskpane)
+function invalidateCache(tableName = null) {
+    console.log('[App] invalidateCache - sending to taskpane');
+    if (AppState.bridgeReady) {
+        ExcelBridge.sendCommand('INVALIDATE_CACHE', { tableName });
+    }
+}
 
 /**
  * Initialise l'application

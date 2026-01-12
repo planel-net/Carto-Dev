@@ -73,11 +73,85 @@ function openFullScreenApp() {
 
 /**
  * Gère les messages reçus de la dialog
+ * Inclut maintenant le bridge Excel pour les requêtes de données
  */
-function handleDialogMessage(arg) {
+async function handleDialogMessage(arg) {
     try {
         const message = JSON.parse(arg.message);
+        console.log('[Taskpane] Received message:', message.type, message.requestId || '');
 
+        // Commandes simples (sans réponse attendue)
+        if (message.isCommand) {
+            switch (message.type) {
+                case 'CLOSE':
+                    if (dialog) {
+                        dialog.close();
+                        dialog = null;
+                    }
+                    break;
+                case 'REFRESH':
+                    checkWorkbookStatus();
+                    break;
+                case 'NOTIFICATION':
+                    showNotification(message.params.message, message.params.type);
+                    break;
+            }
+            return;
+        }
+
+        // Requêtes avec réponse attendue (Excel Bridge)
+        if (message.requestId) {
+            let result = null;
+            let error = null;
+
+            try {
+                switch (message.type) {
+                    case 'READ_TABLE':
+                        result = await readTable(message.params.tableName, message.params.useCache);
+                        break;
+
+                    case 'GET_MIGRATION_STATS':
+                        result = await getMigrationStats(message.params.tableName, message.params.statusField);
+                        break;
+
+                    case 'ADD_ROW':
+                        result = await addTableRow(message.params.tableName, message.params.rowData);
+                        break;
+
+                    case 'UPDATE_ROW':
+                        result = await updateTableRow(message.params.tableName, message.params.rowIndex, message.params.rowData);
+                        break;
+
+                    case 'DELETE_ROW':
+                        result = await deleteTableRow(message.params.tableName, message.params.rowIndex);
+                        break;
+
+                    case 'GET_UNIQUE_VALUES':
+                        result = await getUniqueValues(message.params.tableName, message.params.columnName);
+                        break;
+
+                    case 'SEARCH_TABLE':
+                        result = await searchTable(message.params.tableName, message.params.searchTerm, message.params.searchFields);
+                        break;
+
+                    case 'LIST_TABLES':
+                        result = await listTables();
+                        break;
+
+                    default:
+                        error = `Unknown request type: ${message.type}`;
+                }
+            } catch (e) {
+                error = e.message;
+                console.error('[Taskpane] Error handling request:', e);
+            }
+
+            // Envoyer la réponse au dialog
+            sendResponseToDialog(message.requestId, result, error);
+            return;
+        }
+
+        // Ancien format de messages (rétrocompatibilité)
         switch (message.type) {
             case 'CLOSE':
                 if (dialog) {
@@ -89,13 +163,39 @@ function handleDialogMessage(arg) {
                 checkWorkbookStatus();
                 break;
             case 'NOTIFICATION':
-                showNotification(message.data.message, message.data.type);
+                showNotification(message.data?.message, message.data?.type);
                 break;
             default:
                 console.log('Message non géré:', message);
         }
     } catch (error) {
         console.error('Erreur parsing message:', error);
+    }
+}
+
+/**
+ * Envoie une réponse au dialog
+ * @param {number} requestId - ID de la requête
+ * @param {any} result - Résultat de l'opération
+ * @param {string} error - Message d'erreur (optionnel)
+ */
+function sendResponseToDialog(requestId, result, error) {
+    if (!dialog) {
+        console.error('[Taskpane] No dialog to send response to');
+        return;
+    }
+
+    const response = {
+        requestId,
+        result,
+        error
+    };
+
+    try {
+        dialog.messageChild(JSON.stringify(response));
+        console.log('[Taskpane] Response sent for request #' + requestId);
+    } catch (e) {
+        console.error('[Taskpane] Failed to send response:', e);
     }
 }
 
