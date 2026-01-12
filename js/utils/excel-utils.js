@@ -320,7 +320,8 @@ async function getMigrationStats(tableName, statusField) {
 
         data.forEach(row => {
             const status = (row[statusField] || '').toLowerCase();
-            if (status.includes('migré') || status === 'oui') {
+            // Gérer les différents formats de statut: "Terminé", "Migré", "Oui", etc.
+            if (status.includes('terminé') || status.includes('migré') || status === 'oui') {
                 migre++;
             } else if (status.includes('cours')) {
                 enCours++;

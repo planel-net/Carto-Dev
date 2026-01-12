@@ -375,7 +375,8 @@ class MigrationPage {
     getStatusClass(status) {
         if (!status) return 'status-non-migre';
         const s = status.toLowerCase();
-        if (s.includes('migré') || s === 'oui') return 'status-migre';
+        // Gérer les différents formats: "Terminé", "Migré", "Oui"
+        if (s.includes('terminé') || s.includes('migré') || s === 'oui') return 'status-migre';
         if (s.includes('cours')) return 'status-en-cours';
         return 'status-non-migre';
     }

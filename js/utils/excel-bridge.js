@@ -30,14 +30,27 @@ const ExcelBridge = {
         this._isDialog = true;
         console.log('[ExcelBridge] Initialized in dialog mode');
 
-        // Écouter les messages du parent (Taskpane)
-        // Note: Dans Office.js, les messages du parent arrivent via un event handler
-        // qu'on doit configurer côté dialog
+        // Écouter les messages du parent (Taskpane) via l'API Office.js
+        // dialog.messageChild() est reçu via DialogParentMessageReceived
         if (typeof Office !== 'undefined' && Office.context && Office.context.ui) {
-            // Le dialog reçoit les messages via window.onmessage (pour messageChild)
-            window.addEventListener('message', (event) => {
-                this._handleParentMessage(event);
-            });
+            Office.context.ui.addHandlerAsync(
+                Office.EventType.DialogParentMessageReceived,
+                (arg) => {
+                    this._handleParentMessage(arg);
+                },
+                (result) => {
+                    if (result.status === Office.AsyncResultStatus.Succeeded) {
+                        console.log('[ExcelBridge] DialogParentMessageReceived handler registered');
+                    } else {
+                        console.error('[ExcelBridge] Failed to register handler:', result.error);
+                        // Fallback: essayer window.onmessage (pour certaines versions d'Office)
+                        window.addEventListener('message', (event) => {
+                            this._handleParentMessage(event);
+                        });
+                        console.log('[ExcelBridge] Fallback to window.onmessage');
+                    }
+                }
+            );
         }
     },
 
@@ -95,17 +108,20 @@ const ExcelBridge = {
 
     /**
      * Gère les messages reçus du parent (Taskpane)
-     * @param {MessageEvent} event - Événement de message
+     * @param {Object} arg - Événement de message (peut être DialogParentMessageReceived ou MessageEvent)
      */
-    _handleParentMessage(event) {
+    _handleParentMessage(arg) {
         try {
             // Les messages peuvent venir de différentes sources
-            // On essaie de parser le JSON
+            // DialogParentMessageReceived: arg.message
+            // window.onmessage: arg.data
+            let rawData = arg.message || arg.data;
+
             let data;
-            if (typeof event.data === 'string') {
-                data = JSON.parse(event.data);
+            if (typeof rawData === 'string') {
+                data = JSON.parse(rawData);
             } else {
-                data = event.data;
+                data = rawData;
             }
 
             console.log('[ExcelBridge] Received message from parent:', data);
@@ -121,7 +137,7 @@ const ExcelBridge = {
                 }
             }
         } catch (error) {
-            console.log('[ExcelBridge] Could not parse message:', event.data);
+            console.log('[ExcelBridge] Could not parse message:', arg.message || arg.data);
         }
     },
 

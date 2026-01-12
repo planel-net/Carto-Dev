@@ -200,7 +200,8 @@ function getMigrationStatusClass(status) {
     if (!status) return 'badge-secondary';
 
     const statusLower = status.toLowerCase();
-    if (statusLower.includes('migré') || statusLower === 'oui') return 'badge-migre';
+    // Gérer les différents formats: "Terminé", "Migré", "Oui"
+    if (statusLower.includes('terminé') || statusLower.includes('migré') || statusLower === 'oui') return 'badge-migre';
     if (statusLower.includes('cours')) return 'badge-en-cours';
     if (statusLower.includes('bloqué')) return 'badge-bloque';
     return 'badge-non-migre';
@@ -215,7 +216,8 @@ function getMigrationStatusColor(status) {
     if (!status) return '#6C757D';
 
     const statusLower = status.toLowerCase();
-    if (statusLower.includes('migré') || statusLower === 'oui') return '#28A745';
+    // Gérer les différents formats: "Terminé", "Migré", "Oui"
+    if (statusLower.includes('terminé') || statusLower.includes('migré') || statusLower === 'oui') return '#28A745';
     if (statusLower.includes('cours')) return '#FFC107';
     if (statusLower.includes('bloqué')) return '#6C757D';
     return '#DC3545';
