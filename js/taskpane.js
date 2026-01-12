@@ -37,6 +37,7 @@ async function initializeTaskpane() {
 
 /**
  * Ouvre l'application en plein écran
+ * Pattern identique à AppExcel pour ouverture en popup Excel
  */
 function openFullScreenApp() {
     // Si une dialog est déjà ouverte, la fermer d'abord
@@ -49,12 +50,13 @@ function openFullScreenApp() {
         dialog = null;
     }
 
-    const url = getBaseUrl() + '/html/app.html';
-    console.log('[Taskpane] Opening app:', url);
+    // Construction de l'URL comme dans AppExcel
+    const dialogUrl = window.location.href.replace('taskpane.html', 'app.html').split('?')[0];
+    console.log('[Taskpane] Opening dialog:', dialogUrl);
 
     Office.context.ui.displayDialogAsync(
-        url,
-        CONFIG.DIALOG_OPTIONS,
+        dialogUrl,
+        { height: 80, width: 80 },
         (result) => {
             if (result.status === Office.AsyncResultStatus.Succeeded) {
                 dialog = result.value;

@@ -16,16 +16,27 @@ const CACHE_DURATION = 30000; // 30 secondes
  * @returns {Promise<Object>} { headers: [], rows: [], data: [] }
  */
 async function readTable(tableName, useCache = true) {
+    console.log(`[readTable] Reading table: ${tableName}`);
+
     // Vérifier le cache
     if (useCache && tableCache.has(tableName)) {
         const cached = tableCache.get(tableName);
         if (Date.now() - cached.timestamp < CACHE_DURATION) {
+            console.log(`[readTable] ${tableName} returned from cache`);
             return cached.data;
         }
     }
 
     try {
+        // Vérifier si Excel est disponible
+        if (typeof Excel === 'undefined') {
+            console.error('[readTable] Excel API is not available');
+            return { headers: [], rows: [], data: [] };
+        }
+
+        console.log(`[readTable] Starting Excel.run for ${tableName}...`);
         return await Excel.run(async (context) => {
+            console.log(`[readTable] Inside Excel.run for ${tableName}`);
             const table = context.workbook.tables.getItem(tableName);
             const headerRange = table.getHeaderRowRange();
             const bodyRange = table.getDataBodyRange();
@@ -33,10 +44,14 @@ async function readTable(tableName, useCache = true) {
             headerRange.load('values');
             bodyRange.load('values');
 
+            console.log(`[readTable] Calling context.sync for ${tableName}...`);
             await context.sync();
+            console.log(`[readTable] context.sync completed for ${tableName}`);
 
             const headers = headerRange.values[0];
             const rows = bodyRange.values || [];
+
+            console.log(`[readTable] ${tableName} has ${rows.length} rows`);
 
             // Convertir en tableau d'objets
             const data = rows.map((row, index) => {
@@ -58,7 +73,8 @@ async function readTable(tableName, useCache = true) {
             return result;
         });
     } catch (error) {
-        console.warn(`Table ${tableName} non trouvée ou erreur:`, error.message);
+        console.error(`[readTable] Error for ${tableName}:`, error);
+        console.error(`[readTable] Error details - code: ${error.code}, message: ${error.message}`);
         // Retourner des données vides au lieu de lever une erreur
         return { headers: [], rows: [], data: [] };
     }

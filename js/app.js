@@ -16,10 +16,19 @@ const AppState = {
  * Initialisation de l'application
  */
 Office.onReady((info) => {
+    console.log('[App] Office.onReady called, host:', info.host);
+    console.log('[App] Office.HostType.Excel:', Office.HostType.Excel);
+
+    // Dans une dialog, info.host peut être différent
+    // Essayer d'initialiser quand même
     if (info.host === Office.HostType.Excel) {
+        console.log('[App] Host is Excel, initializing...');
         initializeApp();
     } else {
-        showError('Cette application fonctionne uniquement dans Excel.');
+        console.log('[App] Host is not Excel, but trying to initialize anyway for dialog context');
+        // Tenter l'initialisation même si le host n'est pas explicitement Excel
+        // Car dans une dialog, le contexte peut être différent
+        initializeApp();
     }
 });
 
@@ -42,6 +51,21 @@ async function initializeApp() {
 
         // Attacher les événements des boutons header
         attachHeaderEvents();
+
+        // Vérifier si Excel est disponible
+        console.log('[App] Checking Excel availability...');
+        try {
+            await Excel.run(async (context) => {
+                console.log('[App] Excel.run successful - Excel API is available');
+                const tables = context.workbook.tables;
+                tables.load('items/name');
+                await context.sync();
+                console.log('[App] Tables found:', tables.items.map(t => t.name));
+            });
+        } catch (excelError) {
+            console.error('[App] Excel API error:', excelError);
+            console.log('[App] This may be normal if running outside Excel context');
+        }
 
         // Charger la page par défaut
         console.log('[App] Loading default page...');

@@ -212,13 +212,10 @@ const CONFIG = {
     COEF_SECURITE: 2.0,
 
     // Options de la dialog plein écran
-    // displayInIframe: true = ouvre dans Excel (iframe)
-    // displayInIframe: false = ouvre dans une fenêtre navigateur séparée
+    // Pattern AppExcel : uniquement height et width
     DIALOG_OPTIONS: {
         height: 80,
-        width: 80,
-        displayInIframe: true,
-        promptBeforeOpen: false
+        width: 80
     },
 
     // Navigation de l'application

@@ -21,6 +21,8 @@ class MigrationPage {
      * Rendu de la page
      */
     async render(container) {
+        console.log('[Migration] render() called');
+
         container.innerHTML = `
             <div class="page-header">
                 <div class="page-header-left">
@@ -105,15 +107,28 @@ class MigrationPage {
      * Charge les données
      */
     async loadData() {
+        console.log('[Migration] loadData starting...');
         try {
             // Charger les statistiques de chaque type
-            const [shoresStats, dssStats, dfStats, produitsStats, produitsData] = await Promise.all([
-                getMigrationStats('tShores', 'Migré Tech'),
-                getMigrationStats('tProjetsDSS', 'Statut migration'),
-                getMigrationStats('tDataflows', 'Statut migration'),
-                getMigrationStats('tProduits', 'Statut Migration'),
-                readTable('tProduits')
-            ]);
+            console.log('[Migration] Loading stats for tShores...');
+            const shoresStats = await getMigrationStats('tShores', 'Migré Tech');
+            console.log('[Migration] tShores stats:', shoresStats);
+
+            console.log('[Migration] Loading stats for tProjetsDSS...');
+            const dssStats = await getMigrationStats('tProjetsDSS', 'Statut migration');
+            console.log('[Migration] tProjetsDSS stats:', dssStats);
+
+            console.log('[Migration] Loading stats for tDataflows...');
+            const dfStats = await getMigrationStats('tDataflows', 'Statut migration');
+            console.log('[Migration] tDataflows stats:', dfStats);
+
+            console.log('[Migration] Loading stats for tProduits...');
+            const produitsStats = await getMigrationStats('tProduits', 'Statut Migration');
+            console.log('[Migration] tProduits stats:', produitsStats);
+
+            console.log('[Migration] Loading tProduits data...');
+            const produitsData = await readTable('tProduits');
+            console.log('[Migration] tProduits data count:', produitsData.data.length);
 
             this.stats = {
                 shores: shoresStats,
@@ -125,14 +140,19 @@ class MigrationPage {
             this.produits = produitsData.data;
 
             // Mettre à jour l'interface
+            console.log('[Migration] Rendering KPIs...');
             this.renderKpis();
+            console.log('[Migration] Rendering charts...');
             this.renderCharts();
+            console.log('[Migration] Loading produits select...');
             this.loadProduitsSelect();
+            console.log('[Migration] Rendering non-migres table...');
             this.renderNonMigresTable();
+            console.log('[Migration] loadData complete');
 
         } catch (error) {
-            console.error('Erreur chargement données migration:', error);
-            showError('Erreur lors du chargement des données de migration');
+            console.error('[Migration] Erreur chargement données:', error);
+            showError('Erreur lors du chargement des données de migration: ' + error.message);
         }
     }
 
