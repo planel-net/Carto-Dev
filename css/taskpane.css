@@ -1,0 +1,206 @@
+/* ===========================================
+   TASKPANE CSS - Styles du volet latéral
+   Application Carto
+   =========================================== */
+
+.taskpane-container {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    background-color: var(--mh-blanc);
+}
+
+/* Header */
+.taskpane-header {
+    padding: var(--spacing-lg);
+    background: linear-gradient(135deg, var(--mh-bleu-fonce) 0%, var(--mh-bleu-clair) 100%);
+    color: var(--mh-blanc);
+    text-align: center;
+}
+
+.taskpane-header .logo {
+    width: 120px;
+    height: auto;
+    margin: 0 auto var(--spacing-md);
+}
+
+.taskpane-header h1 {
+    color: var(--mh-blanc);
+    font-size: var(--font-size-xl);
+    margin-bottom: var(--spacing-xs);
+}
+
+.taskpane-header .subtitle {
+    font-size: var(--font-size-sm);
+    opacity: 0.9;
+}
+
+/* Contenu principal */
+.taskpane-content {
+    flex: 1;
+    padding: var(--spacing-lg);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+}
+
+/* Bouton principal */
+.btn-open-app {
+    width: 100%;
+    padding: var(--spacing-lg);
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-md);
+}
+
+.btn-open-app svg,
+.btn-open-app .icon {
+    width: 24px;
+    height: 24px;
+}
+
+/* Section statut */
+.status-section {
+    background-color: var(--mh-gris-clair);
+    border-radius: var(--border-radius-md);
+    padding: var(--spacing-md);
+}
+
+.status-section h3 {
+    font-size: var(--font-size-sm);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--mh-gris-moyen);
+    margin-bottom: var(--spacing-sm);
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    font-weight: 500;
+}
+
+.status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: var(--border-radius-full);
+}
+
+.status-dot.locked {
+    background-color: var(--mh-rouge-erreur);
+}
+
+.status-dot.unlocked {
+    background-color: var(--mh-vert-succes);
+}
+
+/* Section gestion du classeur */
+.workbook-controls {
+    background-color: var(--mh-blanc);
+    border: 1px solid #dee2e6;
+    border-radius: var(--border-radius-md);
+    padding: var(--spacing-lg);
+}
+
+.workbook-controls h2 {
+    font-size: var(--font-size-md);
+    margin-bottom: var(--spacing-md);
+    padding-bottom: var(--spacing-sm);
+    border-bottom: 1px solid #dee2e6;
+}
+
+.controls-grid {
+    display: grid;
+    gap: var(--spacing-sm);
+}
+
+.controls-grid .btn {
+    width: 100%;
+    justify-content: center;
+}
+
+/* Mot de passe */
+.password-input-group {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+}
+
+.password-input-group .form-control {
+    flex: 1;
+}
+
+/* Section informations */
+.info-section {
+    margin-top: auto;
+    padding-top: var(--spacing-md);
+    border-top: 1px solid #dee2e6;
+}
+
+.info-item {
+    display: flex;
+    justify-content: space-between;
+    padding: var(--spacing-xs) 0;
+    font-size: var(--font-size-sm);
+}
+
+.info-label {
+    color: var(--mh-gris-moyen);
+}
+
+.info-value {
+    font-weight: 500;
+}
+
+/* Footer */
+.taskpane-footer {
+    padding: var(--spacing-md);
+    text-align: center;
+    font-size: var(--font-size-xs);
+    color: var(--mh-gris-moyen);
+    border-top: 1px solid #dee2e6;
+}
+
+/* Badge environnement */
+.env-badge {
+    position: fixed;
+    top: 0;
+    left: 0;
+    padding: 2px 8px;
+    font-size: 10px;
+    font-weight: bold;
+    z-index: 99999;
+}
+
+.env-badge.dev {
+    background: var(--mh-orange);
+    color: white;
+}
+
+.env-badge.prod {
+    display: none;
+}
+
+/* Responsive */
+@media (max-height: 500px) {
+    .taskpane-header {
+        padding: var(--spacing-md);
+    }
+
+    .taskpane-header .logo {
+        width: 80px;
+    }
+
+    .taskpane-header h1 {
+        font-size: var(--font-size-lg);
+    }
+
+    .taskpane-content {
+        padding: var(--spacing-md);
+        gap: var(--spacing-md);
+    }
+}

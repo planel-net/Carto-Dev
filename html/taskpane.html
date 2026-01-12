@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carto - Malakoff Humanis</title>
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="../css/variables.css">
+    <link rel="stylesheet" href="../css/base.css">
+    <link rel="stylesheet" href="../css/components.css">
+    <link rel="stylesheet" href="../css/notifications.css">
+    <link rel="stylesheet" href="../css/taskpane.css">
+</head>
+<body>
+    <!-- Badge environnement -->
+    <div id="envBadge" class="env-badge"></div>
+
+    <div class="taskpane-container">
+        <!-- Header -->
+        <header class="taskpane-header">
+            <img src="../assets/images/logo-mh.png" alt="Malakoff Humanis" class="logo">
+            <h1>Carto</h1>
+            <p class="subtitle">Pilotage du parc applicatif</p>
+        </header>
+
+        <!-- Contenu principal -->
+        <main class="taskpane-content">
+            <!-- Bouton principal pour ouvrir l'application -->
+            <button id="btnOpenApp" class="btn btn-action btn-open-app">
+                <span class="icon">&#9654;</span>
+                Ouvrir l'application
+            </button>
+
+            <!-- Section statut -->
+            <section class="status-section">
+                <h3>Statut du classeur</h3>
+                <div class="status-indicator">
+                    <span id="statusDot" class="status-dot locked"></span>
+                    <span id="statusText">Verrouillé</span>
+                </div>
+            </section>
+
+            <!-- Section gestion du classeur -->
+            <section class="workbook-controls">
+                <h2>Gestion du classeur</h2>
+
+                <div class="password-input-group hidden" id="passwordGroup">
+                    <input type="password"
+                           id="passwordInput"
+                           class="form-control"
+                           placeholder="Mot de passe">
+                </div>
+
+                <div class="controls-grid">
+                    <button id="btnUnlock" class="btn btn-success">
+                        <span>&#128275;</span> Déverrouiller
+                    </button>
+                    <button id="btnLock" class="btn btn-danger hidden">
+                        <span>&#128274;</span> Verrouiller
+                    </button>
+                </div>
+            </section>
+
+            <!-- Section informations -->
+            <section class="info-section">
+                <div class="info-item">
+                    <span class="info-label">Version</span>
+                    <span class="info-value">1.0.0</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Tables</span>
+                    <span class="info-value" id="tableCount">-</span>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="taskpane-footer">
+            <p>&copy; 2025 Malakoff Humanis - Carto</p>
+        </footer>
+    </div>
+
+    <!-- Container pour les notifications -->
+    <div id="notificationContainer" class="notification-container"></div>
+
+    <!-- JavaScript -->
+    <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+    <script src="../js/config.js"></script>
+    <script src="../js/utils/helpers.js"></script>
+    <script src="../js/utils/notifications.js"></script>
+    <script src="../js/utils/excel-utils.js"></script>
+    <script src="../js/utils/auth.js"></script>
+    <script src="../js/taskpane.js"></script>
+</body>
+</html>

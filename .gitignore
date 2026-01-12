@@ -1,0 +1,23 @@
+# Excel files (data)
+*.xlsx
+*.xls
+
+# macOS
+.DS_Store
+*.swp
+
+# IDE
+.idea/
+.vscode/
+*.code-workspace
+
+# Claude session files
+.claude/
+
+# Temporary files
+*.tmp
+*.temp
+
+# Documentation source (not needed in deployment)
+Besoin.txt
+CHARTE_GRAPHIQUE_MALAKOFF_HUMANIS.md

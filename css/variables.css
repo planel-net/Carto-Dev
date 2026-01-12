@@ -1,0 +1,89 @@
+/* ===========================================
+   VARIABLES CSS - Charte Graphique Malakoff Humanis
+   Application Carto
+   =========================================== */
+
+:root {
+    /* Couleurs Malakoff Humanis */
+    --mh-bleu-fonce: #003366;
+    --mh-bleu-clair: #0066CC;
+    --mh-orange: #FF6600;
+    --mh-gris-fonce: #333333;
+    --mh-gris-moyen: #666666;
+    --mh-gris-clair: #F5F5F5;
+    --mh-blanc: #FFFFFF;
+    --mh-vert-succes: #28A745;
+    --mh-rouge-erreur: #DC3545;
+    --mh-jaune-warning: #FFC107;
+
+    /* Couleurs pour les statuts migration */
+    --status-migre: #28A745;
+    --status-en-cours: #FFC107;
+    --status-non-migre: #DC3545;
+    --status-bloque: #6C757D;
+
+    /* Couleurs pour les graphiques */
+    --chart-primary: #0066CC;
+    --chart-secondary: #FF6600;
+    --chart-success: #28A745;
+    --chart-danger: #DC3545;
+    --chart-warning: #FFC107;
+    --chart-info: #17A2B8;
+
+    /* Espacements */
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
+    --spacing-xxl: 48px;
+
+    /* Bordures */
+    --border-radius-sm: 4px;
+    --border-radius-md: 8px;
+    --border-radius-lg: 16px;
+    --border-radius-full: 50%;
+
+    /* Transitions */
+    --transition-fast: 0.15s ease;
+    --transition-normal: 0.3s ease;
+    --transition-slow: 0.5s ease;
+
+    /* Ombres */
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.2);
+    --shadow-xl: 0 12px 48px rgba(0, 0, 0, 0.25);
+
+    /* Sidebar */
+    --sidebar-width: 260px;
+    --sidebar-collapsed-width: 60px;
+    --sidebar-bg: #003366;
+    --sidebar-text: #FFFFFF;
+    --sidebar-hover: rgba(255, 255, 255, 0.1);
+    --sidebar-active: rgba(255, 255, 255, 0.2);
+
+    /* Header */
+    --header-height: 60px;
+    --header-bg: #FFFFFF;
+
+    /* Typographie */
+    --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    --font-size-xs: 11px;
+    --font-size-sm: 12px;
+    --font-size-base: 14px;
+    --font-size-md: 16px;
+    --font-size-lg: 18px;
+    --font-size-xl: 24px;
+    --font-size-xxl: 32px;
+
+    /* Z-index */
+    --z-dropdown: 100;
+    --z-sticky: 200;
+    --z-fixed: 300;
+    --z-modal-backdrop: 400;
+    --z-modal: 500;
+    --z-popover: 600;
+    --z-tooltip: 700;
+    --z-notification: 800;
+}

@@ -1,0 +1,179 @@
+/* ===========================================
+   NOTIFICATIONS CSS - Système de notifications toast
+   Application Carto
+   =========================================== */
+
+.notification-container {
+    position: fixed;
+    top: var(--spacing-lg);
+    right: var(--spacing-lg);
+    z-index: var(--z-notification);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    max-width: 400px;
+    pointer-events: none;
+}
+
+.notification {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md) var(--spacing-lg);
+    background-color: var(--mh-blanc);
+    border-radius: var(--border-radius-md);
+    box-shadow: var(--shadow-lg);
+    animation: slideInRight 0.3s ease;
+    pointer-events: auto;
+    max-width: 100%;
+}
+
+.notification-icon {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--border-radius-full);
+    font-size: var(--font-size-base);
+    font-weight: bold;
+}
+
+.notification-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.notification-title {
+    font-weight: 600;
+    margin-bottom: var(--spacing-xs);
+}
+
+.notification-message {
+    font-size: var(--font-size-sm);
+    color: var(--mh-gris-moyen);
+    word-wrap: break-word;
+}
+
+.notification-close {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    color: var(--mh-gris-moyen);
+    cursor: pointer;
+    border-radius: var(--border-radius-sm);
+    transition: all var(--transition-fast);
+    font-size: 18px;
+    line-height: 1;
+}
+
+.notification-close:hover {
+    background-color: var(--mh-gris-clair);
+    color: var(--mh-gris-fonce);
+}
+
+/* Types de notifications */
+.notification-success {
+    border-left: 4px solid var(--mh-vert-succes);
+}
+
+.notification-success .notification-icon {
+    background-color: rgba(40, 167, 69, 0.1);
+    color: var(--mh-vert-succes);
+}
+
+.notification-error {
+    border-left: 4px solid var(--mh-rouge-erreur);
+}
+
+.notification-error .notification-icon {
+    background-color: rgba(220, 53, 69, 0.1);
+    color: var(--mh-rouge-erreur);
+}
+
+.notification-warning {
+    border-left: 4px solid var(--mh-jaune-warning);
+}
+
+.notification-warning .notification-icon {
+    background-color: rgba(255, 193, 7, 0.1);
+    color: #d39e00;
+}
+
+.notification-info {
+    border-left: 4px solid var(--mh-bleu-clair);
+}
+
+.notification-info .notification-icon {
+    background-color: rgba(0, 102, 204, 0.1);
+    color: var(--mh-bleu-clair);
+}
+
+/* Animation de fermeture */
+.notification.fade-out {
+    animation: slideOutRight 0.3s ease forwards;
+}
+
+/* Barre de progression */
+.notification-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background-color: rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.notification-progress-bar {
+    height: 100%;
+    background-color: currentColor;
+    transform-origin: left;
+    animation: shrink linear forwards;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOutRight {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
+@keyframes shrink {
+    from {
+        transform: scaleX(1);
+    }
+    to {
+        transform: scaleX(0);
+    }
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+    .notification-container {
+        left: var(--spacing-md);
+        right: var(--spacing-md);
+        max-width: none;
+    }
+}

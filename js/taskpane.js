@@ -1,0 +1,234 @@
+/* ===========================================
+   TASKPANE.JS - Logique du volet latéral
+   Application Carto
+   =========================================== */
+
+// Variables globales
+let dialog = null;
+let isWorkbookLocked = true;
+
+// Initialisation Office.js
+Office.onReady((info) => {
+    if (info.host === Office.HostType.Excel) {
+        initializeTaskpane();
+    } else {
+        showNotification('Cette application fonctionne uniquement dans Excel.', 'error');
+    }
+});
+
+/**
+ * Initialise le taskpane
+ */
+async function initializeTaskpane() {
+    // Afficher le badge d'environnement
+    showEnvironmentBadge();
+
+    // Attacher les événements
+    document.getElementById('btnOpenApp').addEventListener('click', openFullScreenApp);
+    document.getElementById('btnUnlock').addEventListener('click', handleUnlock);
+    document.getElementById('btnLock').addEventListener('click', handleLock);
+
+    // Vérifier l'état initial du classeur
+    await checkWorkbookStatus();
+
+    // Compter les tables
+    await countTables();
+}
+
+/**
+ * Ouvre l'application en plein écran
+ */
+function openFullScreenApp() {
+    const url = getBaseUrl() + '/html/app.html';
+
+    Office.context.ui.displayDialogAsync(
+        url,
+        CONFIG.DIALOG_OPTIONS,
+        (result) => {
+            if (result.status === Office.AsyncResultStatus.Succeeded) {
+                dialog = result.value;
+                dialog.addEventHandler(Office.EventType.DialogMessageReceived, handleDialogMessage);
+                dialog.addEventHandler(Office.EventType.DialogEventReceived, handleDialogEvent);
+            } else {
+                showNotification('Impossible d\'ouvrir l\'application: ' + result.error.message, 'error');
+            }
+        }
+    );
+}
+
+/**
+ * Gère les messages reçus de la dialog
+ */
+function handleDialogMessage(arg) {
+    try {
+        const message = JSON.parse(arg.message);
+
+        switch (message.type) {
+            case 'CLOSE':
+                if (dialog) {
+                    dialog.close();
+                    dialog = null;
+                }
+                break;
+            case 'REFRESH':
+                checkWorkbookStatus();
+                break;
+            case 'NOTIFICATION':
+                showNotification(message.data.message, message.data.type);
+                break;
+            default:
+                console.log('Message non géré:', message);
+        }
+    } catch (error) {
+        console.error('Erreur parsing message:', error);
+    }
+}
+
+/**
+ * Gère les événements de la dialog
+ */
+function handleDialogEvent(arg) {
+    switch (arg.error) {
+        case 12002: // Dialog URL not found
+            showNotification('Page non trouvée.', 'error');
+            break;
+        case 12003: // Dialog URL uses HTTP
+            showNotification('HTTPS requis.', 'error');
+            break;
+        case 12006: // Dialog closed by user
+            dialog = null;
+            break;
+        default:
+            console.log('Dialog event:', arg.error);
+    }
+}
+
+/**
+ * Vérifie le statut du classeur (verrouillé/déverrouillé)
+ */
+async function checkWorkbookStatus() {
+    try {
+        isWorkbookLocked = await checkLockStatus();
+        updateLockUI(isWorkbookLocked);
+    } catch (error) {
+        console.error('Erreur vérification statut:', error);
+        // Supposer verrouillé en cas d'erreur
+        updateLockUI(true);
+    }
+}
+
+/**
+ * Met à jour l'interface selon l'état de verrouillage
+ */
+function updateLockUI(locked) {
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    const btnUnlock = document.getElementById('btnUnlock');
+    const btnLock = document.getElementById('btnLock');
+    const passwordGroup = document.getElementById('passwordGroup');
+
+    if (locked) {
+        statusDot.className = 'status-dot locked';
+        statusText.textContent = 'Verrouillé';
+        btnUnlock.classList.remove('hidden');
+        btnLock.classList.add('hidden');
+        passwordGroup.classList.remove('hidden');
+    } else {
+        statusDot.className = 'status-dot unlocked';
+        statusText.textContent = 'Déverrouillé';
+        btnUnlock.classList.add('hidden');
+        btnLock.classList.remove('hidden');
+        passwordGroup.classList.add('hidden');
+    }
+}
+
+/**
+ * Gère le déverrouillage du classeur
+ */
+async function handleUnlock() {
+    const passwordInput = document.getElementById('passwordInput');
+    const password = passwordInput.value;
+
+    if (!password) {
+        showNotification('Veuillez entrer le mot de passe.', 'warning');
+        return;
+    }
+
+    try {
+        const result = await unlockWorkbook(password);
+        if (result.success) {
+            showNotification('Classeur déverrouillé avec succès.', 'success');
+            passwordInput.value = '';
+            updateLockUI(false);
+            isWorkbookLocked = false;
+        } else {
+            showNotification(result.message || 'Mot de passe incorrect.', 'error');
+        }
+    } catch (error) {
+        showNotification('Erreur lors du déverrouillage: ' + error.message, 'error');
+    }
+}
+
+/**
+ * Gère le verrouillage du classeur
+ */
+async function handleLock() {
+    try {
+        const result = await lockWorkbook();
+        if (result.success) {
+            showNotification('Classeur verrouillé avec succès.', 'success');
+            updateLockUI(true);
+            isWorkbookLocked = true;
+        } else {
+            showNotification(result.message || 'Erreur lors du verrouillage.', 'error');
+        }
+    } catch (error) {
+        showNotification('Erreur lors du verrouillage: ' + error.message, 'error');
+    }
+}
+
+/**
+ * Compte les tables dans le classeur
+ */
+async function countTables() {
+    try {
+        await Excel.run(async (context) => {
+            const tables = context.workbook.tables;
+            tables.load('items');
+            await context.sync();
+
+            document.getElementById('tableCount').textContent = tables.items.length;
+        });
+    } catch (error) {
+        console.error('Erreur comptage tables:', error);
+        document.getElementById('tableCount').textContent = '-';
+    }
+}
+
+/**
+ * Obtient l'URL de base de l'application
+ */
+function getBaseUrl() {
+    const url = window.location.href;
+    return url.substring(0, url.lastIndexOf('/html'));
+}
+
+/**
+ * Affiche le badge d'environnement (DEV/PROD)
+ */
+function showEnvironmentBadge() {
+    const badge = document.getElementById('envBadge');
+    if (badge) {
+        const isDev = window.location.hostname.includes('localhost') ||
+                      window.location.hostname.includes('-dev') ||
+                      window.location.pathname.includes('/dev/') ||
+                      window.location.hostname.includes('127.0.0.1');
+
+        if (isDev) {
+            badge.textContent = 'DEV';
+            badge.className = 'env-badge dev';
+        } else {
+            badge.className = 'env-badge prod';
+        }
+    }
+}
