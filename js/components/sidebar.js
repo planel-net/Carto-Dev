@@ -88,6 +88,8 @@ class Sidebar {
     handleNavClick(event, item) {
         event.preventDefault();
 
+        console.log('[Sidebar] Nav click:', item.dataset.page, item.dataset.table);
+
         // Retirer la classe active de tous les éléments
         this.navItems.forEach(nav => nav.classList.remove('active'));
 
@@ -106,6 +108,7 @@ class Sidebar {
             detail: { page, table }
         });
         document.dispatchEvent(navEvent);
+        console.log('[Sidebar] Navigation event dispatched');
     }
 
     /**

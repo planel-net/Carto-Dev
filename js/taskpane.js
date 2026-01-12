@@ -39,7 +39,18 @@ async function initializeTaskpane() {
  * Ouvre l'application en plein écran
  */
 function openFullScreenApp() {
+    // Si une dialog est déjà ouverte, la fermer d'abord
+    if (dialog) {
+        try {
+            dialog.close();
+        } catch (e) {
+            console.log('Dialog déjà fermée');
+        }
+        dialog = null;
+    }
+
     const url = getBaseUrl() + '/html/app.html';
+    console.log('[Taskpane] Opening app:', url);
 
     Office.context.ui.displayDialogAsync(
         url,
@@ -49,7 +60,9 @@ function openFullScreenApp() {
                 dialog = result.value;
                 dialog.addEventHandler(Office.EventType.DialogMessageReceived, handleDialogMessage);
                 dialog.addEventHandler(Office.EventType.DialogEventReceived, handleDialogEvent);
+                console.log('[Taskpane] Dialog opened successfully');
             } else {
+                console.error('[Taskpane] Dialog error:', result.error);
                 showNotification('Impossible d\'ouvrir l\'application: ' + result.error.message, 'error');
             }
         }

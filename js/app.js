@@ -27,28 +27,34 @@ Office.onReady((info) => {
  * Initialise l'application
  */
 async function initializeApp() {
+    console.log('[App] Initialisation...');
     try {
         // Afficher le badge d'environnement
         showEnvironmentBadge();
 
         // Initialiser le sidebar
+        console.log('[App] Init sidebar...');
         initSidebar();
 
         // Attacher les événements de navigation
         document.addEventListener('navigate', handleNavigation);
+        console.log('[App] Navigation event listener attached');
 
         // Attacher les événements des boutons header
         attachHeaderEvents();
 
         // Charger la page par défaut
+        console.log('[App] Loading default page...');
         await navigateTo('migration');
 
         // Masquer le loader initial
         hideLoading();
+        console.log('[App] Initialization complete');
 
     } catch (error) {
-        console.error('Erreur initialisation:', error);
+        console.error('[App] Erreur initialisation:', error);
         showError('Erreur lors de l\'initialisation de l\'application');
+        hideLoading();
     }
 }
 
@@ -56,6 +62,7 @@ async function initializeApp() {
  * Gère la navigation
  */
 function handleNavigation(event) {
+    console.log('[App] handleNavigation event received:', event.detail);
     const { page, table } = event.detail;
     navigateTo(page, table);
 }
@@ -66,7 +73,11 @@ function handleNavigation(event) {
  * @param {string} table - Clé de la table (pour les pages params)
  */
 async function navigateTo(page, table = null) {
-    if (AppState.isLoading) return;
+    console.log('[App] navigateTo:', page, table, 'isLoading:', AppState.isLoading);
+    if (AppState.isLoading) {
+        console.log('[App] Navigation blocked - already loading');
+        return;
+    }
 
     AppState.currentPage = page;
     AppState.currentTable = table;
