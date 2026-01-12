@@ -35,7 +35,9 @@ async function readTable(tableName, useCache = true) {
         }
 
         console.log(`[readTable] Starting Excel.run for ${tableName}...`);
-        return await Excel.run(async (context) => {
+
+        // Créer la promesse Excel.run
+        const excelOperation = Excel.run(async (context) => {
             console.log(`[readTable] Inside Excel.run for ${tableName}`);
             const table = context.workbook.tables.getItem(tableName);
             const headerRange = table.getHeaderRowRange();
@@ -72,6 +74,13 @@ async function readTable(tableName, useCache = true) {
 
             return result;
         });
+
+        // Timeout de 10 secondes pour ne pas bloquer
+        const timeout = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error(`Timeout reading table ${tableName}`)), 10000)
+        );
+
+        return await Promise.race([excelOperation, timeout]);
     } catch (error) {
         console.error(`[readTable] Error for ${tableName}:`, error);
         console.error(`[readTable] Error details - code: ${error.code}, message: ${error.message}`);

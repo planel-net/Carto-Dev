@@ -52,19 +52,29 @@ async function initializeApp() {
         // Attacher les événements des boutons header
         attachHeaderEvents();
 
-        // Vérifier si Excel est disponible
+        // Vérifier si Excel est disponible (avec timeout)
         console.log('[App] Checking Excel availability...');
         try {
-            await Excel.run(async (context) => {
-                console.log('[App] Excel.run successful - Excel API is available');
+            const excelCheck = Excel.run(async (context) => {
+                console.log('[App] Inside Excel.run...');
                 const tables = context.workbook.tables;
                 tables.load('items/name');
+                console.log('[App] Calling context.sync...');
                 await context.sync();
                 console.log('[App] Tables found:', tables.items.map(t => t.name));
+                return true;
             });
+
+            // Timeout de 5 secondes pour ne pas bloquer
+            const timeout = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Excel check timeout')), 5000)
+            );
+
+            await Promise.race([excelCheck, timeout]);
+            console.log('[App] Excel API is available');
         } catch (excelError) {
-            console.error('[App] Excel API error:', excelError);
-            console.log('[App] This may be normal if running outside Excel context');
+            console.warn('[App] Excel API check failed or timed out:', excelError.message);
+            console.log('[App] Continuing anyway...');
         }
 
         // Charger la page par défaut
