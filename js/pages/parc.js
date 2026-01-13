@@ -540,7 +540,7 @@ class ParcPage {
             const productIndex = this.produits.findIndex(p => p.Nom === product);
             if (productIndex !== -1) {
                 this.produits[productIndex].Statut = status;
-                await updateTableRow('tProduits', productIndex + 2, this.produits[productIndex]);
+                await updateTableRow('tProduits', productIndex, this.produits[productIndex]);
             }
 
             // 3. Mettre a jour l'interface - toutes les cellules de ce produit
@@ -606,8 +606,8 @@ class ParcPage {
             });
 
             if (index !== -1) {
-                // Supprimer de Excel (index + 2 car ligne 1 = en-tete)
-                await deleteTableRow('tPdtProcess', index + 2);
+                // index du findIndex est déjà 0-based, ce qui correspond à table.rows.getItemAt()
+                await deleteTableRow('tPdtProcess', index);
 
                 // Mettre a jour les donnees locales
                 this.pdtProcess.splice(index, 1);
@@ -684,7 +684,7 @@ class ParcPage {
             if (productIndex !== -1) {
                 this.produits[productIndex].Statut = newStatus;
                 try {
-                    await updateTableRow('tProduits', productIndex + 2, this.produits[productIndex]);
+                    await updateTableRow('tProduits', productIndex, this.produits[productIndex]);
                     // Mettre a jour toutes les cellules de ce produit
                     this.updateProductCellsUI(productName, newStatus);
                 } catch (error) {
@@ -736,7 +736,7 @@ class ParcPage {
 
         for (const { cellId, index, cell } of cellsToRemove) {
             try {
-                await deleteTableRow('tPdtProcess', index + 2);
+                await deleteTableRow('tPdtProcess', index);
                 this.pdtProcess.splice(index, 1);
 
                 cell.classList.remove('status-run', 'status-evolution', 'status-backlog');
@@ -857,7 +857,8 @@ class ParcPage {
             CONFIG.TABLES.PRODUITS.columns,
             async (formData) => {
                 try {
-                    await updateTableRow('tProduits', index + 2, formData);
+                    // index est déjà l'index 0-based dans le body de la table
+                    await updateTableRow('tProduits', index, formData);
                     showSuccess('Produit modifie avec succes');
                     await this.refresh();
                     return true;
@@ -878,7 +879,8 @@ class ParcPage {
             `Etes-vous sur de vouloir supprimer le produit "${produit.Nom}" ? Cette action est irreversible.`,
             async () => {
                 try {
-                    await deleteTableRow('tProduits', index + 2);
+                    // index est déjà l'index 0-based dans le body de la table
+                    await deleteTableRow('tProduits', index);
                     showSuccess('Produit supprime avec succes');
                     await this.refresh();
                 } catch (error) {
