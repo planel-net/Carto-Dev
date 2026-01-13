@@ -129,7 +129,7 @@
     white-space: nowrap;
 }
 
-/* Ligne des sous-processus - texte horizontal */
+/* Ligne des sous-processus - texte horizontal avec retour à la ligne */
 .process-matrix-table thead tr:nth-child(2) th {
     background: var(--mh-bleu-clair);
     color: var(--mh-blanc);
@@ -137,17 +137,20 @@
     padding: var(--spacing-xs) var(--spacing-sm);
     text-align: center;
     border: 1px solid rgba(255, 255, 255, 0.2);
-    font-size: 11px;
-    min-width: 100px;
-    max-width: 150px;
+    font-size: 10px;
+    min-width: 70px;
+    max-width: 100px;
+    line-height: 1.2;
+    vertical-align: middle;
 }
 
-/* Texte dans les sous-processus */
+/* Texte dans les sous-processus - retour à la ligne autorisé */
 .process-matrix-table thead tr:nth-child(2) th .subprocess-label {
     display: block;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: normal;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
 }
 
 /* Colonnes fixes (Produit et Type) */
@@ -226,8 +229,8 @@ thead tr:nth-child(2) .matrix-col-fixed {
 
 /* Cellules de croisement Processus/Produit */
 .matrix-cell {
-    min-width: 100px;
-    max-width: 150px;
+    min-width: 70px;
+    max-width: 100px;
     height: 36px;
     cursor: pointer;
     transition: all var(--transition-fast);
