@@ -1322,8 +1322,10 @@ class MigrationPage {
 
     /**
      * Dessine les lignes de connexion du graphique de lineage
+     * @param {Array} relations - Les relations à dessiner
+     * @param {number} delay - Délai en ms avant de dessiner (défaut: 100ms, utiliser 400ms pour les modales)
      */
-    drawLineageConnections(relations) {
+    drawLineageConnections(relations, delay = 100) {
         setTimeout(() => {
             const svg = document.getElementById('lineageConnections');
             const body = document.getElementById('lineageGraphBody');
@@ -1362,7 +1364,7 @@ class MigrationPage {
             });
 
             svg.innerHTML = pathsHtml;
-        }, 100);
+        }, delay);
     }
 
     /**
@@ -1406,9 +1408,9 @@ class MigrationPage {
             ]
         });
 
-        // Dessiner les lignes de connexion après que le DOM soit prêt
+        // Dessiner les lignes de connexion après que le DOM soit prêt (délai plus long pour la modale)
         if (relations.length > 0) {
-            this.drawLineageConnections(relations);
+            this.drawLineageConnections(relations, 400);
         }
     }
 
