@@ -6,7 +6,7 @@
 const CONFIG = {
     // Nom de l'application
     APP_NAME: 'Carto',
-    APP_VERSION: '1.0.22',
+    APP_VERSION: '1.0.23',
 
     // Noms des feuilles spéciales
     SHEETS: {
@@ -157,7 +157,9 @@ const CONFIG = {
                 { field: 'Processus', label: 'Processus', type: 'select', source: 'PROCESSUS', sourceField: 'Processus' },
                 { field: 'Périmètre', label: 'Périmètre', type: 'select', source: 'PERIMETRES', sourceField: 'Périmetre' },
                 { field: 'Phase', label: 'Phase', type: 'text' },
-                { field: 'Sprint', label: 'Sprint', type: 'select', source: 'SPRINTS', sourceField: 'Sprint' }
+                { field: 'Sprint début', label: 'Sprint début', type: 'select', source: 'SPRINTS', sourceField: 'Sprint' },
+                { field: 'Sprint fin', label: 'Sprint fin', type: 'select', source: 'SPRINTS', sourceField: 'Sprint' },
+                { field: 'Couleur', label: 'Couleur', type: 'color' }
             ]
         },
         SPRINTS: {
@@ -231,7 +233,8 @@ const CONFIG = {
         FONCTIONNEL: [
             { id: 'migration', label: 'Cartographie', icon: '&#128640;', page: 'migration' },
             { id: 'parc', label: 'Parc Applicatif', icon: '&#128202;', page: 'parc' },
-            { id: 'roadmap', label: 'Roadmap', icon: '&#128197;', page: 'roadmap' }
+            { id: 'roadmap-gantt', label: 'Roadmap', icon: '&#128197;', page: 'roadmap-gantt' },
+            { id: 'roadmap', label: 'Backlog', icon: '&#128203;', page: 'roadmap' }
         ],
         PARAMETRES: [
             { id: 'flux', label: 'Flux Migration', icon: '&#128640;', table: 'FLUX' },

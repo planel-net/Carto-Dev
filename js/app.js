@@ -203,6 +203,10 @@ async function navigateTo(page, table = null) {
 
         // Rendre la page appropriée
         switch (page) {
+            case 'roadmap-gantt':
+                await renderRoadmapGanttPage(container);
+                break;
+
             case 'migration':
                 await renderMigrationPage(container);
                 break;
@@ -255,7 +259,8 @@ function updatePageTitle(page, table) {
     const titles = {
         migration: 'Cartographie',
         parc: 'Parc Applicatif',
-        roadmap: 'Roadmap'
+        'roadmap-gantt': 'Roadmap',
+        roadmap: 'Backlog'
     };
 
     if (page === 'params' && table) {
@@ -299,6 +304,9 @@ async function refreshCurrentPage() {
 
         // Rafraîchir selon la page
         switch (AppState.currentPage) {
+            case 'roadmap-gantt':
+                await refreshRoadmapGanttPage();
+                break;
             case 'migration':
                 await refreshMigrationPage();
                 break;
