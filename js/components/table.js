@@ -288,6 +288,12 @@ class DataTable {
             return '<span class="text-muted">-</span>';
         }
 
+        // Formatage special pour les acteurs (Responsable, Backup, etc.)
+        if (col.source === 'ACTEURS' || col.field === 'Responsable' || col.field === 'Backup' || col.field === 'Acteur') {
+            const formattedName = formatActorNameSync(value);
+            return `<span title="${escapeHtml(String(value))}">${escapeHtml(formattedName)}</span>`;
+        }
+
         switch (col.type) {
             case 'date':
                 return formatDate(value);

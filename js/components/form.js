@@ -186,23 +186,48 @@ async function loadDynamicSelectOptions(form) {
             const field = sourceField || tableConfig.columns[0]?.field;
 
             try {
-                const values = await getUniqueValues(tableConfig.name, field);
+                // Pour les acteurs, charger les donnees completes pour formater les noms
+                if (source === 'ACTEURS') {
+                    const result = await readTable(tableConfig.name);
+                    const acteurs = result.data || [];
 
-                // Conserver la première option (placeholder)
-                const placeholder = select.options[0];
-                select.innerHTML = '';
-                select.appendChild(placeholder);
+                    // Conserver la premiere option (placeholder)
+                    const placeholder = select.options[0];
+                    select.innerHTML = '';
+                    select.appendChild(placeholder);
 
-                // Ajouter les options
-                values.forEach(val => {
-                    const option = document.createElement('option');
-                    option.value = val;
-                    option.textContent = val;
-                    if (val === currentValue) {
-                        option.selected = true;
-                    }
-                    select.appendChild(option);
-                });
+                    // Ajouter les options avec nom formate
+                    acteurs.forEach(acteur => {
+                        const val = acteur[field]; // Email
+                        const displayName = formatActorShortName(acteur);
+                        const option = document.createElement('option');
+                        option.value = val;
+                        option.textContent = displayName;
+                        option.title = val; // Afficher l'email au survol
+                        if (val === currentValue) {
+                            option.selected = true;
+                        }
+                        select.appendChild(option);
+                    });
+                } else {
+                    const values = await getUniqueValues(tableConfig.name, field);
+
+                    // Conserver la premiere option (placeholder)
+                    const placeholder = select.options[0];
+                    select.innerHTML = '';
+                    select.appendChild(placeholder);
+
+                    // Ajouter les options
+                    values.forEach(val => {
+                        const option = document.createElement('option');
+                        option.value = val;
+                        option.textContent = val;
+                        if (val === currentValue) {
+                            option.selected = true;
+                        }
+                        select.appendChild(option);
+                    });
+                }
             } catch (error) {
                 console.error(`Erreur chargement options pour ${source}:`, error);
             }

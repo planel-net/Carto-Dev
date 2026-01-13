@@ -401,3 +401,93 @@ function stringToColor(text) {
 
     return colors[Math.abs(hash) % colors.length];
 }
+
+// Cache global pour les acteurs (pour éviter de recharger à chaque fois)
+let _actorsCache = null;
+
+/**
+ * Charge et met en cache les acteurs
+ * @returns {Promise<Array>} Liste des acteurs
+ */
+async function loadActorsCache() {
+    if (_actorsCache === null) {
+        try {
+            const result = await readTable('tActeurs');
+            _actorsCache = result.data || [];
+        } catch (error) {
+            console.error('Erreur chargement acteurs:', error);
+            _actorsCache = [];
+        }
+    }
+    return _actorsCache;
+}
+
+/**
+ * Invalide le cache des acteurs
+ */
+function invalidateActorsCache() {
+    _actorsCache = null;
+}
+
+/**
+ * Formate le nom d'un acteur: "Prénom N."
+ * @param {string} email - Email de l'acteur
+ * @param {Array} acteurs - Liste des acteurs (optionnel, utilise le cache sinon)
+ * @returns {string} Nom formaté ou email si non trouvé
+ */
+function formatActorName(email, acteurs = null) {
+    if (!email) return '-';
+
+    // Utiliser le cache si disponible et pas de liste fournie
+    const actorsList = acteurs || _actorsCache || [];
+
+    // Chercher l'acteur par email
+    const actor = actorsList.find(a => a.Mail === email);
+
+    if (actor && actor['Prénom'] && actor['Nom']) {
+        const prenom = actor['Prénom'];
+        const nomInitial = actor['Nom'].charAt(0).toUpperCase();
+        return `${prenom} ${nomInitial}.`;
+    }
+
+    // Si l'acteur n'est pas trouvé, retourner l'email
+    return email;
+}
+
+/**
+ * Formate le nom d'un acteur de manière synchrone (pour les templates)
+ * Si le cache n'est pas chargé, retourne l'email
+ * @param {string} email - Email de l'acteur
+ * @returns {string} Nom formaté ou email
+ */
+function formatActorNameSync(email) {
+    return formatActorName(email, _actorsCache);
+}
+
+/**
+ * Formate le nom complet d'un acteur: "Prénom Nom"
+ * @param {Object} actor - Objet acteur avec Prénom et Nom
+ * @returns {string} Nom complet formaté
+ */
+function formatActorFullName(actor) {
+    if (!actor) return '-';
+    if (actor['Prénom'] && actor['Nom']) {
+        return `${actor['Prénom']} ${actor['Nom']}`;
+    }
+    return actor.Mail || '-';
+}
+
+/**
+ * Formate un acteur pour l'affichage abrégé à partir d'un objet
+ * @param {Object} actor - Objet acteur avec Prénom et Nom
+ * @returns {string} Nom abrégé "Prénom N."
+ */
+function formatActorShortName(actor) {
+    if (!actor) return '-';
+    if (actor['Prénom'] && actor['Nom']) {
+        const prenom = actor['Prénom'];
+        const nomInitial = actor['Nom'].charAt(0).toUpperCase();
+        return `${prenom} ${nomInitial}.`;
+    }
+    return actor.Mail || '-';
+}

@@ -137,6 +137,11 @@ async function initializeApp() {
         // Attacher les événements des boutons header
         attachHeaderEvents();
 
+        // Charger le cache des acteurs pour le formatage des noms
+        console.log('[App] Loading actors cache...');
+        await loadActorsCache();
+        console.log('[App] Actors cache loaded');
+
         // Skip Excel check - go directly to loading page
         // (Excel availability will be checked when loading data)
         console.log('[App] Skipping Excel check, loading page directly...');
@@ -287,6 +292,10 @@ async function refreshCurrentPage() {
     try {
         // Invalider le cache
         invalidateCache();
+
+        // Recharger le cache des acteurs
+        invalidateActorsCache();
+        await loadActorsCache();
 
         // Rafraîchir selon la page
         switch (AppState.currentPage) {

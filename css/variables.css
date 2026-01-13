@@ -22,6 +22,12 @@
     --status-non-migre: #DC3545;
     --status-bloque: #6C757D;
 
+    /* Couleurs pastel pour la matrice Processus-Produit */
+    --process-run: #C8E6C9;           /* Vert pastel */
+    --process-evolution: #F8BBD9;      /* Rose pastel */
+    --process-backlog: #B2EBF2;        /* Cyan pastel */
+    --process-empty: transparent;
+
     /* Couleurs pour les graphiques */
     --chart-primary: #0066CC;
     --chart-secondary: #FF6600;

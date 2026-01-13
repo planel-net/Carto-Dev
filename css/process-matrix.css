@@ -1,0 +1,356 @@
+/* ===========================================
+   PROCESS MATRIX CSS - Vue matricielle Processus/Produits
+   Application Carto
+   =========================================== */
+
+/* Container principal de la matrice */
+.process-matrix-container {
+    width: 100%;
+    overflow: auto;
+    background: var(--mh-blanc);
+    border-radius: var(--border-radius-md);
+    box-shadow: var(--shadow-sm);
+}
+
+/* Barre de filtres */
+.matrix-filters {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md);
+    background: var(--mh-gris-clair);
+    border-bottom: 1px solid #dee2e6;
+    flex-wrap: wrap;
+}
+
+.matrix-filter-group {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.matrix-filter-group label {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--mh-gris-fonce);
+    white-space: nowrap;
+}
+
+.matrix-filter-group select {
+    padding: 6px 12px;
+    border: 1px solid #dee2e6;
+    border-radius: var(--border-radius-sm);
+    font-size: var(--font-size-sm);
+    background: var(--mh-blanc);
+    min-width: 150px;
+}
+
+.matrix-filter-group select:focus {
+    outline: none;
+    border-color: var(--mh-bleu-clair);
+    box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.2);
+}
+
+/* Legende des couleurs */
+.matrix-legend {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    margin-left: auto;
+    padding-left: var(--spacing-md);
+    border-left: 1px solid #dee2e6;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    font-size: var(--font-size-sm);
+}
+
+.legend-color {
+    width: 20px;
+    height: 20px;
+    border-radius: var(--border-radius-sm);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.legend-color.run { background-color: var(--process-run); }
+.legend-color.evolution { background-color: var(--process-evolution); }
+.legend-color.backlog { background-color: var(--process-backlog); }
+
+/* Table matricielle */
+.process-matrix-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+/* En-tete de la matrice */
+.process-matrix-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.process-matrix-table thead tr:first-child th {
+    background: var(--mh-bleu-fonce);
+    color: var(--mh-blanc);
+    font-weight: 600;
+    padding: var(--spacing-sm) var(--spacing-xs);
+    text-align: center;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    font-size: var(--font-size-sm);
+}
+
+.process-matrix-table thead tr:nth-child(2) th {
+    background: var(--mh-bleu-clair);
+    color: var(--mh-blanc);
+    font-weight: 500;
+    padding: var(--spacing-xs);
+    text-align: center;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    font-size: var(--font-size-xs);
+}
+
+/* Colonnes fixes (Produit et Type) */
+.matrix-col-fixed {
+    position: sticky;
+    left: 0;
+    z-index: 5;
+    background: var(--mh-blanc);
+}
+
+.matrix-col-product {
+    width: 250px;
+    min-width: 250px;
+    text-align: left !important;
+    padding-left: var(--spacing-md) !important;
+}
+
+.matrix-col-type {
+    width: 150px;
+    min-width: 150px;
+    left: 250px;
+    text-align: left !important;
+}
+
+/* Header fixe pour colonnes Produit et Type */
+thead .matrix-col-fixed {
+    background: var(--mh-bleu-fonce) !important;
+}
+
+thead tr:nth-child(2) .matrix-col-fixed {
+    background: var(--mh-bleu-clair) !important;
+}
+
+/* Corps de la matrice */
+.process-matrix-table tbody tr {
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.process-matrix-table tbody tr:hover {
+    background-color: rgba(0, 102, 204, 0.05);
+}
+
+.process-matrix-table tbody td {
+    padding: var(--spacing-xs);
+    text-align: center;
+    border: 1px solid #f0f0f0;
+    vertical-align: middle;
+}
+
+.process-matrix-table tbody td.matrix-col-fixed {
+    background: var(--mh-blanc);
+    font-size: var(--font-size-sm);
+}
+
+.process-matrix-table tbody tr:hover td.matrix-col-fixed {
+    background-color: rgba(0, 102, 204, 0.05);
+}
+
+/* Nom du produit dans la cellule */
+.product-name {
+    font-weight: 500;
+    color: var(--mh-gris-fonce);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 230px;
+}
+
+.product-type {
+    font-size: var(--font-size-xs);
+    color: var(--mh-gris-moyen);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Cellules de croisement Processus/Produit */
+.matrix-cell {
+    width: 80px;
+    min-width: 80px;
+    height: 36px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    position: relative;
+}
+
+.matrix-cell:hover {
+    box-shadow: inset 0 0 0 2px var(--mh-bleu-clair);
+}
+
+.matrix-cell.selected {
+    box-shadow: inset 0 0 0 3px var(--mh-orange);
+}
+
+/* Couleurs des cellules selon le statut */
+.matrix-cell.status-run {
+    background-color: var(--process-run);
+}
+
+.matrix-cell.status-evolution {
+    background-color: var(--process-evolution);
+}
+
+.matrix-cell.status-backlog {
+    background-color: var(--process-backlog);
+}
+
+.matrix-cell.status-empty {
+    background-color: var(--mh-blanc);
+}
+
+/* Indicateur dans les cellules avec statut */
+.matrix-cell-indicator {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Popup de selection de statut */
+.matrix-status-popup {
+    position: fixed;
+    background: var(--mh-blanc);
+    border-radius: var(--border-radius-md);
+    box-shadow: var(--shadow-lg);
+    z-index: var(--z-popover);
+    padding: var(--spacing-sm);
+    min-width: 150px;
+}
+
+.matrix-status-popup-title {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--mh-gris-fonce);
+    margin-bottom: var(--spacing-sm);
+    padding-bottom: var(--spacing-xs);
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.matrix-status-option {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm);
+    border-radius: var(--border-radius-sm);
+    cursor: pointer;
+    transition: background var(--transition-fast);
+}
+
+.matrix-status-option:hover {
+    background: var(--mh-gris-clair);
+}
+
+.matrix-status-option .status-color {
+    width: 16px;
+    height: 16px;
+    border-radius: var(--border-radius-sm);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.matrix-status-option .status-color.run { background-color: var(--process-run); }
+.matrix-status-option .status-color.evolution { background-color: var(--process-evolution); }
+.matrix-status-option .status-color.backlog { background-color: var(--process-backlog); }
+
+.matrix-status-option span {
+    font-size: var(--font-size-sm);
+}
+
+/* Actions pour la selection multiple */
+.matrix-selection-actions {
+    position: fixed;
+    bottom: var(--spacing-lg);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--mh-blanc);
+    border-radius: var(--border-radius-md);
+    box-shadow: var(--shadow-lg);
+    padding: var(--spacing-md);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    z-index: var(--z-popover);
+}
+
+.matrix-selection-actions.hidden {
+    display: none;
+}
+
+.selection-count {
+    font-size: var(--font-size-sm);
+    color: var(--mh-gris-moyen);
+}
+
+.selection-count strong {
+    color: var(--mh-bleu-fonce);
+}
+
+/* Boutons d'action de selection */
+.matrix-selection-actions .btn {
+    padding: var(--spacing-xs) var(--spacing-md);
+    font-size: var(--font-size-sm);
+}
+
+/* Responsive - scroll horizontal */
+@media (max-width: 1200px) {
+    .matrix-col-product {
+        width: 180px;
+        min-width: 180px;
+    }
+
+    .matrix-col-type {
+        width: 120px;
+        min-width: 120px;
+        left: 180px;
+    }
+
+    .product-name {
+        max-width: 160px;
+    }
+}
+
+/* Animation pour les cellules */
+@keyframes cellHighlight {
+    0% { box-shadow: inset 0 0 0 0 var(--mh-orange); }
+    50% { box-shadow: inset 0 0 0 3px var(--mh-orange); }
+    100% { box-shadow: inset 0 0 0 0 var(--mh-orange); }
+}
+
+.matrix-cell.just-updated {
+    animation: cellHighlight 0.6s ease;
+}
+
+/* Message quand aucun produit */
+.matrix-empty-message {
+    padding: var(--spacing-xl);
+    text-align: center;
+    color: var(--mh-gris-moyen);
+}
+
+.matrix-empty-message p {
+    margin-bottom: var(--spacing-sm);
+}

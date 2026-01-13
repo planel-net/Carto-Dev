@@ -6,7 +6,7 @@
 const CONFIG = {
     // Nom de l'application
     APP_NAME: 'Carto',
-    APP_VERSION: '1.0.5',
+    APP_VERSION: '1.0.8',
 
     // Noms des feuilles spéciales
     SHEETS: {
@@ -95,7 +95,7 @@ const CONFIG = {
                 { field: 'PB migration', label: 'Problème migration', type: 'text' },
                 { field: 'Extraction PBI possible / oui', label: 'Extraction PBI possible', type: 'select', options: ['Oui', 'Non'] },
                 { field: 'Enjeux', label: 'Enjeux', type: 'textarea' },
-                { field: 'Statut', label: 'Statut', type: 'text' }
+                { field: 'Statut', label: 'Statut', type: 'select', options: ['Run', 'Evolution', 'Backlog', ''] }
             ]
         },
         PROCESSUS: {
@@ -203,6 +203,13 @@ const CONFIG = {
         EN_COURS: { value: 'En cours', color: '#FFC107', label: 'En cours' },
         NON_MIGRE: { value: 'Non migré', color: '#DC3545', label: 'Non migré' },
         BLOQUE: { value: 'Bloqué', color: '#6C757D', label: 'Bloqué' }
+    },
+
+    // Options de statut Produit-Processus (couleurs pastel)
+    PROCESS_STATUS: {
+        RUN: { value: 'Run', color: '#C8E6C9', label: 'Run' },           // Vert pastel
+        EVOLUTION: { value: 'Evolution', color: '#F8BBD9', label: 'Evolution' }, // Rose pastel
+        BACKLOG: { value: 'Backlog', color: '#B2EBF2', label: 'Backlog' }  // Cyan pastel
     },
 
     // Capacité par défaut (jours par sprint par acteur)
