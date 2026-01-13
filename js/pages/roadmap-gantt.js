@@ -13,7 +13,7 @@ class RoadmapGanttPage {
         this.processus = [];
         this.perimetres = [];
         this.produits = [];
-        this.processusGroups = {}; // Groupement par processus -> périmètres
+        this.columns = []; // Structure: [{processus, perimetre, produit}, ...]
     }
 
     /**
@@ -77,8 +77,8 @@ class RoadmapGanttPage {
             this.perimetres = perimetresData.data || [];
             this.produits = produitsData.data || [];
 
-            // Construire les groupes processus -> périmètres
-            this.buildProcessusGroups();
+            // Construire les colonnes (Processus -> Périmètre -> Produit)
+            this.buildColumns();
 
             // Rendre le Gantt
             this.renderGantt();
@@ -90,25 +90,30 @@ class RoadmapGanttPage {
     }
 
     /**
-     * Construit les groupes de processus avec leurs périmètres
+     * Construit les colonnes (Processus -> Périmètre -> Produit)
      */
-    buildProcessusGroups() {
-        this.processusGroups = {};
+    buildColumns() {
+        this.columns = [];
+        const seen = new Set();
 
-        // Collecter tous les processus et périmètres uniques depuis le backlog
+        // Collecter toutes les combinaisons uniques depuis le backlog
         this.backlog.forEach(item => {
             const proc = item.Processus || 'Non défini';
             const perim = item['Périmètre'] || 'Non défini';
+            const produit = item.Produit || 'Non défini';
+            const key = `${proc}|${perim}|${produit}`;
 
-            if (!this.processusGroups[proc]) {
-                this.processusGroups[proc] = new Set();
+            if (!seen.has(key)) {
+                seen.add(key);
+                this.columns.push({ processus: proc, perimetre: perim, produit: produit });
             }
-            this.processusGroups[proc].add(perim);
         });
 
-        // Convertir les Sets en Arrays triés
-        Object.keys(this.processusGroups).forEach(proc => {
-            this.processusGroups[proc] = Array.from(this.processusGroups[proc]).sort();
+        // Trier par processus, puis périmètre, puis produit
+        this.columns.sort((a, b) => {
+            if (a.processus !== b.processus) return a.processus.localeCompare(b.processus);
+            if (a.perimetre !== b.perimetre) return a.perimetre.localeCompare(b.perimetre);
+            return a.produit.localeCompare(b.produit);
         });
     }
 
@@ -153,9 +158,8 @@ class RoadmapGanttPage {
         if (!container) return;
 
         const sortedSprints = this.getSortedSprints();
-        const processusKeys = Object.keys(this.processusGroups).sort();
 
-        if (processusKeys.length === 0 || sortedSprints.length === 0) {
+        if (this.columns.length === 0 || sortedSprints.length === 0) {
             container.innerHTML = `
                 <div class="empty-state">
                     <div class="empty-state-icon">&#128197;</div>
@@ -166,20 +170,11 @@ class RoadmapGanttPage {
             return;
         }
 
-        // Construire la structure de colonnes (Processus -> Périmètres)
-        let columnsHtml = '';
-        let subColumnsHtml = '';
-        let totalColumns = 0;
+        // Construire les 3 lignes d'en-tête (Processus, Périmètre, Produit)
+        const { processusRow, perimetreRow, produitRow } = this.buildHeaderRows();
 
-        processusKeys.forEach(proc => {
-            const perims = this.processusGroups[proc];
-            const colspan = perims.length;
-            totalColumns += colspan;
-            columnsHtml += `<th class="gantt-process-header" colspan="${colspan}">${escapeHtml(proc)}</th>`;
-            perims.forEach(perim => {
-                subColumnsHtml += `<th class="gantt-perim-header">${escapeHtml(perim)}</th>`;
-            });
-        });
+        // Précalculer les cellules occupées (pour le rowspan des phases multi-sprints)
+        const cellsOccupied = this.buildCellsOccupied(sortedSprints);
 
         // Construire les lignes (Sprints)
         let rowsHtml = '';
@@ -213,24 +208,25 @@ class RoadmapGanttPage {
             // Colonne Sprint
             rowsHtml += `<td class="gantt-sprint-cell">${escapeHtml(sprintName)}</td>`;
 
-            // Cellules pour chaque processus/périmètre
-            processusKeys.forEach(proc => {
-                const perims = this.processusGroups[proc];
-                perims.forEach(perim => {
-                    // Trouver les items du backlog pour ce processus/périmètre/sprint
-                    const items = this.backlog.filter(item =>
-                        item.Processus === proc &&
-                        item['Périmètre'] === perim &&
-                        this.isInSprint(item, sprintName)
-                    );
+            // Cellules pour chaque colonne (processus/périmètre/produit)
+            this.columns.forEach((col, colIndex) => {
+                const cellKey = `${sprintIndex}-${colIndex}`;
 
-                    if (items.length > 0) {
-                        const cellContent = items.map(item => this.renderPhaseBlock(item)).join('');
-                        rowsHtml += `<td class="gantt-data-cell">${cellContent}</td>`;
-                    } else {
-                        rowsHtml += '<td class="gantt-data-cell"></td>';
-                    }
-                });
+                // Si cette cellule est occupée par un rowspan précédent, on skip
+                if (cellsOccupied.skipped.has(cellKey)) {
+                    return;
+                }
+
+                // Récupérer les infos de la cellule
+                const cellInfo = cellsOccupied.cells.get(cellKey);
+
+                if (cellInfo) {
+                    const { item, rowspan } = cellInfo;
+                    const rowspanAttr = rowspan > 1 ? ` rowspan="${rowspan}"` : '';
+                    rowsHtml += `<td class="gantt-data-cell"${rowspanAttr}>${this.renderPhaseBlock(item, rowspan)}</td>`;
+                } else {
+                    rowsHtml += '<td class="gantt-data-cell"></td>';
+                }
             });
 
             rowsHtml += '</tr>';
@@ -241,14 +237,15 @@ class RoadmapGanttPage {
             <table class="roadmap-gantt-table">
                 <thead>
                     <tr class="gantt-header-row">
-                        <th class="gantt-fixed-col gantt-month-header">Mois</th>
-                        <th class="gantt-fixed-col gantt-sprint-header">Sprint</th>
-                        ${columnsHtml}
+                        <th class="gantt-fixed-col gantt-month-header" rowspan="3">Mois</th>
+                        <th class="gantt-fixed-col gantt-sprint-header" rowspan="3">Sprint</th>
+                        ${processusRow}
                     </tr>
                     <tr class="gantt-subheader-row">
-                        <th class="gantt-fixed-col"></th>
-                        <th class="gantt-fixed-col"></th>
-                        ${subColumnsHtml}
+                        ${perimetreRow}
+                    </tr>
+                    <tr class="gantt-produit-row">
+                        ${produitRow}
                     </tr>
                 </thead>
                 <tbody>
@@ -259,6 +256,96 @@ class RoadmapGanttPage {
 
         // Attacher les événements sur les blocs de phase
         this.attachPhaseBlockEvents();
+    }
+
+    /**
+     * Construit les lignes d'en-tête (Processus, Périmètre, Produit)
+     */
+    buildHeaderRows() {
+        let processusRow = '';
+        let perimetreRow = '';
+        let produitRow = '';
+
+        // Grouper par processus
+        const processusGroups = {};
+        this.columns.forEach((col, index) => {
+            if (!processusGroups[col.processus]) {
+                processusGroups[col.processus] = [];
+            }
+            processusGroups[col.processus].push({ ...col, index });
+        });
+
+        // Grouper par processus+périmètre
+        const perimetreGroups = {};
+        this.columns.forEach((col, index) => {
+            const key = `${col.processus}|${col.perimetre}`;
+            if (!perimetreGroups[key]) {
+                perimetreGroups[key] = [];
+            }
+            perimetreGroups[key].push({ ...col, index });
+        });
+
+        // Construire la ligne Processus
+        Object.keys(processusGroups).forEach(proc => {
+            const cols = processusGroups[proc];
+            processusRow += `<th class="gantt-process-header" colspan="${cols.length}">${escapeHtml(proc)}</th>`;
+        });
+
+        // Construire la ligne Périmètre
+        Object.keys(perimetreGroups).forEach(key => {
+            const cols = perimetreGroups[key];
+            const perim = cols[0].perimetre;
+            perimetreRow += `<th class="gantt-perim-header" colspan="${cols.length}">${escapeHtml(perim)}</th>`;
+        });
+
+        // Construire la ligne Produit
+        this.columns.forEach(col => {
+            produitRow += `<th class="gantt-produit-header">${escapeHtml(col.produit)}</th>`;
+        });
+
+        return { processusRow, perimetreRow, produitRow };
+    }
+
+    /**
+     * Précalcule les cellules occupées pour gérer les rowspans
+     */
+    buildCellsOccupied(sortedSprints) {
+        const cells = new Map(); // cellKey -> { item, rowspan }
+        const skipped = new Set(); // cellKeys à ignorer (occupés par rowspan)
+
+        // Pour chaque item du backlog, déterminer sa position et son rowspan
+        this.backlog.forEach(item => {
+            const colIndex = this.columns.findIndex(col =>
+                col.processus === (item.Processus || 'Non défini') &&
+                col.perimetre === (item['Périmètre'] || 'Non défini') &&
+                col.produit === (item.Produit || 'Non défini')
+            );
+
+            if (colIndex === -1) return;
+
+            const sprintDebut = item['Sprint début'];
+            const sprintFin = item['Sprint fin'] || sprintDebut;
+
+            const startIndex = sortedSprints.findIndex(s => s.Sprint === sprintDebut);
+            const endIndex = sortedSprints.findIndex(s => s.Sprint === sprintFin);
+
+            if (startIndex === -1) return;
+
+            const actualEndIndex = endIndex === -1 ? startIndex : endIndex;
+            const rowspan = actualEndIndex - startIndex + 1;
+
+            const cellKey = `${startIndex}-${colIndex}`;
+
+            // Enregistrer la cellule de départ
+            cells.set(cellKey, { item, rowspan });
+
+            // Marquer les cellules suivantes comme "skipped"
+            for (let i = startIndex + 1; i <= actualEndIndex; i++) {
+                skipped.add(`${i}-${colIndex}`);
+            }
+        });
+
+        return { cells, skipped };
     }
 
     /**
@@ -289,16 +376,16 @@ class RoadmapGanttPage {
     }
 
     /**
-     * Rendu d'un bloc de phase
+     * Rendu d'un bloc de phase (pleine largeur)
      */
-    renderPhaseBlock(item) {
+    renderPhaseBlock(item, rowspan = 1) {
         const phase = item.Phase || 'Sans phase';
         const produit = item.Produit || '';
         const color = item.Couleur || this.getDefaultColor(phase);
         const backlogIndex = this.backlog.indexOf(item);
 
         return `
-            <div class="gantt-phase-block"
+            <div class="gantt-phase-block gantt-phase-fullwidth"
                  data-backlog-index="${backlogIndex}"
                  style="background-color: ${escapeHtml(color)};"
                  title="${escapeHtml(produit)} - ${escapeHtml(phase)}">
