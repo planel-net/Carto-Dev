@@ -56,12 +56,7 @@ function openFullScreenApp() {
 
     Office.context.ui.displayDialogAsync(
         dialogUrl,
-        {
-            height: 100,
-            width: 100,
-            displayInIframe: false,
-            promptBeforeOpen: false
-        },
+        { height: 80, width: 80 },
         (result) => {
             if (result.status === Office.AsyncResultStatus.Succeeded) {
                 dialog = result.value;
