@@ -333,3 +333,127 @@ function showViewModal(title, content) {
         showFooter: false
     }).show();
 }
+
+// Instance de la modale active (pour showModal/closeModal)
+let _activeModal = null;
+
+/**
+ * Affiche une modale générique avec des options flexibles
+ * @param {Object} options - Options de la modale
+ * @param {string} options.title - Titre de la modale
+ * @param {string} options.content - Contenu HTML
+ * @param {string} options.size - Taille ('sm', 'md', 'lg', 'xl')
+ * @param {Array} options.buttons - Boutons personnalisés
+ */
+function showModal(options) {
+    const { title, content, size = 'md', buttons = [] } = options;
+
+    // Créer la modale
+    const modalId = 'modal_' + generateId();
+    const container = document.getElementById('modalContainer') || document.body;
+
+    // Créer le backdrop
+    const backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop';
+    backdrop.id = modalId + '_backdrop';
+
+    // Créer la modale
+    const modal = document.createElement('div');
+    modal.className = `modal modal-${size}`;
+    modal.id = modalId;
+
+    // Générer le footer avec les boutons
+    let footerHtml = '';
+    if (buttons.length > 0) {
+        footerHtml = '<div class="modal-footer">';
+        buttons.forEach((btn, index) => {
+            footerHtml += `<button class="btn ${btn.class || 'btn-secondary'}" data-action-index="${index}">${escapeHtml(btn.label)}</button>`;
+        });
+        footerHtml += '</div>';
+    }
+
+    modal.innerHTML = `
+        <div class="modal-header">
+            <h3>${escapeHtml(title)}</h3>
+            <button class="modal-close" aria-label="Fermer">&times;</button>
+        </div>
+        <div class="modal-body">
+            ${content}
+        </div>
+        ${footerHtml}
+    `;
+
+    // Ajouter au DOM
+    container.appendChild(backdrop);
+    container.appendChild(modal);
+
+    // Animation d'ouverture
+    requestAnimationFrame(() => {
+        backdrop.classList.add('show');
+        modal.classList.add('show');
+    });
+
+    // Stocker la référence
+    _activeModal = { modal, backdrop, buttons };
+
+    // Attacher les événements
+    backdrop.addEventListener('click', () => closeModal());
+    modal.querySelector('.modal-close').addEventListener('click', () => closeModal());
+
+    // Événements des boutons
+    buttons.forEach((btn, index) => {
+        const btnEl = modal.querySelector(`[data-action-index="${index}"]`);
+        if (btnEl) {
+            btnEl.addEventListener('click', async () => {
+                if (btn.action === 'close') {
+                    closeModal();
+                } else if (typeof btn.action === 'function') {
+                    try {
+                        btnEl.disabled = true;
+                        await btn.action();
+                    } catch (error) {
+                        console.error('Erreur action bouton:', error);
+                        showError('Erreur: ' + error.message);
+                    } finally {
+                        if (btnEl) btnEl.disabled = false;
+                    }
+                }
+            });
+        }
+    });
+
+    // Fermeture sur Escape
+    const escapeHandler = (e) => {
+        if (e.key === 'Escape') {
+            closeModal();
+            document.removeEventListener('keydown', escapeHandler);
+        }
+    };
+    document.addEventListener('keydown', escapeHandler);
+
+    return { modal, backdrop };
+}
+
+/**
+ * Ferme la modale active
+ */
+function closeModal() {
+    if (!_activeModal) return;
+
+    const { modal, backdrop } = _activeModal;
+
+    // Animation de fermeture
+    if (backdrop) backdrop.classList.remove('show');
+    if (modal) modal.classList.remove('show');
+
+    // Supprimer du DOM après animation
+    setTimeout(() => {
+        if (backdrop && backdrop.parentNode) {
+            backdrop.parentNode.removeChild(backdrop);
+        }
+        if (modal && modal.parentNode) {
+            modal.parentNode.removeChild(modal);
+        }
+        _activeModal = null;
+    }, 300);
+}

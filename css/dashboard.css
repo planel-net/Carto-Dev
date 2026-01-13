@@ -997,3 +997,31 @@
 .text-danger {
     color: var(--mh-rouge-erreur);
 }
+
+/* ===========================================
+   KPI HEADER ROW WITH CLEAR FILTER BUTTON
+   =========================================== */
+
+.kpi-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-sm);
+}
+
+.kpi-header-row .btn {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+#btnClearFilter {
+    background-color: var(--mh-orange);
+    color: white;
+    border-color: var(--mh-orange);
+}
+
+#btnClearFilter:hover {
+    background-color: #e65c00;
+    border-color: #e65c00;
+}

@@ -115,6 +115,31 @@ class MigrationPage {
     }
 
     /**
+     * Réinitialise le filtre des KPIs
+     */
+    clearFilter() {
+        this.filteredStats = null;
+        this.selectedProduitIndex = null;
+
+        // Réinitialiser le select
+        const selectProduit = document.getElementById('selectProduit');
+        if (selectProduit) {
+            selectProduit.value = '';
+        }
+
+        // Réinitialiser la vue des dépendances
+        const dependencyView = document.getElementById('dependencyView');
+        if (dependencyView) {
+            dependencyView.innerHTML = '<p class="text-muted">Sélectionnez un produit pour voir sa chaîne de dépendances complète.</p>';
+        }
+
+        // Recalculer les KPIs
+        this.renderKpis();
+
+        showSuccess('Filtre réinitialisé');
+    }
+
+    /**
      * Rendu de la page
      */
     async render(container) {
@@ -130,6 +155,12 @@ class MigrationPage {
 
             <!-- KPIs Migration avec flèches -->
             <section class="section">
+                <div class="kpi-header-row">
+                    <span></span>
+                    <button id="btnClearFilter" class="btn btn-sm btn-secondary" style="display: none;">
+                        &#10005; Réinitialiser le filtre
+                    </button>
+                </div>
                 <div class="migration-pipeline" id="migrationKpis">
                     <div class="migration-status-card" id="kpi-tablesmh">
                         <div class="spinner"></div>
@@ -257,6 +288,12 @@ class MigrationPage {
         const stats = this.filteredStats || this.stats;
         const isFiltered = !!this.filteredStats;
         const filterLabel = isFiltered ? ' (filtré)' : '';
+
+        // Afficher/masquer le bouton de réinitialisation du filtre
+        const clearFilterBtn = document.getElementById('btnClearFilter');
+        if (clearFilterBtn) {
+            clearFilterBtn.style.display = isFiltered ? 'inline-block' : 'none';
+        }
 
         // Tables MH Tech
         this.renderKpiCard('kpi-tablesmh', {
@@ -809,7 +846,7 @@ class MigrationPage {
         // Boutons d'expansion
         document.querySelectorAll('.btn-expand').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                const index = parseInt(e.target.dataset.index);
+                const index = parseInt(e.currentTarget.dataset.index);
                 if (this.expandedRows.has(index)) {
                     this.expandedRows.delete(index);
                 } else {
@@ -822,7 +859,7 @@ class MigrationPage {
         // Boutons de lineage
         document.querySelectorAll('.btn-lineage').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                const index = parseInt(e.target.dataset.index);
+                const index = parseInt(e.currentTarget.dataset.index);
                 this.showLineagePopup(index);
             });
         });
@@ -1288,10 +1325,15 @@ class MigrationPage {
                 if (index !== '') {
                     this.showDependencies(parseInt(index));
                 } else {
-                    document.getElementById('dependencyView').innerHTML =
-                        '<p class="text-muted">Sélectionnez un produit pour voir sa chaîne de dépendances.</p>';
+                    this.clearFilter();
                 }
             });
+        }
+
+        // Bouton de réinitialisation du filtre
+        const clearFilterBtn = document.getElementById('btnClearFilter');
+        if (clearFilterBtn) {
+            clearFilterBtn.addEventListener('click', () => this.clearFilter());
         }
     }
 
