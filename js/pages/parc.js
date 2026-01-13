@@ -259,29 +259,31 @@ class ParcPage {
                     </div>
                 </div>
 
-                <!-- Table Matrice -->
-                <table class="process-matrix-table">
-                    <thead>
-                        <!-- Ligne des processus principaux -->
-                        <tr>
-                            <th class="matrix-col-fixed matrix-col-product" rowspan="2">Produit</th>
-                            <th class="matrix-col-fixed matrix-col-type" rowspan="2">Type de rapport</th>
-                            ${this.renderProcessHeaders(structuredProcessus)}
-                        </tr>
-                        <!-- Ligne des sous-processus -->
-                        <tr>
-                            ${this.renderSubProcessHeaders(structuredProcessus)}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${filteredProducts.length > 0 ?
-                            filteredProducts.map(product => this.renderProductRow(product, columns)).join('') :
-                            `<tr><td colspan="${columns.length + 2}" class="matrix-empty-message">
-                                <p>Aucun produit ne correspond aux filtres selectionnes.</p>
-                            </td></tr>`
-                        }
-                    </tbody>
-                </table>
+                <!-- Wrapper avec scroll pour le tableau -->
+                <div class="process-matrix-table-wrapper">
+                    <table class="process-matrix-table">
+                        <thead>
+                            <!-- Ligne des processus principaux -->
+                            <tr>
+                                <th class="matrix-col-fixed matrix-col-product" rowspan="2">Produit</th>
+                                <th class="matrix-col-fixed matrix-col-type" rowspan="2">Type de rapport</th>
+                                ${this.renderProcessHeaders(structuredProcessus)}
+                            </tr>
+                            <!-- Ligne des sous-processus -->
+                            <tr>
+                                ${this.renderSubProcessHeaders(structuredProcessus)}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${filteredProducts.length > 0 ?
+                                filteredProducts.map(product => this.renderProductRow(product, columns)).join('') :
+                                `<tr><td colspan="${columns.length + 2}" class="matrix-empty-message">
+                                    <p>Aucun produit ne correspond aux filtres selectionnes.</p>
+                                </td></tr>`
+                            }
+                        </tbody>
+                    </table>
+                </div>
             </div>
         `;
 

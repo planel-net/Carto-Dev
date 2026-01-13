@@ -66,7 +66,7 @@ class ParamsPage {
      * Affiche le formulaire d'ajout
      */
     showAddForm() {
-        const modal = showFormModal(
+        showFormModal(
             `Ajouter - ${this.tableConfig.displayName}`,
             this.tableConfig.columns,
             async (formData) => {
@@ -81,21 +81,14 @@ class ParamsPage {
                 }
             }
         );
-
-        // Charger les options dynamiques après l'affichage de la modale
-        setTimeout(() => {
-            const form = document.querySelector('.modal form');
-            if (form) {
-                loadDynamicSelectOptions(form);
-            }
-        }, 100);
+        // Note: loadDynamicSelectOptions est appelé par showFormModal
     }
 
     /**
      * Affiche le formulaire de modification
      */
     showEditForm(row, index) {
-        const modal = showFormModal(
+        showFormModal(
             `Modifier - ${this.tableConfig.displayName}`,
             this.tableConfig.columns,
             async (formData) => {
@@ -111,14 +104,7 @@ class ParamsPage {
             },
             row
         );
-
-        // Charger les options dynamiques
-        setTimeout(() => {
-            const form = document.querySelector('.modal form');
-            if (form) {
-                loadDynamicSelectOptions(form);
-            }
-        }, 100);
+        // Note: loadDynamicSelectOptions et setFormData sont appelés par showFormModal
     }
 
     /**

@@ -6,33 +6,41 @@
 /* Container principal de la matrice */
 .process-matrix-container {
     width: 100%;
-    max-height: calc(100vh - 280px);
-    overflow: scroll;
+    display: flex;
+    flex-direction: column;
     background: var(--mh-blanc);
     border-radius: var(--border-radius-md);
     box-shadow: var(--shadow-sm);
+    max-height: calc(100vh - 200px);
 }
 
-/* Scrollbars toujours visibles */
-.process-matrix-container::-webkit-scrollbar {
+/* Wrapper pour le tableau avec scroll */
+.process-matrix-table-wrapper {
+    flex: 1;
+    overflow: auto;
+    min-height: 0; /* Important pour que flex fonctionne avec overflow */
+}
+
+/* Scrollbars toujours visibles sur le wrapper du tableau */
+.process-matrix-table-wrapper::-webkit-scrollbar {
     height: 14px;
     width: 14px;
 }
 
-.process-matrix-container::-webkit-scrollbar-track {
+.process-matrix-table-wrapper::-webkit-scrollbar-track {
     background: #f0f0f0;
 }
 
-.process-matrix-container::-webkit-scrollbar-thumb {
+.process-matrix-table-wrapper::-webkit-scrollbar-thumb {
     background: #bbb;
     border-radius: 4px;
 }
 
-.process-matrix-container::-webkit-scrollbar-thumb:hover {
+.process-matrix-table-wrapper::-webkit-scrollbar-thumb:hover {
     background: #999;
 }
 
-.process-matrix-container::-webkit-scrollbar-corner {
+.process-matrix-table-wrapper::-webkit-scrollbar-corner {
     background: #f0f0f0;
 }
 
