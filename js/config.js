@@ -6,7 +6,7 @@
 const CONFIG = {
     // Nom de l'application
     APP_NAME: 'Carto',
-    APP_VERSION: '1.0.18',
+    APP_VERSION: '1.0.19',
 
     // Noms des feuilles spéciales
     SHEETS: {
@@ -229,21 +229,21 @@ const CONFIG = {
     // Navigation de l'application
     NAVIGATION: {
         FONCTIONNEL: [
-            { id: 'migration', label: 'Migration', icon: '&#128640;', page: 'migration' },
+            { id: 'migration', label: 'Cartographie', icon: '&#128640;', page: 'migration' },
             { id: 'parc', label: 'Parc Applicatif', icon: '&#128202;', page: 'parc' },
             { id: 'roadmap', label: 'Roadmap', icon: '&#128197;', page: 'roadmap' }
         ],
         PARAMETRES: [
             { id: 'acteurs', label: 'Acteurs', icon: '&#128100;', table: 'ACTEURS' },
             { id: 'equipes', label: 'Équipes', icon: '&#128101;', table: 'EQUIPES' },
+            { id: 'tables-mh', label: 'Tables MHTech', icon: '&#128451;', table: 'TABLES_MH' },
             { id: 'shores', label: 'Shores / Golds', icon: '&#128451;', table: 'SHORES' },
             { id: 'projets-dss', label: 'Projets DSS', icon: '&#128194;', table: 'PROJETS_DSS' },
             { id: 'dataflows', label: 'Dataflows', icon: '&#128260;', table: 'DATAFLOWS' },
             { id: 'processus', label: 'Processus', icon: '&#128736;', table: 'PROCESSUS' },
             { id: 'perimetres', label: 'Périmètres', icon: '&#127758;', table: 'PERIMETRES' },
             { id: 'sprints', label: 'Sprints', icon: '&#128197;', table: 'SPRINTS' },
-            { id: 'capacite', label: 'Capacité', icon: '&#128200;', table: 'CAPACITE' },
-            { id: 'tables-mh', label: 'Tables MHTech', icon: '&#128451;', table: 'TABLES_MH' }
+            { id: 'capacite', label: 'Capacité', icon: '&#128200;', table: 'CAPACITE' }
         ]
     },
 

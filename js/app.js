@@ -253,7 +253,7 @@ function updatePageTitle(page, table) {
     if (!pageTitle) return;
 
     const titles = {
-        migration: 'Migration',
+        migration: 'Cartographie',
         parc: 'Parc Applicatif',
         roadmap: 'Roadmap'
     };

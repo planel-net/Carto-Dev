@@ -26,7 +26,7 @@ class MigrationPage {
         container.innerHTML = `
             <div class="page-header">
                 <div class="page-header-left">
-                    <h1>Pilotage de la Migration</h1>
+                    <h1>Cartographie</h1>
                     <p>Vue d'ensemble de l'avancement de la migration du parc applicatif</p>
                 </div>
             </div>

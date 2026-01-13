@@ -15,7 +15,9 @@ class ParcPage {
         this.selectedCells = new Set(); // Cellules selectionnees pour multi-select
         this.filters = {
             type: 'all',
-            processStatus: 'all' // 'all', 'with', 'without'
+            processStatus: 'all', // 'all', 'with', 'without'
+            selectedProcessus: [], // Processus selectionnes (vide = tous)
+            selectedSubProcessus: [] // Sous-processus selectionnes (vide = tous)
         };
     }
 
@@ -128,6 +130,104 @@ class ParcPage {
     }
 
     /**
+     * Obtient les processus uniques (noms principaux)
+     */
+    getUniqueProcessus() {
+        const processus = new Set();
+        this.processus.forEach(p => {
+            if (p.Processus) {
+                processus.add(p.Processus);
+            }
+        });
+        return Array.from(processus).sort();
+    }
+
+    /**
+     * Obtient les sous-processus disponibles (filtres par processus selectionnes)
+     */
+    getAvailableSubProcessus() {
+        const subProcessus = new Set();
+        const selectedProc = this.filters.selectedProcessus;
+
+        this.processus.forEach(p => {
+            // Si aucun processus selectionne, on prend tous les sous-processus
+            // Sinon, on filtre par les processus selectionnes
+            if (selectedProc.length === 0 || selectedProc.includes(p.Processus)) {
+                if (p['Sous-processus']) {
+                    subProcessus.add(p['Sous-processus']);
+                }
+            }
+        });
+        return Array.from(subProcessus).sort();
+    }
+
+    /**
+     * Filtre les colonnes (processus/sous-processus) selon les filtres
+     */
+    getFilteredColumns(structuredProcessus) {
+        const columns = [];
+        const selectedProc = this.filters.selectedProcessus;
+        const selectedSubProc = this.filters.selectedSubProcessus;
+
+        structuredProcessus.forEach(proc => {
+            // Si des processus sont selectionnes, on filtre
+            if (selectedProc.length > 0 && !selectedProc.includes(proc.name)) {
+                return;
+            }
+
+            if (proc.subProcesses.length > 0) {
+                proc.subProcesses.forEach(sub => {
+                    // Si des sous-processus sont selectionnes, on filtre
+                    if (selectedSubProc.length > 0 && !selectedSubProc.includes(sub)) {
+                        return;
+                    }
+                    columns.push({
+                        process: proc.name,
+                        subProcess: sub,
+                        label: sub
+                    });
+                });
+            } else {
+                // Processus sans sous-processus
+                if (selectedSubProc.length === 0) {
+                    columns.push({
+                        process: proc.name,
+                        subProcess: null,
+                        label: proc.name
+                    });
+                }
+            }
+        });
+
+        return columns;
+    }
+
+    /**
+     * Filtre les processus structures selon les filtres
+     */
+    getFilteredStructuredProcessus(structuredProcessus) {
+        const selectedProc = this.filters.selectedProcessus;
+        const selectedSubProc = this.filters.selectedSubProcessus;
+
+        if (selectedProc.length === 0 && selectedSubProc.length === 0) {
+            return structuredProcessus;
+        }
+
+        return structuredProcessus
+            .filter(proc => selectedProc.length === 0 || selectedProc.includes(proc.name))
+            .map(proc => {
+                if (selectedSubProc.length === 0) {
+                    return proc;
+                }
+                return {
+                    ...proc,
+                    subProcesses: proc.subProcesses.filter(sub => selectedSubProc.includes(sub))
+                };
+            })
+            .filter(proc => proc.subProcesses.length > 0 || selectedSubProc.length === 0);
+    }
+
+    /**
      * Filtre les produits selon les criteres
      */
     getFilteredProducts() {
@@ -196,28 +296,14 @@ class ParcPage {
         if (!container) return;
 
         const structuredProcessus = this.getStructuredProcessus();
+        const filteredStructuredProcessus = this.getFilteredStructuredProcessus(structuredProcessus);
         const filteredProducts = this.getFilteredProducts();
         const productTypes = this.getUniqueProductTypes();
+        const allProcessus = this.getUniqueProcessus();
+        const availableSubProcessus = this.getAvailableSubProcessus();
 
-        // Construire les colonnes (processus + sous-processus)
-        const columns = [];
-        structuredProcessus.forEach(proc => {
-            if (proc.subProcesses.length > 0) {
-                proc.subProcesses.forEach(sub => {
-                    columns.push({
-                        process: proc.name,
-                        subProcess: sub,
-                        label: sub
-                    });
-                });
-            } else {
-                columns.push({
-                    process: proc.name,
-                    subProcess: null,
-                    label: proc.name
-                });
-            }
-        });
+        // Construire les colonnes filtrees
+        const columns = this.getFilteredColumns(structuredProcessus);
 
         let html = `
             <div class="process-matrix-container">
@@ -235,12 +321,62 @@ class ParcPage {
                         </select>
                     </div>
                     <div class="matrix-filter-group">
-                        <label for="filterProcessStatus">Processus:</label>
+                        <label for="filterProcessStatus">Lignes:</label>
                         <select id="filterProcessStatus" onchange="parcPageInstance.onFilterChange()">
                             <option value="all" ${this.filters.processStatus === 'all' ? 'selected' : ''}>Tous</option>
                             <option value="with" ${this.filters.processStatus === 'with' ? 'selected' : ''}>Avec processus</option>
                             <option value="without" ${this.filters.processStatus === 'without' ? 'selected' : ''}>Sans processus</option>
                         </select>
+                    </div>
+                    <div class="matrix-filter-group">
+                        <label>Processus:</label>
+                        <div class="multi-select-wrapper" id="processusFilterWrapper">
+                            <div class="multi-select-trigger" onclick="parcPageInstance.toggleMultiSelect('processus')">
+                                <span class="multi-select-label">${this.filters.selectedProcessus.length === 0 ? 'Tous' : this.filters.selectedProcessus.length + ' selectionne(s)'}</span>
+                                <span class="multi-select-arrow">&#9662;</span>
+                            </div>
+                            <div class="multi-select-dropdown" id="processusDropdown">
+                                <div class="multi-select-actions">
+                                    <button type="button" class="btn btn-sm" onclick="parcPageInstance.selectAllProcessus()">Tous</button>
+                                    <button type="button" class="btn btn-sm" onclick="parcPageInstance.clearProcessusFilter()">Aucun</button>
+                                </div>
+                                <div class="multi-select-options">
+                                    ${allProcessus.map(proc => `
+                                        <label class="multi-select-option">
+                                            <input type="checkbox" value="${escapeHtml(proc)}"
+                                                ${this.filters.selectedProcessus.includes(proc) ? 'checked' : ''}
+                                                onchange="parcPageInstance.onProcessusCheckChange()">
+                                            <span>${escapeHtml(proc)}</span>
+                                        </label>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="matrix-filter-group">
+                        <label>Sous-processus:</label>
+                        <div class="multi-select-wrapper" id="subProcessusFilterWrapper">
+                            <div class="multi-select-trigger" onclick="parcPageInstance.toggleMultiSelect('subProcessus')">
+                                <span class="multi-select-label">${this.filters.selectedSubProcessus.length === 0 ? 'Tous' : this.filters.selectedSubProcessus.length + ' selectionne(s)'}</span>
+                                <span class="multi-select-arrow">&#9662;</span>
+                            </div>
+                            <div class="multi-select-dropdown" id="subProcessusDropdown">
+                                <div class="multi-select-actions">
+                                    <button type="button" class="btn btn-sm" onclick="parcPageInstance.selectAllSubProcessus()">Tous</button>
+                                    <button type="button" class="btn btn-sm" onclick="parcPageInstance.clearSubProcessusFilter()">Aucun</button>
+                                </div>
+                                <div class="multi-select-options">
+                                    ${availableSubProcessus.length > 0 ? availableSubProcessus.map(sub => `
+                                        <label class="multi-select-option">
+                                            <input type="checkbox" value="${escapeHtml(sub)}"
+                                                ${this.filters.selectedSubProcessus.includes(sub) ? 'checked' : ''}
+                                                onchange="parcPageInstance.onSubProcessusCheckChange()">
+                                            <span>${escapeHtml(sub)}</span>
+                                        </label>
+                                    `).join('') : '<div class="multi-select-empty">Aucun sous-processus</div>'}
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="matrix-legend">
@@ -267,18 +403,18 @@ class ParcPage {
                             <tr>
                                 <th class="matrix-col-fixed matrix-col-product" rowspan="2">Produit</th>
                                 <th class="matrix-col-fixed matrix-col-type" rowspan="2">Type de rapport</th>
-                                ${this.renderProcessHeaders(structuredProcessus)}
+                                ${this.renderProcessHeaders(filteredStructuredProcessus)}
                             </tr>
                             <!-- Ligne des sous-processus -->
                             <tr>
-                                ${this.renderSubProcessHeaders(structuredProcessus)}
+                                ${this.renderSubProcessHeaders(filteredStructuredProcessus)}
                             </tr>
                         </thead>
                         <tbody>
-                            ${filteredProducts.length > 0 ?
+                            ${filteredProducts.length > 0 && columns.length > 0 ?
                                 filteredProducts.map(product => this.renderProductRow(product, columns)).join('') :
                                 `<tr><td colspan="${columns.length + 2}" class="matrix-empty-message">
-                                    <p>Aucun produit ne correspond aux filtres selectionnes.</p>
+                                    <p>${columns.length === 0 ? 'Selectionnez au moins un processus ou sous-processus.' : 'Aucun produit ne correspond aux filtres selectionnes.'}</p>
                                 </td></tr>`
                             }
                         </tbody>
@@ -388,11 +524,16 @@ class ParcPage {
             cell.addEventListener('click', (e) => this.onCellClick(e, cell));
         });
 
-        // Fermer le popup si click en dehors
+        // Fermer le popup et les dropdowns si click en dehors
         document.addEventListener('click', (e) => {
             const popup = document.getElementById('statusPopup');
             if (popup && !popup.contains(e.target) && !e.target.closest('.matrix-cell')) {
                 this.hideStatusPopup();
+            }
+
+            // Fermer les dropdowns multi-select si click en dehors
+            if (!e.target.closest('.multi-select-wrapper')) {
+                this.closeAllDropdowns();
             }
         });
     }
@@ -759,6 +900,108 @@ class ParcPage {
         if (errorCount > 0) {
             showError(`${errorCount} erreur(s) lors de la suppression`);
         }
+    }
+
+    /**
+     * Toggle l'affichage d'un dropdown multi-select
+     */
+    toggleMultiSelect(type) {
+        const dropdownId = type === 'processus' ? 'processusDropdown' : 'subProcessusDropdown';
+        const otherDropdownId = type === 'processus' ? 'subProcessusDropdown' : 'processusDropdown';
+        const dropdown = document.getElementById(dropdownId);
+        const otherDropdown = document.getElementById(otherDropdownId);
+
+        // Fermer l'autre dropdown
+        if (otherDropdown) {
+            otherDropdown.classList.remove('open');
+        }
+
+        // Toggle le dropdown actuel
+        if (dropdown) {
+            dropdown.classList.toggle('open');
+        }
+    }
+
+    /**
+     * Ferme tous les dropdowns
+     */
+    closeAllDropdowns() {
+        document.querySelectorAll('.multi-select-dropdown').forEach(d => d.classList.remove('open'));
+    }
+
+    /**
+     * Selectionne tous les processus
+     */
+    selectAllProcessus() {
+        this.filters.selectedProcessus = [];
+        this.filters.selectedSubProcessus = []; // Reset aussi les sous-processus
+        this.closeAllDropdowns();
+        this.clearSelection();
+        this.renderProcessView();
+    }
+
+    /**
+     * Efface le filtre processus
+     */
+    clearProcessusFilter() {
+        const allProcessus = this.getUniqueProcessus();
+        this.filters.selectedProcessus = [...allProcessus];
+        this.filters.selectedSubProcessus = []; // Reset les sous-processus
+        this.closeAllDropdowns();
+        this.clearSelection();
+        this.renderProcessView();
+    }
+
+    /**
+     * Selectionne tous les sous-processus
+     */
+    selectAllSubProcessus() {
+        this.filters.selectedSubProcessus = [];
+        this.closeAllDropdowns();
+        this.clearSelection();
+        this.renderProcessView();
+    }
+
+    /**
+     * Efface le filtre sous-processus
+     */
+    clearSubProcessusFilter() {
+        const availableSubProcessus = this.getAvailableSubProcessus();
+        this.filters.selectedSubProcessus = [...availableSubProcessus];
+        this.closeAllDropdowns();
+        this.clearSelection();
+        this.renderProcessView();
+    }
+
+    /**
+     * Gestion du changement de checkbox processus
+     */
+    onProcessusCheckChange() {
+        const checkboxes = document.querySelectorAll('#processusDropdown input[type="checkbox"]');
+        this.filters.selectedProcessus = Array.from(checkboxes)
+            .filter(cb => cb.checked)
+            .map(cb => cb.value);
+
+        // Reset les sous-processus qui ne sont plus disponibles
+        const availableSubProcessus = this.getAvailableSubProcessus();
+        this.filters.selectedSubProcessus = this.filters.selectedSubProcessus
+            .filter(sub => availableSubProcessus.includes(sub));
+
+        this.clearSelection();
+        this.renderProcessView();
+    }
+
+    /**
+     * Gestion du changement de checkbox sous-processus
+     */
+    onSubProcessusCheckChange() {
+        const checkboxes = document.querySelectorAll('#subProcessusDropdown input[type="checkbox"]');
+        this.filters.selectedSubProcessus = Array.from(checkboxes)
+            .filter(cb => cb.checked)
+            .map(cb => cb.value);
+
+        this.clearSelection();
+        this.renderProcessView();
     }
 
     /**
