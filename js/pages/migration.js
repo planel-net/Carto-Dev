@@ -454,79 +454,12 @@ class MigrationPage {
             return;
         }
 
-        // Construire le graphique de dépendances et le tableau détaillé
+        // Construire le graphique visuel de lineage
+        const lineageGraph = this.renderLineageGraph(produit, fluxProduits);
+
         let html = `
-            <div class="dependency-chain">
-                ${this.renderDependencyNode('Tables MH Tech', '(Données sources)', null, '&#128451;')}
-                <div class="dependency-arrow">&#8594;</div>
-                ${this.renderDependencyNode('Shore / Gold', '(Stockage)', null, '&#128451;')}
-                <div class="dependency-arrow">&#8594;</div>
-                ${this.renderDependencyNode('Projet DSS', '(Traitement)', null, '&#128194;')}
-                <div class="dependency-arrow">&#8594;</div>
-                ${this.renderDependencyNode('Dataflow', '(Pipeline)', null, '&#128260;')}
-                <div class="dependency-arrow">&#8594;</div>
-                ${this.renderDependencyNode('Produit', produit.Nom, produit['Statut Migration'], '&#128202;')}
-            </div>
-
-            <h5 style="margin-top: 24px; margin-bottom: 12px;">Détail du lineage complet</h5>
-            <div class="lineage-table-wrapper">
-                <table class="lineage-table">
-                    <thead>
-                        <tr>
-                            <th>Tables MH Tech</th>
-                            <th>Shore / Gold</th>
-                            <th>Projet DSS</th>
-                            <th>Dataflow</th>
-                            <th>Produit</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-        `;
-
-        // Pour chaque flux, construire une ligne de lineage
-        fluxProduits.forEach(fluxItem => {
-            const shore = this.shores.find(s => s.Nom === fluxItem['Shore/Gold']);
-            const projetDss = this.projetsDss.find(p => p['Nom projet'] === fluxItem['Projet DSS']);
-            const dataflow = this.dataflows.find(d => d.Nom === fluxItem['DFNom DF']);
-
-            // Trouver les tables MH Tech associées au Shore via la colonne UC
-            const tablesAssociees = shore ? this.findTablesForShore(shore.Nom) : [];
-
-            html += `
-                <tr>
-                    <td>
-                        ${tablesAssociees.length > 0 ?
-                            tablesAssociees.map(t => `<span class="badge ${this.getStatusClass(t['OK DA ?'])}">${escapeHtml(t.Table)}</span>`).join('<br>') :
-                            '<span class="text-muted">-</span>'}
-                    </td>
-                    <td>
-                        <span class="badge ${this.getStatusClass(shore ? shore['Migré Tech'] : null)}">
-                            ${escapeHtml(fluxItem['Shore/Gold'] || '-')}
-                        </span>
-                    </td>
-                    <td>
-                        <span class="badge ${this.getStatusClass(projetDss ? projetDss['Statut migration'] : null)}">
-                            ${escapeHtml(fluxItem['Projet DSS'] || '-')}
-                        </span>
-                    </td>
-                    <td>
-                        <span class="badge ${this.getStatusClass(dataflow ? dataflow['Statut migration'] : null)}">
-                            ${escapeHtml(fluxItem['DFNom DF'] || '-')}
-                        </span>
-                    </td>
-                    <td>
-                        <span class="badge ${this.getStatusClass(produit['Statut Migration'])}">
-                            ${escapeHtml(produit.Nom)}
-                        </span>
-                    </td>
-                </tr>
-            `;
-        });
-
-        html += `
-                    </tbody>
-                </table>
-            </div>
+            <h5 style="margin-bottom: 12px;">Lineage complet</h5>
+            ${lineageGraph.html}
 
             <div class="card mt-3" style="max-width: 600px;">
                 <div class="card-body">
@@ -548,6 +481,9 @@ class MigrationPage {
         `;
 
         container.innerHTML = html;
+
+        // Dessiner les lignes de connexion après que le DOM soit prêt
+        this.drawLineageConnections(lineageGraph.relations);
     }
 
     /**
@@ -765,11 +701,20 @@ class MigrationPage {
                         f['DFNom DF'] === fluxItem['DFNom DF']
                     );
 
+                    // Trouver les statuts de migration pour chaque élément
+                    const shore = this.shores.find(s => s.Nom === fluxItem['Shore/Gold']);
+                    const projetDss = this.projetsDss.find(p => p['Nom projet'] === fluxItem['Projet DSS']);
+                    const dataflow = this.dataflows.find(d => d.Nom === fluxItem['DFNom DF']);
+
+                    const shoreStatus = this.getStatusClass(shore ? shore['Migré Tech'] : null);
+                    const dssStatus = this.getStatusClass(projetDss ? projetDss['Statut migration'] : null);
+                    const dfStatus = this.getStatusClass(dataflow ? dataflow['Statut migration'] : null);
+
                     html += `
                         <tr>
-                            <td>${escapeHtml(fluxItem['Shore/Gold'] || '-')}</td>
-                            <td>${escapeHtml(fluxItem['Projet DSS'] || '-')}</td>
-                            <td>${escapeHtml(fluxItem['DFNom DF'] || '-')}</td>
+                            <td><span class="migration-status-icon ${shoreStatus}"></span>${escapeHtml(fluxItem['Shore/Gold'] || '-')}</td>
+                            <td><span class="migration-status-icon ${dssStatus}"></span>${escapeHtml(fluxItem['Projet DSS'] || '-')}</td>
+                            <td><span class="migration-status-icon ${dfStatus}"></span>${escapeHtml(fluxItem['DFNom DF'] || '-')}</td>
                             <td>${escapeHtml(fluxItem['Charge (jh)'] || '-')}</td>
                             <td>${escapeHtml(fluxItem['Estimation'] || '-')}</td>
                             <td>${this.formatDate(fluxItem['Date prévisionnelle migration'])}</td>
@@ -955,7 +900,10 @@ class MigrationPage {
                     </div>
                     <div class="form-group">
                         <label class="form-label">Sprint</label>
-                        <input type="text" name="Sprint" class="form-input" value="${escapeHtml(flux['Sprint'] || '')}">
+                        <select name="Sprint" class="form-select">
+                            <option value="">-- Sélectionner --</option>
+                            ${this.getSprintOptions().map(s => `<option value="${escapeHtml(s)}" ${s === flux['Sprint'] ? 'selected' : ''}>${escapeHtml(s)}</option>`).join('')}
+                        </select>
                     </div>
                 </div>
                 <div class="form-row">
@@ -989,6 +937,34 @@ class MigrationPage {
                     }
                 }
             ]
+        });
+    }
+
+    /**
+     * Génère la liste des sprints disponibles
+     */
+    getSprintOptions() {
+        // Extraire les sprints uniques existants dans les flux
+        const existingSprints = new Set();
+        this.flux.forEach(f => {
+            if (f['Sprint']) {
+                existingSprints.add(f['Sprint']);
+            }
+        });
+
+        // Sprints standards (S1 à S12 par défaut)
+        const standardSprints = [];
+        for (let i = 1; i <= 12; i++) {
+            standardSprints.push(`S${i}`);
+        }
+
+        // Combiner les sprints existants et standards, en éliminant les doublons
+        const allSprints = new Set([...standardSprints, ...existingSprints]);
+        return Array.from(allSprints).sort((a, b) => {
+            // Trier par numéro si le format est S[num]
+            const numA = parseInt(a.replace(/\D/g, '')) || 999;
+            const numB = parseInt(b.replace(/\D/g, '')) || 999;
+            return numA - numB;
         });
     }
 
@@ -1150,7 +1126,10 @@ class MigrationPage {
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">Sprint</label>
-                        <input type="text" name="Sprint" class="form-input">
+                        <select name="Sprint" class="form-select">
+                            <option value="">-- Sélectionner --</option>
+                            ${this.getSprintOptions().map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('')}
+                        </select>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Éligible SLA</label>
@@ -1214,6 +1193,179 @@ class MigrationPage {
     }
 
     /**
+     * Génère le graphique visuel de lineage pour un produit
+     */
+    renderLineageGraph(produit, fluxProduits) {
+        // Collecter tous les éléments uniques pour chaque colonne
+        const tablesSet = new Set();
+        const shoresSet = new Set();
+        const projetsDssSet = new Set();
+        const dataflowsSet = new Set();
+
+        // Mapper les relations pour dessiner les lignes
+        const relations = [];
+
+        fluxProduits.forEach(fluxItem => {
+            const shoreName = fluxItem['Shore/Gold'];
+            const projetDssName = fluxItem['Projet DSS'];
+            const dataflowName = fluxItem['DFNom DF'];
+
+            if (shoreName) {
+                shoresSet.add(shoreName);
+                // Trouver les tables associées au shore
+                const tablesAssociees = this.findTablesForShore(shoreName);
+                tablesAssociees.forEach(t => {
+                    tablesSet.add(t.Table);
+                    relations.push({ from: t.Table, fromType: 'table', to: shoreName, toType: 'shore' });
+                });
+            }
+
+            if (projetDssName) {
+                projetsDssSet.add(projetDssName);
+                if (shoreName) {
+                    relations.push({ from: shoreName, fromType: 'shore', to: projetDssName, toType: 'dss' });
+                }
+            }
+
+            if (dataflowName) {
+                dataflowsSet.add(dataflowName);
+                if (projetDssName) {
+                    relations.push({ from: projetDssName, fromType: 'dss', to: dataflowName, toType: 'dataflow' });
+                }
+                relations.push({ from: dataflowName, fromType: 'dataflow', to: produit.Nom, toType: 'produit' });
+            } else if (projetDssName) {
+                relations.push({ from: projetDssName, fromType: 'dss', to: produit.Nom, toType: 'produit' });
+            } else if (shoreName) {
+                relations.push({ from: shoreName, fromType: 'shore', to: produit.Nom, toType: 'produit' });
+            }
+        });
+
+        // Convertir en arrays
+        const tables = Array.from(tablesSet);
+        const shores = Array.from(shoresSet);
+        const projetsDss = Array.from(projetsDssSet);
+        const dataflows = Array.from(dataflowsSet);
+
+        // Helper pour obtenir le statut d'un élément
+        const getTableStatus = (name) => {
+            const table = this.tablesMh.find(t => t.Table === name);
+            return this.getStatusClass(table ? table['OK DA ?'] : null);
+        };
+
+        const getShoreStatus = (name) => {
+            const shore = this.shores.find(s => s.Nom === name);
+            return this.getStatusClass(shore ? shore['Migré Tech'] : null);
+        };
+
+        const getDssStatus = (name) => {
+            const dss = this.projetsDss.find(p => p['Nom projet'] === name);
+            return this.getStatusClass(dss ? dss['Statut migration'] : null);
+        };
+
+        const getDataflowStatus = (name) => {
+            const df = this.dataflows.find(d => d.Nom === name);
+            return this.getStatusClass(df ? df['Statut migration'] : null);
+        };
+
+        // Générer le HTML du graphique
+        let html = `
+            <div class="lineage-graph-container">
+                <div class="lineage-graph-header">
+                    <div class="lineage-column-header">Tables</div>
+                    <div class="lineage-column-header">Shores</div>
+                    <div class="lineage-column-header">Projets DSS</div>
+                    <div class="lineage-column-header">Dataflows</div>
+                    <div class="lineage-column-header">Produit</div>
+                </div>
+                <div class="lineage-graph-body" id="lineageGraphBody">
+                    <svg class="lineage-connections" id="lineageConnections"></svg>
+                    <div class="lineage-column lineage-tables-column" id="lineageColTables">
+                        ${tables.length > 0 ? tables.map(name => `
+                            <div class="lineage-node ${getTableStatus(name)}" data-type="table" data-name="${escapeHtml(name)}">
+                                ${escapeHtml(name)}
+                            </div>
+                        `).join('') : '<div class="lineage-empty">-</div>'}
+                    </div>
+                    <div class="lineage-column lineage-shores-column" id="lineageColShores">
+                        ${shores.length > 0 ? shores.map(name => `
+                            <div class="lineage-node ${getShoreStatus(name)}" data-type="shore" data-name="${escapeHtml(name)}">
+                                ${escapeHtml(name)}
+                            </div>
+                        `).join('') : '<div class="lineage-empty">-</div>'}
+                    </div>
+                    <div class="lineage-column lineage-dss-column" id="lineageColDss">
+                        ${projetsDss.length > 0 ? projetsDss.map(name => `
+                            <div class="lineage-node ${getDssStatus(name)}" data-type="dss" data-name="${escapeHtml(name)}">
+                                ${escapeHtml(name)}
+                            </div>
+                        `).join('') : '<div class="lineage-empty">-</div>'}
+                    </div>
+                    <div class="lineage-column lineage-dataflows-column" id="lineageColDataflows">
+                        ${dataflows.length > 0 ? dataflows.map(name => `
+                            <div class="lineage-node ${getDataflowStatus(name)}" data-type="dataflow" data-name="${escapeHtml(name)}">
+                                ${escapeHtml(name)}
+                            </div>
+                        `).join('') : '<div class="lineage-empty">-</div>'}
+                    </div>
+                    <div class="lineage-column lineage-produit-column" id="lineageColProduit">
+                        <div class="lineage-node ${this.getStatusClass(produit['Statut Migration'])}" data-type="produit" data-name="${escapeHtml(produit.Nom)}">
+                            ${escapeHtml(produit.Nom)}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Retourner le HTML et les relations pour dessiner les lignes plus tard
+        return { html, relations };
+    }
+
+    /**
+     * Dessine les lignes de connexion du graphique de lineage
+     */
+    drawLineageConnections(relations) {
+        setTimeout(() => {
+            const svg = document.getElementById('lineageConnections');
+            const body = document.getElementById('lineageGraphBody');
+            if (!svg || !body) return;
+
+            // Calculer la taille du SVG
+            svg.setAttribute('width', body.scrollWidth);
+            svg.setAttribute('height', body.scrollHeight);
+
+            // Créer les lignes
+            let pathsHtml = '';
+            const drawnConnections = new Set();
+
+            relations.forEach(rel => {
+                const connectionKey = `${rel.from}-${rel.to}`;
+                if (drawnConnections.has(connectionKey)) return;
+                drawnConnections.add(connectionKey);
+
+                const fromNode = body.querySelector(`[data-type="${rel.fromType}"][data-name="${CSS.escape(rel.from)}"]`);
+                const toNode = body.querySelector(`[data-type="${rel.toType}"][data-name="${CSS.escape(rel.to)}"]`);
+
+                if (fromNode && toNode) {
+                    const fromRect = fromNode.getBoundingClientRect();
+                    const toRect = toNode.getBoundingClientRect();
+                    const bodyRect = body.getBoundingClientRect();
+
+                    const x1 = fromRect.right - bodyRect.left;
+                    const y1 = fromRect.top + fromRect.height / 2 - bodyRect.top;
+                    const x2 = toRect.left - bodyRect.left;
+                    const y2 = toRect.top + toRect.height / 2 - bodyRect.top;
+
+                    // Courbe de Bézier pour un effet plus agréable
+                    const midX = (x1 + x2) / 2;
+                    pathsHtml += `<path d="M ${x1} ${y1} C ${midX} ${y1}, ${midX} ${y2}, ${x2} ${y2}" class="lineage-connection-line" />`;
+                }
+            });
+
+            svg.innerHTML = pathsHtml;
+        }, 100);
+    }
+
+    /**
      * Affiche la popup de lineage pour un produit
      */
     async showLineagePopup(produitIndex) {
@@ -1223,95 +1375,41 @@ class MigrationPage {
         // Utiliser les données déjà chargées
         const fluxProduits = this.flux.filter(f => f.Produit === produit.Nom);
 
-        // Construire le contenu de la popup
-        let content = `
-            <div class="lineage-popup-content">
-                <h4 style="margin-bottom: 16px;">Lineage complet : ${escapeHtml(produit.Nom)}</h4>
-
-                <div class="dependency-chain" style="margin-bottom: 24px;">
-                    ${this.renderDependencyNode('Tables MH Tech', '(Données sources)', null, '&#128451;')}
-                    <div class="dependency-arrow">&#8594;</div>
-                    ${this.renderDependencyNode('Shore / Gold', '(Stockage)', null, '&#128451;')}
-                    <div class="dependency-arrow">&#8594;</div>
-                    ${this.renderDependencyNode('Projet DSS', '(Traitement)', null, '&#128194;')}
-                    <div class="dependency-arrow">&#8594;</div>
-                    ${this.renderDependencyNode('Dataflow', '(Pipeline)', null, '&#128260;')}
-                    <div class="dependency-arrow">&#8594;</div>
-                    ${this.renderDependencyNode('Produit', produit.Nom, produit['Statut Migration'], '&#128202;')}
-                </div>
-
-                <h5 style="margin-bottom: 12px;">Détail des flux</h5>
-        `;
+        let content;
+        let relations = [];
 
         if (fluxProduits.length === 0) {
-            content += '<p class="text-muted">Aucun flux de migration défini pour ce produit.</p>';
-        } else {
-            content += `
-                <div class="lineage-table-wrapper">
-                    <table class="lineage-table">
-                        <thead>
-                            <tr>
-                                <th>Tables MH Tech</th>
-                                <th>Shore / Gold</th>
-                                <th>Projet DSS</th>
-                                <th>Dataflow</th>
-                            </tr>
-                        </thead>
-                        <tbody>
+            content = `
+                <div class="lineage-popup-content">
+                    <p class="text-muted">Aucun flux de migration défini pour ce produit.</p>
+                </div>
             `;
+        } else {
+            // Générer le graphique visuel de lineage
+            const lineageGraph = this.renderLineageGraph(produit, fluxProduits);
+            relations = lineageGraph.relations;
 
-            fluxProduits.forEach(fluxItem => {
-                const shore = this.shores.find(s => s.Nom === fluxItem['Shore/Gold']);
-                const projetDss = this.projetsDss.find(p => p['Nom projet'] === fluxItem['Projet DSS']);
-                const dataflow = this.dataflows.find(d => d.Nom === fluxItem['DFNom DF']);
-
-                // Utiliser la nouvelle méthode de correspondance Tables/Shore via UC
-                const tablesAssociees = shore ? this.findTablesForShore(shore.Nom) : [];
-
-                content += `
-                    <tr>
-                        <td>
-                            ${tablesAssociees.length > 0 ?
-                                tablesAssociees.map(t => `<span class="badge ${this.getStatusClass(t['OK DA ?'])}">${escapeHtml(t.Table)}</span>`).join('<br>') :
-                                '<span class="text-muted">-</span>'}
-                        </td>
-                        <td>
-                            <span class="badge ${this.getStatusClass(shore ? shore['Migré Tech'] : null)}">
-                                ${escapeHtml(fluxItem['Shore/Gold'] || '-')}
-                            </span>
-                        </td>
-                        <td>
-                            <span class="badge ${this.getStatusClass(projetDss ? projetDss['Statut migration'] : null)}">
-                                ${escapeHtml(fluxItem['Projet DSS'] || '-')}
-                            </span>
-                        </td>
-                        <td>
-                            <span class="badge ${this.getStatusClass(dataflow ? dataflow['Statut migration'] : null)}">
-                                ${escapeHtml(fluxItem['DFNom DF'] || '-')}
-                            </span>
-                        </td>
-                    </tr>
-                `;
-            });
-
-            content += `
-                        </tbody>
-                    </table>
+            content = `
+                <div class="lineage-popup-content">
+                    ${lineageGraph.html}
                 </div>
             `;
         }
 
-        content += '</div>';
-
         // Afficher la modale
         showModal({
-            title: 'Lineage du produit',
+            title: `Lineage : ${produit.Nom}`,
             content: content,
-            size: 'large',
+            size: 'xl',
             buttons: [
                 { label: 'Fermer', class: 'btn-secondary', action: 'close' }
             ]
         });
+
+        // Dessiner les lignes de connexion après que le DOM soit prêt
+        if (relations.length > 0) {
+            this.drawLineageConnections(relations);
+        }
     }
 
     /**

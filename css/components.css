@@ -395,7 +395,7 @@ textarea.form-control {
 .modal-sm { width: 400px; }
 .modal-md { width: 600px; }
 .modal-lg { width: 800px; }
-.modal-xl { width: 1000px; }
+.modal-xl { width: 1200px; max-width: 95vw; }
 
 .modal-header {
     display: flex;
