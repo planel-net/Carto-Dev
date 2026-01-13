@@ -6,7 +6,7 @@
 const CONFIG = {
     // Nom de l'application
     APP_NAME: 'Carto',
-    APP_VERSION: '1.0.8',
+    APP_VERSION: '1.0.9',
 
     // Noms des feuilles spéciales
     SHEETS: {
@@ -87,7 +87,7 @@ const CONFIG = {
                 { field: 'Perimétre fonctionnel', label: 'Périmètre fonctionnel', type: 'select', source: 'PERIMETRES', sourceField: 'Périmetre' },
                 { field: 'Périmétre des données (SI)', label: 'Périmètre données (SI)', type: 'text' },
                 { field: 'PBI / PowerAPP', label: 'PBI / PowerApp', type: 'select', options: ['Power BI', 'PowerApp', 'Autre'] },
-                { field: 'Frequence', label: 'Fréquence', type: 'text' },
+                { field: 'Frequence', label: 'Fréquence', type: 'select', options: ['Quotidienne', 'Hebdomadaire', 'Mensuelle', 'Trimestrielle', 'Semestrielle', 'Annuelle', ''] },
                 { field: 'Sensible au pb d\'actualisation quotidien', label: 'Sensible actualisation', type: 'select', options: ['Oui', 'Non'] },
                 { field: 'Gold / Shore actuel', label: 'Gold/Shore actuel', type: 'select', source: 'SHORES', sourceField: 'Nom' },
                 { field: 'Shore cible DOCC', label: 'Shore cible DOCC', type: 'text' },

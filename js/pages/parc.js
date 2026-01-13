@@ -265,7 +265,7 @@ class ParcPage {
                         <!-- Ligne des processus principaux -->
                         <tr>
                             <th class="matrix-col-fixed matrix-col-product" rowspan="2">Produit</th>
-                            <th class="matrix-col-fixed matrix-col-type" rowspan="2">Type</th>
+                            <th class="matrix-col-fixed matrix-col-type" rowspan="2">Type de rapport</th>
                             ${this.renderProcessHeaders(structuredProcessus)}
                         </tr>
                         <!-- Ligne des sous-processus -->
@@ -300,17 +300,17 @@ class ParcPage {
     }
 
     /**
-     * Rendu des en-tetes de sous-processus
+     * Rendu des en-tetes de sous-processus (texte vertical)
      */
     renderSubProcessHeaders(structuredProcessus) {
         let html = '';
         structuredProcessus.forEach(proc => {
             if (proc.subProcesses.length > 0) {
                 proc.subProcesses.forEach(sub => {
-                    html += `<th>${escapeHtml(sub)}</th>`;
+                    html += `<th title="${escapeHtml(sub)}"><span class="subprocess-label">${escapeHtml(sub)}</span></th>`;
                 });
             } else {
-                html += `<th>-</th>`;
+                html += `<th><span class="subprocess-label">-</span></th>`;
             }
         });
         return html;
@@ -787,7 +787,7 @@ class ParcPage {
             showToolbar: true,
             showPagination: true,
             editable: true,
-            onRowClick: (row) => this.showProductDetails(row),
+            onRowClick: (row, index) => this.showEditProductForm(row, index),
             onAdd: () => this.showAddProductForm(),
             onEdit: (row, index) => this.showEditProductForm(row, index),
             onDelete: (row, index) => this.confirmDeleteProduct(row, index)

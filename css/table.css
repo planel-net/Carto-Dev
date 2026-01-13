@@ -97,7 +97,8 @@
    =========================================== */
 
 .data-table-wrapper {
-    overflow-x: auto;
+    overflow-x: scroll;
+    /* Scrollbar horizontal toujours visible */
 }
 
 .data-table {
@@ -148,10 +149,11 @@
 
 .data-table tbody tr {
     transition: background-color var(--transition-fast);
+    cursor: pointer;
 }
 
 .data-table tbody tr:hover {
-    background-color: rgba(0, 102, 204, 0.03);
+    background-color: rgba(0, 102, 204, 0.05);
 }
 
 .data-table tbody tr.selected {
