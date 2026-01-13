@@ -6,7 +6,7 @@
 const CONFIG = {
     // Nom de l'application
     APP_NAME: 'Carto',
-    APP_VERSION: '1.0.19',
+    APP_VERSION: '1.0.20',
 
     // Noms des feuilles spéciales
     SHEETS: {
@@ -234,6 +234,7 @@ const CONFIG = {
             { id: 'roadmap', label: 'Roadmap', icon: '&#128197;', page: 'roadmap' }
         ],
         PARAMETRES: [
+            { id: 'flux', label: 'Flux Migration', icon: '&#128640;', table: 'FLUX' },
             { id: 'acteurs', label: 'Acteurs', icon: '&#128100;', table: 'ACTEURS' },
             { id: 'equipes', label: 'Équipes', icon: '&#128101;', table: 'EQUIPES' },
             { id: 'tables-mh', label: 'Tables MHTech', icon: '&#128451;', table: 'TABLES_MH' },

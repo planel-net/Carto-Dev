@@ -581,3 +581,254 @@
     color: var(--mh-gris-moyen);
     font-size: 20px;
 }
+
+/* ===========================================
+   MIGRATION PIPELINE (KPIs avec flèches)
+   =========================================== */
+
+.migration-pipeline {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    flex-wrap: wrap;
+    margin-bottom: var(--spacing-xl);
+}
+
+.pipeline-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    color: var(--mh-gris-moyen);
+    padding: 0 var(--spacing-xs);
+    flex-shrink: 0;
+}
+
+.migration-pipeline .migration-status-card {
+    flex: 0 0 auto;
+    min-width: 140px;
+    max-width: 160px;
+}
+
+.migration-pipeline .migration-status-card.kpi-total {
+    margin-left: var(--spacing-lg);
+    border: 2px solid var(--mh-bleu-fonce);
+}
+
+@media (max-width: 1200px) {
+    .migration-pipeline {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: var(--spacing-sm);
+    }
+
+    .pipeline-arrow {
+        display: none;
+    }
+
+    .migration-pipeline .migration-status-card.kpi-total {
+        margin-left: 0;
+        margin-top: var(--spacing-md);
+        flex-basis: 100%;
+        max-width: 300px;
+    }
+}
+
+/* ===========================================
+   PRODUCT PROGRESS TABLE
+   =========================================== */
+
+.product-progress-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--font-size-sm);
+}
+
+.product-progress-table thead {
+    background-color: var(--mh-bleu-fonce);
+    color: white;
+}
+
+.product-progress-table th {
+    padding: var(--spacing-sm) var(--spacing-md);
+    text-align: left;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.product-progress-table td {
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-bottom: 1px solid #dee2e6;
+    vertical-align: middle;
+}
+
+.product-progress-table tbody tr:hover {
+    background-color: rgba(0, 102, 204, 0.05);
+}
+
+.product-progress-table .product-row {
+    background-color: var(--mh-blanc);
+}
+
+.product-progress-table .flux-detail-row {
+    background-color: var(--mh-gris-clair);
+}
+
+/* Bouton d'expansion */
+.btn-expand {
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--mh-bleu-clair);
+    background: var(--mh-blanc);
+    color: var(--mh-bleu-clair);
+    border-radius: var(--border-radius-sm);
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    line-height: 1;
+    transition: all var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-expand:hover {
+    background: var(--mh-bleu-clair);
+    color: white;
+}
+
+/* Mini Progress Bars */
+.mini-progress {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 100px;
+}
+
+.mini-progress-bar {
+    height: 8px;
+    background-color: var(--mh-gris-clair);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.mini-progress-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width var(--transition-normal);
+}
+
+.mini-progress-fill.success {
+    background-color: var(--mh-vert-succes);
+}
+
+.mini-progress-fill.warning {
+    background-color: var(--mh-jaune-warning);
+}
+
+.mini-progress-fill.danger {
+    background-color: var(--mh-rouge-erreur);
+}
+
+.mini-progress-text {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--mh-gris-moyen);
+}
+
+.mini-progress-count {
+    font-weight: 500;
+}
+
+.mini-progress-percent {
+    font-weight: 600;
+    color: var(--mh-gris-fonce);
+}
+
+/* ===========================================
+   LINEAGE TABLE
+   =========================================== */
+
+.lineage-table-wrapper {
+    overflow-x: auto;
+    margin-top: var(--spacing-md);
+}
+
+.lineage-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--font-size-sm);
+}
+
+.lineage-table thead {
+    background-color: var(--mh-gris-clair);
+}
+
+.lineage-table th {
+    padding: var(--spacing-sm) var(--spacing-md);
+    text-align: left;
+    font-weight: 600;
+    color: var(--mh-bleu-fonce);
+    border-bottom: 2px solid var(--mh-bleu-fonce);
+}
+
+.lineage-table td {
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-bottom: 1px solid #dee2e6;
+    vertical-align: top;
+}
+
+.lineage-table tbody tr:hover {
+    background-color: rgba(0, 102, 204, 0.05);
+}
+
+.lineage-table .badge {
+    display: inline-block;
+    margin: 2px 0;
+}
+
+/* ===========================================
+   LINEAGE POPUP
+   =========================================== */
+
+.lineage-popup-content {
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.lineage-popup-content .dependency-chain {
+    padding: var(--spacing-md);
+    background: var(--mh-gris-clair);
+    border-radius: var(--border-radius-md);
+    justify-content: flex-start;
+    overflow-x: auto;
+}
+
+/* Badge styles for status in lineage */
+.lineage-table .badge.status-migre,
+.badge.status-migre {
+    background-color: rgba(40, 167, 69, 0.15);
+    color: #155724;
+    border: 1px solid var(--mh-vert-succes);
+}
+
+.lineage-table .badge.status-en-cours,
+.badge.status-en-cours {
+    background-color: rgba(255, 193, 7, 0.15);
+    color: #856404;
+    border: 1px solid var(--mh-jaune-warning);
+}
+
+.lineage-table .badge.status-non-migre,
+.badge.status-non-migre {
+    background-color: rgba(220, 53, 69, 0.15);
+    color: #721c24;
+    border: 1px solid var(--mh-rouge-erreur);
+}
+
+/* Bouton Lineage dans le tableau */
+.btn-lineage {
+    white-space: nowrap;
+}
