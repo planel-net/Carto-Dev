@@ -320,6 +320,7 @@ function getFormData(form) {
         }
     });
 
+    console.log('[getFormData] Data collected:', data);
     return data;
 }
 
@@ -329,9 +330,15 @@ function getFormData(form) {
  * @param {Object} data - Données
  */
 function setFormData(form, data) {
+    console.log('[setFormData] Data received:', data);
+
     Object.entries(data).forEach(([name, value]) => {
         const input = form.querySelector(`[name="${name}"]`);
-        if (!input) return;
+        if (!input) {
+            console.log(`[setFormData] Field not found: "${name}" (value: "${value}")`);
+            return;
+        }
+        console.log(`[setFormData] Setting field "${name}" to "${value}"`);
 
         if (input.type === 'checkbox') {
             input.checked = value === true || value === 'Oui' || value === '1';

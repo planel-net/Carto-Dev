@@ -122,10 +122,10 @@
     background: var(--mh-bleu-fonce);
     color: var(--mh-blanc);
     font-weight: 600;
-    padding: var(--spacing-sm) var(--spacing-md);
+    padding: 4px 8px;
     text-align: center;
     border: 1px solid rgba(255, 255, 255, 0.2);
-    font-size: var(--font-size-sm);
+    font-size: 11px;
     white-space: nowrap;
 }
 
@@ -134,13 +134,13 @@
     background: var(--mh-bleu-clair);
     color: var(--mh-blanc);
     font-weight: 500;
-    padding: var(--spacing-xs) var(--spacing-sm);
+    padding: 2px 4px;
     text-align: center;
     border: 1px solid rgba(255, 255, 255, 0.2);
-    font-size: 10px;
-    min-width: 70px;
-    max-width: 100px;
-    line-height: 1.2;
+    font-size: 9px;
+    min-width: 55px;
+    max-width: 80px;
+    line-height: 1.1;
     vertical-align: middle;
 }
 
@@ -162,17 +162,19 @@
 }
 
 .matrix-col-product {
-    width: 250px;
-    min-width: 250px;
+    width: 200px;
+    min-width: 200px;
     text-align: left !important;
-    padding-left: var(--spacing-md) !important;
+    padding-left: 8px !important;
+    font-size: 11px;
 }
 
 .matrix-col-type {
-    width: 150px;
-    min-width: 150px;
-    left: 250px;
+    width: 100px;
+    min-width: 100px;
+    left: 200px;
     text-align: left !important;
+    font-size: 10px;
 }
 
 /* Header fixe pour colonnes Produit et Type */
@@ -194,7 +196,7 @@ thead tr:nth-child(2) .matrix-col-fixed {
 }
 
 .process-matrix-table tbody td {
-    padding: var(--spacing-xs);
+    padding: 2px 4px;
     text-align: center;
     border: 1px solid #f0f0f0;
     vertical-align: middle;
@@ -202,7 +204,7 @@ thead tr:nth-child(2) .matrix-col-fixed {
 
 .process-matrix-table tbody td.matrix-col-fixed {
     background: var(--mh-blanc);
-    font-size: var(--font-size-sm);
+    font-size: 11px;
 }
 
 .process-matrix-table tbody tr:hover td.matrix-col-fixed {
@@ -216,7 +218,8 @@ thead tr:nth-child(2) .matrix-col-fixed {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 230px;
+    max-width: 190px;
+    font-size: 11px;
 }
 
 .product-type {
@@ -229,9 +232,9 @@ thead tr:nth-child(2) .matrix-col-fixed {
 
 /* Cellules de croisement Processus/Produit */
 .matrix-cell {
-    min-width: 70px;
-    max-width: 100px;
-    height: 36px;
+    min-width: 55px;
+    max-width: 80px;
+    height: 28px;
     cursor: pointer;
     transition: all var(--transition-fast);
     position: relative;
