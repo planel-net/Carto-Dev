@@ -337,6 +337,28 @@ function setFormData(form, data) {
             input.checked = value === true || value === 'Oui' || value === '1';
         } else if (input.type === 'date') {
             input.value = formatDateForInput(value);
+        } else if (input.tagName === 'SELECT') {
+            // Pour les selects, verifier si l'option existe
+            const valueToSet = value !== null && value !== undefined ? String(value) : '';
+
+            // Chercher si l'option existe deja
+            let optionExists = false;
+            for (let i = 0; i < input.options.length; i++) {
+                if (input.options[i].value === valueToSet) {
+                    optionExists = true;
+                    break;
+                }
+            }
+
+            // Si la valeur n'existe pas et n'est pas vide, l'ajouter comme option
+            if (!optionExists && valueToSet) {
+                const newOption = document.createElement('option');
+                newOption.value = valueToSet;
+                newOption.textContent = valueToSet;
+                input.appendChild(newOption);
+            }
+
+            input.value = valueToSet;
         } else {
             input.value = value !== null && value !== undefined ? value : '';
         }

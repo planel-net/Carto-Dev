@@ -6,7 +6,7 @@
 const CONFIG = {
     // Nom de l'application
     APP_NAME: 'Carto',
-    APP_VERSION: '1.0.10',
+    APP_VERSION: '1.0.12',
 
     // Noms des feuilles spéciales
     SHEETS: {
@@ -28,7 +28,7 @@ const CONFIG = {
                 { field: 'Prénom', label: 'Prénom', type: 'text', required: true },
                 { field: 'Nom', label: 'Nom', type: 'text', required: true },
                 { field: 'Mail', label: 'Email', type: 'email', required: true },
-                { field: 'Equipe', label: 'Équipe', type: 'select', source: 'EQUIPES', required: true }
+                { field: 'Equipe', label: 'Équipe', type: 'select', source: 'EQUIPES', sourceField: 'Equipe', required: true }
             ]
         },
         EQUIPES: {
@@ -80,7 +80,7 @@ const CONFIG = {
             icon: '&#128202;',
             columns: [
                 { field: 'Nom', label: 'Nom', type: 'text', required: true },
-                { field: 'Statut Migration', label: 'Statut migration', type: 'select', options: ['Migré', 'En cours', 'Non migré', 'Bloqué'] },
+                { field: 'Statut Migration', label: 'Statut migration', type: 'select', options: ['Terminé', 'En cours', 'Non démarré', 'Bloqué', 'Migré', 'Non migré', ''] },
                 { field: 'Responsable', label: 'Responsable', type: 'select', source: 'ACTEURS', sourceField: 'Mail' },
                 { field: 'Backup', label: 'Backup', type: 'select', source: 'ACTEURS', sourceField: 'Mail' },
                 { field: 'Type de rapport', label: 'Type de rapport', type: 'text' },

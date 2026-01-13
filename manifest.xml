@@ -8,7 +8,7 @@
     <!-- ID unique de l'application - GUID généré pour Carto Dev -->
     <Id>a1b2c3d4-e5f6-7890-abcd-ef1234567890</Id>
 
-    <Version>1.0.11.0</Version>
+    <Version>1.0.12.0</Version>
     <ProviderName>Malakoff Humanis</ProviderName>
     <DefaultLocale>fr-FR</DefaultLocale>
     <DisplayName DefaultValue="Carto (DEV)"/>
