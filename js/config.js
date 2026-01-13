@@ -6,7 +6,7 @@
 const CONFIG = {
     // Nom de l'application
     APP_NAME: 'Carto',
-    APP_VERSION: '1.0.26',
+    APP_VERSION: '1.0.27',
 
     // Noms des feuilles spéciales
     SHEETS: {
@@ -179,7 +179,7 @@ const CONFIG = {
             displayName: 'Capacité',
             icon: '&#128200;',
             columns: [
-                { field: 'Acteur', label: 'Acteur', type: 'select', source: 'ACTEURS', sourceField: 'Mail', required: true },
+                { field: 'Acteurs', label: 'Acteur', type: 'select', source: 'ACTEURS', sourceField: 'Mail', required: true },
                 { field: 'Sprint', label: 'Sprint', type: 'select', source: 'SPRINTS', sourceField: 'Sprint', required: true },
                 { field: 'Capacité', label: 'Capacité (j/h)', type: 'number', required: true }
             ]

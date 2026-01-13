@@ -1194,8 +1194,11 @@ class MigrationPage {
 
     /**
      * Génère le graphique visuel de lineage pour un produit
+     * @param {Object} produit - Le produit
+     * @param {Array} fluxProduits - Les flux associés au produit
+     * @param {string} idSuffix - Suffixe optionnel pour les IDs (utile pour éviter les doublons dans les modales)
      */
-    renderLineageGraph(produit, fluxProduits) {
+    renderLineageGraph(produit, fluxProduits, idSuffix = '') {
         // Collecter tous les éléments uniques pour chaque colonne
         const tablesSet = new Set();
         const shoresSet = new Set();
@@ -1277,8 +1280,8 @@ class MigrationPage {
                     <div class="lineage-column-header">Dataflows</div>
                     <div class="lineage-column-header">Produit</div>
                 </div>
-                <div class="lineage-graph-body" id="lineageGraphBody">
-                    <svg class="lineage-connections" id="lineageConnections"></svg>
+                <div class="lineage-graph-body" id="lineageGraphBody${idSuffix}">
+                    <svg class="lineage-connections" id="lineageConnections${idSuffix}"></svg>
                     <div class="lineage-column lineage-tables-column" id="lineageColTables">
                         ${tables.length > 0 ? tables.map(name => `
                             <div class="lineage-node ${getTableStatus(name)}" data-type="table" data-name="${escapeHtml(name)}">
@@ -1324,11 +1327,12 @@ class MigrationPage {
      * Dessine les lignes de connexion du graphique de lineage
      * @param {Array} relations - Les relations à dessiner
      * @param {number} delay - Délai en ms avant de dessiner (défaut: 100ms, utiliser 400ms pour les modales)
+     * @param {string} idSuffix - Suffixe des IDs (pour différencier inline vs modale)
      */
-    drawLineageConnections(relations, delay = 100) {
+    drawLineageConnections(relations, delay = 100, idSuffix = '') {
         setTimeout(() => {
-            const svg = document.getElementById('lineageConnections');
-            const body = document.getElementById('lineageGraphBody');
+            const svg = document.getElementById('lineageConnections' + idSuffix);
+            const body = document.getElementById('lineageGraphBody' + idSuffix);
             if (!svg || !body) return;
 
             // Calculer la taille du SVG
@@ -1387,8 +1391,8 @@ class MigrationPage {
                 </div>
             `;
         } else {
-            // Générer le graphique visuel de lineage
-            const lineageGraph = this.renderLineageGraph(produit, fluxProduits);
+            // Générer le graphique visuel de lineage avec suffixe unique pour la modale
+            const lineageGraph = this.renderLineageGraph(produit, fluxProduits, '_modal');
             relations = lineageGraph.relations;
 
             content = `
@@ -1410,7 +1414,7 @@ class MigrationPage {
 
         // Dessiner les lignes de connexion après que le DOM soit prêt (délai plus long pour la modale)
         if (relations.length > 0) {
-            this.drawLineageConnections(relations, 400);
+            this.drawLineageConnections(relations, 400, '_modal');
         }
     }
 
