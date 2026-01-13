@@ -6,11 +6,34 @@
 /* Container principal de la matrice */
 .process-matrix-container {
     width: 100%;
-    overflow-x: scroll;
-    overflow-y: auto;
+    max-height: calc(100vh - 280px);
+    overflow: scroll;
     background: var(--mh-blanc);
     border-radius: var(--border-radius-md);
     box-shadow: var(--shadow-sm);
+}
+
+/* Scrollbars toujours visibles */
+.process-matrix-container::-webkit-scrollbar {
+    height: 14px;
+    width: 14px;
+}
+
+.process-matrix-container::-webkit-scrollbar-track {
+    background: #f0f0f0;
+}
+
+.process-matrix-container::-webkit-scrollbar-thumb {
+    background: #bbb;
+    border-radius: 4px;
+}
+
+.process-matrix-container::-webkit-scrollbar-thumb:hover {
+    background: #999;
+}
+
+.process-matrix-container::-webkit-scrollbar-corner {
+    background: #f0f0f0;
 }
 
 /* Barre de filtres */
@@ -106,31 +129,25 @@
     white-space: nowrap;
 }
 
-/* Ligne des sous-processus - texte vertical */
+/* Ligne des sous-processus - texte horizontal */
 .process-matrix-table thead tr:nth-child(2) th {
     background: var(--mh-bleu-clair);
     color: var(--mh-blanc);
     font-weight: 500;
-    padding: var(--spacing-sm) var(--spacing-xs);
+    padding: var(--spacing-xs) var(--spacing-sm);
     text-align: center;
     border: 1px solid rgba(255, 255, 255, 0.2);
-    font-size: var(--font-size-xs);
-    height: 120px;
-    min-width: 40px;
-    width: 40px;
-    vertical-align: bottom;
+    font-size: 11px;
+    min-width: 100px;
+    max-width: 150px;
 }
 
-/* Texte vertical dans les sous-processus */
+/* Texte dans les sous-processus */
 .process-matrix-table thead tr:nth-child(2) th .subprocess-label {
-    writing-mode: vertical-rl;
-    text-orientation: mixed;
-    transform: rotate(180deg);
+    display: block;
     white-space: nowrap;
-    max-height: 110px;
     overflow: hidden;
     text-overflow: ellipsis;
-    display: inline-block;
 }
 
 /* Colonnes fixes (Produit et Type) */
@@ -209,8 +226,8 @@ thead tr:nth-child(2) .matrix-col-fixed {
 
 /* Cellules de croisement Processus/Produit */
 .matrix-cell {
-    width: 40px;
-    min-width: 40px;
+    min-width: 100px;
+    max-width: 150px;
     height: 36px;
     cursor: pointer;
     transition: all var(--transition-fast);

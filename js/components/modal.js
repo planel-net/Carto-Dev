@@ -287,12 +287,13 @@ function showAlertModal(message, type = 'info') {
 function showFormModal(title, fields, onSubmit, initialData = {}) {
     const formId = 'modal_form_' + generateId();
     const content = generateFormHtml(formId, fields, initialData);
+    const isEdit = Object.keys(initialData).length > 0;
 
     const modal = new Modal({
         title,
         size: 'md',
         content,
-        confirmText: initialData._rowIndex ? 'Modifier' : 'Ajouter',
+        confirmText: isEdit ? 'Modifier' : 'Ajouter',
         onConfirm: async () => {
             const form = document.getElementById(formId);
             if (!validateForm(form)) {
@@ -303,6 +304,18 @@ function showFormModal(title, fields, onSubmit, initialData = {}) {
             return await onSubmit(formData);
         }
     }).show();
+
+    // Charger les options dynamiques des selects et restaurer les valeurs
+    setTimeout(async () => {
+        const form = document.getElementById(formId);
+        if (form) {
+            await loadDynamicSelectOptions(form);
+            // Restaurer les valeurs initiales apres chargement des options
+            if (isEdit) {
+                setFormData(form, initialData);
+            }
+        }
+    }, 100);
 
     return modal;
 }

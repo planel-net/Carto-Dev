@@ -97,8 +97,31 @@
    =========================================== */
 
 .data-table-wrapper {
-    overflow-x: scroll;
-    /* Scrollbar horizontal toujours visible */
+    max-height: calc(100vh - 350px);
+    overflow: scroll;
+}
+
+/* Scrollbars toujours visibles */
+.data-table-wrapper::-webkit-scrollbar {
+    height: 14px;
+    width: 14px;
+}
+
+.data-table-wrapper::-webkit-scrollbar-track {
+    background: #f0f0f0;
+}
+
+.data-table-wrapper::-webkit-scrollbar-thumb {
+    background: #bbb;
+    border-radius: 4px;
+}
+
+.data-table-wrapper::-webkit-scrollbar-thumb:hover {
+    background: #999;
+}
+
+.data-table-wrapper::-webkit-scrollbar-corner {
+    background: #f0f0f0;
 }
 
 .data-table {
