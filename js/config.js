@@ -6,7 +6,7 @@
 const CONFIG = {
     // Nom de l'application
     APP_NAME: 'Carto',
-    APP_VERSION: '1.0.17',
+    APP_VERSION: '1.0.18',
 
     // Noms des feuilles spéciales
     SHEETS: {
@@ -79,23 +79,23 @@ const CONFIG = {
             displayName: 'Produits / Rapports',
             icon: '&#128202;',
             columns: [
-                // Noms de colonnes EXACTS d'Excel (certains ont des espaces à la fin)
+                // Noms de colonnes EXACTS d'Excel (sans espaces à la fin)
                 { field: 'Nom', label: 'Nom', type: 'text', required: true },
                 { field: 'Statut Migration', label: 'Statut migration', type: 'select', options: ['Terminé', 'En cours', 'Non démarré', 'Bloqué', 'Migré', 'Non migré', ''] },
                 { field: 'Responsable', label: 'Responsable', type: 'select', source: 'ACTEURS', sourceField: 'Mail' },
                 { field: 'Backup', label: 'Backup', type: 'select', source: 'ACTEURS', sourceField: 'Mail' },
-                { field: 'Type de rapport ', label: 'Type de rapport', type: 'text' },
+                { field: 'Type de rapport', label: 'Type de rapport', type: 'text' },
                 { field: 'Perimétre fonctionnel', label: 'Périmètre fonctionnel', type: 'select', source: 'PERIMETRES', sourceField: 'Périmetre' },
-                { field: 'Périmétre des données (SI) ', label: 'Périmètre données (SI)', type: 'text' },
-                { field: 'PBI / PowerAPP ', label: 'PBI / PowerApp', type: 'select', options: ['PBI', 'Power BI', 'PowerApp', 'Power Apps', 'Autre', ''] },
-                { field: 'Frequence ', label: 'Fréquence', type: 'select', options: ['Quotidienne', 'Hebdomadaire', 'Mensuelle', 'Trimestrielle', 'Semestrielle', 'Annuelle', ''] },
-                { field: 'Sensible au pb d\'actualisation quotidien ', label: 'Sensible actualisation', type: 'select', options: ['Oui', 'Non', ''] },
-                { field: 'Gold / Shore actuel ', label: 'Gold/Shore actuel', type: 'select', source: 'SHORES', sourceField: 'Nom' },
+                { field: 'Périmétre des données (SI)', label: 'Périmètre données (SI)', type: 'text' },
+                { field: 'PBI / PowerAPP', label: 'PBI / PowerApp', type: 'select', options: ['PBI', 'Power BI', 'PowerApp', 'Power Apps', 'Autre', ''] },
+                { field: 'Frequence', label: 'Fréquence', type: 'select', options: ['Quotidienne', 'Hebdomadaire', 'Mensuelle', 'Trimestrielle', 'Semestrielle', 'Annuelle', ''] },
+                { field: 'Sensible au pb d\'actualisation quotidien', label: 'Sensible actualisation', type: 'select', options: ['Oui', 'Non', ''] },
+                { field: 'Gold / Shore actuel', label: 'Gold/Shore actuel', type: 'select', source: 'SHORES', sourceField: 'Nom' },
                 { field: 'Shore cible DOCC', label: 'Shore cible DOCC', type: 'text' },
                 { field: 'Shore vision MH Tech', label: 'Shore vision MH Tech', type: 'select', source: 'SHORES', sourceField: 'Nom' },
-                { field: 'PB migration ', label: 'Problème migration', type: 'text' },
-                { field: 'Extraction PBI possible / oui ', label: 'Extraction PBI possible', type: 'select', options: ['Oui', 'Non', ''] },
-                { field: 'Enjeux ', label: 'Enjeux', type: 'textarea' },
+                { field: 'PB migration', label: 'Problème migration', type: 'text' },
+                { field: 'Extraction PBI possible / oui', label: 'Extraction PBI possible', type: 'select', options: ['Oui', 'Non', ''] },
+                { field: 'Enjeux', label: 'Enjeux', type: 'textarea' },
                 { field: 'Statut', label: 'Statut', type: 'select', options: ['Run', 'Evolution', 'Backlog', ''] }
             ]
         },
