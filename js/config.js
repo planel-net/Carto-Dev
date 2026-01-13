@@ -6,7 +6,7 @@
 const CONFIG = {
     // Nom de l'application
     APP_NAME: 'Carto',
-    APP_VERSION: '1.0.14',
+    APP_VERSION: '1.0.15',
 
     // Noms des feuilles spéciales
     SHEETS: {
@@ -86,13 +86,11 @@ const CONFIG = {
                 { field: 'Type de rapport', label: 'Type de rapport', type: 'text' },
                 { field: 'Perimétre fonctionnel', label: 'Périmètre fonctionnel', type: 'select', source: 'PERIMETRES', sourceField: 'Périmetre' },
                 { field: 'Périmétre des données (SI)', label: 'Périmètre données (SI)', type: 'text' },
-                { field: 'PBI / PowerAPP', label: 'PBI / PowerApp', type: 'select', options: ['Power BI', 'PowerApp', 'Autre'] },
-                { field: 'Frequence', label: 'Fréquence', type: 'select', options: ['Quotidienne', 'Hebdomadaire', 'Mensuelle', 'Trimestrielle', 'Semestrielle', 'Annuelle', ''] },
-                { field: 'Sensible au pb d\'actualisation quotidien', label: 'Sensible actualisation', type: 'select', options: ['Oui', 'Non'] },
-                { field: 'Gold / Shore actuel', label: 'Gold/Shore actuel', type: 'select', source: 'SHORES', sourceField: 'Nom' },
+                { field: 'PBI', label: 'PBI / PowerApp', type: 'select', options: ['Power BI', 'PowerApp', 'PBI', 'Autre', ''] },
+                { field: 'Shore/Gold', label: 'Shore/Gold actuel', type: 'select', source: 'SHORES', sourceField: 'Nom' },
                 { field: 'Shore cible DOCC', label: 'Shore cible DOCC', type: 'text' },
                 { field: 'Shore vision MH Tech', label: 'Shore vision MH Tech', type: 'select', source: 'SHORES', sourceField: 'Nom' },
-                { field: 'PB migration', label: 'Problème migration', type: 'text' },
+                { field: 'Pb de données', label: 'Problème de données', type: 'text' },
                 { field: 'Extraction PBI possible / oui', label: 'Extraction PBI possible', type: 'select', options: ['Oui', 'Non'] },
                 { field: 'Enjeux', label: 'Enjeux', type: 'textarea' },
                 { field: 'Statut', label: 'Statut', type: 'select', options: ['Run', 'Evolution', 'Backlog', ''] }
@@ -184,7 +182,7 @@ const CONFIG = {
         TABLES_MH: {
             name: 'tTablesMHTech',
             sheet: 'Tables',
-            displayName: 'Tables MH Tech',
+            displayName: 'Tables MHTech',
             icon: '&#128451;',
             columns: [
                 { field: 'UC', label: 'UC', type: 'text' },
@@ -241,7 +239,8 @@ const CONFIG = {
             { id: 'processus', label: 'Processus', icon: '&#128736;', table: 'PROCESSUS' },
             { id: 'perimetres', label: 'Périmètres', icon: '&#127758;', table: 'PERIMETRES' },
             { id: 'sprints', label: 'Sprints', icon: '&#128197;', table: 'SPRINTS' },
-            { id: 'capacite', label: 'Capacité', icon: '&#128200;', table: 'CAPACITE' }
+            { id: 'capacite', label: 'Capacité', icon: '&#128200;', table: 'CAPACITE' },
+            { id: 'tables-mh', label: 'Tables MHTech', icon: '&#128451;', table: 'TABLES_MH' }
         ]
     },
 
