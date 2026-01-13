@@ -1455,15 +1455,20 @@
     justify-content: space-between;
     align-items: flex-start;
     margin-bottom: var(--spacing-lg);
+    flex-wrap: wrap;
+    gap: var(--spacing-md);
 }
 
 .page-header-left {
     flex: 1;
+    min-width: 200px;
 }
 
 .page-header-right {
     display: flex;
     gap: var(--spacing-sm);
+    flex-shrink: 0;
+    flex-wrap: wrap;
 }
 
 /* Responsive adjustments */
@@ -1478,15 +1483,25 @@
     }
 }
 
+@media (max-width: 1024px) {
+    .page-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .page-header-left {
+        min-width: auto;
+    }
+
+    .page-header-right {
+        justify-content: flex-start;
+    }
+}
+
 @media (max-width: 768px) {
     .roadmap-legend {
         flex-direction: column;
         align-items: flex-start;
-    }
-
-    .page-header {
-        flex-direction: column;
-        gap: var(--spacing-md);
     }
 
     .page-header-right {

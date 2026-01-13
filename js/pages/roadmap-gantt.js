@@ -437,11 +437,11 @@ class RoadmapGanttPage {
             return;
         }
 
-        // Préparer les options pour les selects
-        const processusOptions = this.processus.map(p => p.Processus).filter(Boolean);
-        const perimetresOptions = this.perimetres.map(p => p['Périmetre']).filter(Boolean);
-        const sprintsOptions = this.sprints.map(s => s.Sprint).filter(Boolean);
-        const produitsOptions = this.produits.map(p => p.Nom).filter(Boolean);
+        // Préparer les options pour les selects (avec déduplication)
+        const processusOptions = [...new Set(this.processus.map(p => p.Processus).filter(Boolean))];
+        const perimetresOptions = [...new Set(this.perimetres.map(p => p['Périmetre']).filter(Boolean))];
+        const sprintsOptions = [...new Set(this.sprints.map(s => s.Sprint).filter(Boolean))];
+        const produitsOptions = [...new Set(this.produits.map(p => p.Nom).filter(Boolean))];
 
         const content = `
             <form id="formEditBacklog" class="form">
@@ -450,14 +450,14 @@ class RoadmapGanttPage {
                         <label class="form-label">Produit</label>
                         <select name="Produit" class="form-select">
                             <option value="">-- Sélectionner --</option>
-                            ${produitsOptions.map(p => `<option value="${escapeHtml(p)}" ${p === item.Produit ? 'selected' : ''}>${escapeHtml(p)}</option>`).join('')}
+                            ${produitsOptions.map(p => `<option value="${escapeHtml(p)}" ${(p || '').trim() === (item.Produit || '').trim() ? 'selected' : ''}>${escapeHtml(p)}</option>`).join('')}
                         </select>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Processus</label>
                         <select name="Processus" class="form-select">
                             <option value="">-- Sélectionner --</option>
-                            ${processusOptions.map(p => `<option value="${escapeHtml(p)}" ${p === item.Processus ? 'selected' : ''}>${escapeHtml(p)}</option>`).join('')}
+                            ${processusOptions.map(p => `<option value="${escapeHtml(p)}" ${(p || '').trim() === (item.Processus || '').trim() ? 'selected' : ''}>${escapeHtml(p)}</option>`).join('')}
                         </select>
                     </div>
                 </div>
@@ -466,7 +466,7 @@ class RoadmapGanttPage {
                         <label class="form-label">Périmètre</label>
                         <select name="Périmètre" class="form-select">
                             <option value="">-- Sélectionner --</option>
-                            ${perimetresOptions.map(p => `<option value="${escapeHtml(p)}" ${p === item['Périmètre'] ? 'selected' : ''}>${escapeHtml(p)}</option>`).join('')}
+                            ${perimetresOptions.map(p => `<option value="${escapeHtml(p)}" ${(p || '').trim() === (item['Périmètre'] || '').trim() ? 'selected' : ''}>${escapeHtml(p)}</option>`).join('')}
                         </select>
                     </div>
                     <div class="form-group">
@@ -483,14 +483,14 @@ class RoadmapGanttPage {
                         <label class="form-label">Sprint début</label>
                         <select name="Sprint début" class="form-select">
                             <option value="">-- Sélectionner --</option>
-                            ${sprintsOptions.map(s => `<option value="${escapeHtml(s)}" ${s === item['Sprint début'] ? 'selected' : ''}>${escapeHtml(s)}</option>`).join('')}
+                            ${sprintsOptions.map(s => `<option value="${escapeHtml(s)}" ${(s || '').trim() === (item['Sprint début'] || '').trim() ? 'selected' : ''}>${escapeHtml(s)}</option>`).join('')}
                         </select>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Sprint fin</label>
                         <select name="Sprint fin" class="form-select">
                             <option value="">-- Sélectionner --</option>
-                            ${sprintsOptions.map(s => `<option value="${escapeHtml(s)}" ${s === item['Sprint fin'] ? 'selected' : ''}>${escapeHtml(s)}</option>`).join('')}
+                            ${sprintsOptions.map(s => `<option value="${escapeHtml(s)}" ${(s || '').trim() === (item['Sprint fin'] || '').trim() ? 'selected' : ''}>${escapeHtml(s)}</option>`).join('')}
                         </select>
                     </div>
                 </div>
@@ -607,11 +607,11 @@ class RoadmapGanttPage {
      * Ouvre le formulaire d'ajout d'un nouvel item backlog
      */
     async addBacklogItem() {
-        // Préparer les options pour les selects
-        const processusOptions = this.processus.map(p => p.Processus).filter(Boolean);
-        const perimetresOptions = this.perimetres.map(p => p['Périmetre']).filter(Boolean);
-        const sprintsOptions = this.sprints.map(s => s.Sprint).filter(Boolean);
-        const produitsOptions = this.produits.map(p => p.Nom).filter(Boolean);
+        // Préparer les options pour les selects (avec déduplication)
+        const processusOptions = [...new Set(this.processus.map(p => p.Processus).filter(Boolean))];
+        const perimetresOptions = [...new Set(this.perimetres.map(p => p['Périmetre']).filter(Boolean))];
+        const sprintsOptions = [...new Set(this.sprints.map(s => s.Sprint).filter(Boolean))];
+        const produitsOptions = [...new Set(this.produits.map(p => p.Nom).filter(Boolean))];
 
         const content = `
             <form id="formAddBacklog" class="form">
