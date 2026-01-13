@@ -565,7 +565,7 @@ class RoadmapGanttPage {
         }
 
         try {
-            await updateTableRow('tBacklog', index + 2, updatedItem);
+            await updateTableRow('tBacklog', index, updatedItem);
 
             showSuccess('Projet mis à jour avec succès');
             closeModal();
@@ -590,7 +590,7 @@ class RoadmapGanttPage {
         if (!confirmed) return;
 
         try {
-            await deleteTableRow('tBacklog', index + 2);
+            await deleteTableRow('tBacklog', index);
 
             showSuccess('Projet supprimé avec succès');
             closeModal();

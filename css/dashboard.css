@@ -1311,7 +1311,10 @@
     word-break: break-word;
     overflow: hidden;
     line-height: 1.3;
-    text-overflow: ellipsis;
+    /* Limiter à 2 lignes */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
 }
 
 /* Body Styles */

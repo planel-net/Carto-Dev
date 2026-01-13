@@ -1003,7 +1003,7 @@ class MigrationPage {
 
         try {
             // Mettre à jour dans Excel via la table tFlux
-            await updateTableRow('tFlux', fluxIndex + 2, updatedFlux); // +2 car index Excel commence à 1 et il y a l'en-tête
+            await updateTableRow('tFlux', fluxIndex, updatedFlux);
 
             showSuccess('Flux mis à jour avec succès');
             closeModal();
@@ -1053,7 +1053,7 @@ class MigrationPage {
      */
     async deleteFlux(fluxIndex) {
         try {
-            await deleteTableRow('tFlux', fluxIndex + 2); // +2 car index Excel
+            await deleteTableRow('tFlux', fluxIndex);
 
             showSuccess('Flux supprimé avec succès');
             closeModal();
