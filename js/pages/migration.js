@@ -1208,6 +1208,9 @@ class MigrationPage {
         // Mapper les relations pour dessiner les lignes
         const relations = [];
 
+        // Track which shores have been connected to tables (pour n'avoir qu'une seule flèche)
+        const shoresConnectedToTables = new Set();
+
         fluxProduits.forEach(fluxItem => {
             const shoreName = fluxItem['Shore/Gold'];
             const projetDssName = fluxItem['Projet DSS'];
@@ -1219,8 +1222,12 @@ class MigrationPage {
                 const tablesAssociees = this.findTablesForShore(shoreName);
                 tablesAssociees.forEach(t => {
                     tablesSet.add(t.Table);
-                    relations.push({ from: t.Table, fromType: 'table', to: shoreName, toType: 'shore' });
                 });
+                // Ajouter UNE SEULE flèche de la première table vers le shore
+                if (tablesAssociees.length > 0 && !shoresConnectedToTables.has(shoreName)) {
+                    relations.push({ from: tablesAssociees[0].Table, fromType: 'table', to: shoreName, toType: 'shore' });
+                    shoresConnectedToTables.add(shoreName);
+                }
             }
 
             if (projetDssName) {

@@ -6,7 +6,7 @@
 const CONFIG = {
     // Nom de l'application
     APP_NAME: 'Carto',
-    APP_VERSION: '1.0.27',
+    APP_VERSION: '1.0.28',
 
     // Noms des feuilles spéciales
     SHEETS: {
@@ -157,6 +157,7 @@ const CONFIG = {
                 { field: 'Processus', label: 'Processus', type: 'select', source: 'PROCESSUS', sourceField: 'Processus' },
                 { field: 'Périmètre', label: 'Périmètre', type: 'select', source: 'PERIMETRES', sourceField: 'Périmetre' },
                 { field: 'Phase', label: 'Phase', type: 'text' },
+                { field: 'Description', label: 'Description', type: 'textarea' },
                 { field: 'Sprint début', label: 'Sprint début', type: 'select', source: 'SPRINTS', sourceField: 'Sprint' },
                 { field: 'Sprint fin', label: 'Sprint fin', type: 'select', source: 'SPRINTS', sourceField: 'Sprint' },
                 { field: 'Couleur', label: 'Couleur', type: 'color' }

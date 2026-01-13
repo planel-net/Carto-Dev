@@ -381,14 +381,21 @@ class RoadmapGanttPage {
     renderPhaseBlock(item, rowspan = 1) {
         const phase = item.Phase || 'Sans phase';
         const produit = item.Produit || '';
+        const description = item.Description || '';
         const color = item.Couleur || this.getDefaultColor(phase);
         const backlogIndex = this.backlog.indexOf(item);
+
+        // Construire le tooltip avec description si remplie
+        let tooltip = `${produit} - ${phase}`;
+        if (description) {
+            tooltip += `\n\n${description}`;
+        }
 
         return `
             <div class="gantt-phase-block gantt-phase-fullwidth"
                  data-backlog-index="${backlogIndex}"
                  style="background-color: ${escapeHtml(color)};"
-                 title="${escapeHtml(produit)} - ${escapeHtml(phase)}">
+                 title="${escapeHtml(tooltip)}">
                 <span class="phase-text">${escapeHtml(phase)}</span>
             </div>
         `;
@@ -466,6 +473,10 @@ class RoadmapGanttPage {
                         <label class="form-label">Phase</label>
                         <input type="text" name="Phase" class="form-input" value="${escapeHtml(item.Phase || '')}">
                     </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <textarea name="Description" class="form-textarea" rows="3" placeholder="Description détaillée de la phase...">${escapeHtml(item.Description || '')}</textarea>
                 </div>
                 <div class="form-row">
                     <div class="form-group">
@@ -632,6 +643,10 @@ class RoadmapGanttPage {
                         <label class="form-label">Phase</label>
                         <input type="text" name="Phase" class="form-input" placeholder="Ex: Cadrage, Dev, Recette...">
                     </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <textarea name="Description" class="form-textarea" rows="3" placeholder="Description détaillée de la phase..."></textarea>
                 </div>
                 <div class="form-row">
                     <div class="form-group">

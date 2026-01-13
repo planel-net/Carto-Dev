@@ -1290,7 +1290,8 @@
 .gantt-perim-header {
     background: var(--mh-bleu-clair);
     font-size: var(--font-size-sm);
-    min-width: 120px;
+    width: 120px;
+    max-width: 120px;
 }
 
 .gantt-produit-row {
@@ -1302,9 +1303,11 @@
     font-size: 11px;
     font-weight: 500;
     color: white;
-    min-width: 120px;
+    width: 120px;
+    max-width: 120px;
     padding: var(--spacing-xs) var(--spacing-sm);
     white-space: normal;
+    word-wrap: break-word;
     line-height: 1.3;
 }
 
@@ -1346,9 +1349,10 @@
 
 .gantt-data-cell {
     background: var(--mh-blanc);
-    min-width: 120px;
+    width: 120px;
+    max-width: 120px;
     padding: 4px;
-    vertical-align: middle;
+    vertical-align: top;
     height: 48px;
 }
 
@@ -1368,17 +1372,18 @@
     color: white;
     cursor: pointer;
     transition: all var(--transition-fast);
-    height: 36px;
+    min-height: 36px;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
     box-shadow: var(--shadow-sm);
     word-break: break-word;
     text-align: center;
 }
 
-/* Full width block - prend toute la largeur de la cellule */
+/* Full width block - prend toute la largeur et hauteur de la cellule */
 .gantt-phase-fullwidth {
     width: 100%;
-    margin: 0;
+    height: calc(100% - 8px);
+    margin: 4px 0;
     box-sizing: border-box;
 }
 
