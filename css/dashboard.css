@@ -832,3 +832,168 @@
 .btn-lineage {
     white-space: nowrap;
 }
+
+/* ===========================================
+   PIPELINE SPACER
+   =========================================== */
+
+.pipeline-spacer {
+    width: 40px;
+    flex-shrink: 0;
+}
+
+@media (max-width: 1200px) {
+    .pipeline-spacer {
+        display: none;
+    }
+}
+
+/* ===========================================
+   KPI FILTER BADGE
+   =========================================== */
+
+.migration-status-card.is-filtered {
+    border: 2px solid var(--mh-orange);
+}
+
+.kpi-filter-badge {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    background: var(--mh-orange);
+    color: white;
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: var(--border-radius-sm);
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+/* ===========================================
+   FLUX NESTED TABLE
+   =========================================== */
+
+.flux-nested-table-wrapper {
+    padding: var(--spacing-md);
+    overflow-x: auto;
+}
+
+.flux-nested-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    background: var(--mh-blanc);
+    border-radius: var(--border-radius-sm);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+}
+
+.flux-nested-table thead {
+    background-color: var(--mh-bleu-clair);
+    color: white;
+}
+
+.flux-nested-table th {
+    padding: var(--spacing-sm) var(--spacing-sm);
+    text-align: left;
+    font-weight: 600;
+    white-space: nowrap;
+    font-size: 11px;
+}
+
+.flux-nested-table td {
+    padding: var(--spacing-sm) var(--spacing-sm);
+    border-bottom: 1px solid #e9ecef;
+    vertical-align: middle;
+}
+
+.flux-nested-table tbody tr:hover {
+    background-color: rgba(0, 102, 204, 0.05);
+}
+
+.flux-nested-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.flux-comment-cell {
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.flux-actions-cell {
+    white-space: nowrap;
+}
+
+.flux-actions-cell .btn {
+    margin-right: 4px;
+}
+
+.flux-actions-cell .btn:last-child {
+    margin-right: 0;
+}
+
+/* Boutons extra-small pour actions */
+.btn-xs {
+    padding: 2px 6px;
+    font-size: 12px;
+    line-height: 1.4;
+    border-radius: 3px;
+}
+
+/* ===========================================
+   FORM STYLES FOR MODALS
+   =========================================== */
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-md);
+}
+
+@media (max-width: 576px) {
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+.form-textarea {
+    width: 100%;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: 1px solid #ced4da;
+    border-radius: var(--border-radius-sm);
+    font-family: inherit;
+    font-size: var(--font-size-sm);
+    resize: vertical;
+    min-height: 80px;
+}
+
+.form-textarea:focus {
+    outline: none;
+    border-color: var(--mh-bleu-clair);
+    box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.1);
+}
+
+/* Alert styles */
+.alert {
+    padding: var(--spacing-md);
+    border-radius: var(--border-radius-sm);
+    margin-bottom: var(--spacing-md);
+}
+
+.alert-warning {
+    background-color: rgba(255, 193, 7, 0.15);
+    border: 1px solid var(--mh-jaune-warning);
+    color: #856404;
+}
+
+.alert-danger {
+    background-color: rgba(220, 53, 69, 0.15);
+    border: 1px solid var(--mh-rouge-erreur);
+    color: #721c24;
+}
+
+.text-danger {
+    color: var(--mh-rouge-erreur);
+}

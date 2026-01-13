@@ -15,9 +15,103 @@ class MigrationPage {
             dataflows: { total: 0, migre: 0, percent: 0 },
             produits: { total: 0, migre: 0, percent: 0 }
         };
+        this.filteredStats = null; // Stats filtrées pour un produit sélectionné
+        this.selectedProduitIndex = null;
         this.produits = [];
         this.flux = [];
+        this.shores = [];
+        this.projetsDss = [];
+        this.dataflows = [];
+        this.tablesMh = [];
         this.expandedRows = new Set();
+    }
+
+    /**
+     * Normalise une chaîne pour comparaison (lowercase, sans underscores)
+     */
+    normalizeString(str) {
+        if (!str) return '';
+        return str.toLowerCase().replace(/_/g, '').replace(/\s+/g, '');
+    }
+
+    /**
+     * Trouve les tables MH Tech associées à un Shore via la colonne UC
+     */
+    findTablesForShore(shoreName) {
+        if (!shoreName || !this.tablesMh.length) return [];
+        const normalizedShoreName = this.normalizeString(shoreName);
+        return this.tablesMh.filter(t => {
+            const normalizedUC = this.normalizeString(t.UC);
+            return normalizedUC === normalizedShoreName ||
+                   normalizedShoreName.includes(normalizedUC) ||
+                   normalizedUC.includes(normalizedShoreName);
+        });
+    }
+
+    /**
+     * Calcule les stats filtrées pour un produit spécifique
+     */
+    calculateFilteredStats(produit, fluxProduits) {
+        const uniqueShores = new Set();
+        const uniqueProjetsDss = new Set();
+        const uniqueDataflows = new Set();
+        const uniqueTables = new Set();
+
+        fluxProduits.forEach(f => {
+            if (f['Shore/Gold']) uniqueShores.add(f['Shore/Gold']);
+            if (f['Projet DSS']) uniqueProjetsDss.add(f['Projet DSS']);
+            if (f['DFNom DF']) uniqueDataflows.add(f['DFNom DF']);
+        });
+
+        // Trouver les tables associées via les shores
+        uniqueShores.forEach(shoreName => {
+            const tables = this.findTablesForShore(shoreName);
+            tables.forEach(t => uniqueTables.add(t.Table));
+        });
+
+        // Calculer les stats pour chaque type
+        const calcStats = (items, sourceData, nameField, statusField) => {
+            const total = items.size;
+            let migre = 0;
+            items.forEach(itemName => {
+                const item = sourceData.find(s => s[nameField] === itemName);
+                if (item) {
+                    const status = (item[statusField] || '').toLowerCase();
+                    if (status.includes('terminé') || status.includes('migré') || status === 'oui') {
+                        migre++;
+                    }
+                }
+            });
+            return { total, migre, percentMigre: total > 0 ? Math.round((migre / total) * 100) : 0 };
+        };
+
+        // Tables stats
+        const tablesStats = (() => {
+            const total = uniqueTables.size;
+            let migre = 0;
+            uniqueTables.forEach(tableName => {
+                const table = this.tablesMh.find(t => t.Table === tableName);
+                if (table) {
+                    const status = (table['OK DA ?'] || '').toLowerCase();
+                    if (status === 'oui' || status.includes('migré')) {
+                        migre++;
+                    }
+                }
+            });
+            return { total, migre, percentMigre: total > 0 ? Math.round((migre / total) * 100) : 0 };
+        })();
+
+        // Statut du produit lui-même
+        const prodStatus = (produit['Statut Migration'] || '').toLowerCase();
+        const produitMigre = prodStatus.includes('terminé') || prodStatus.includes('migré') ? 1 : 0;
+
+        this.filteredStats = {
+            tablesMh: tablesStats,
+            shores: calcStats(uniqueShores, this.shores, 'Nom', 'Migré Tech'),
+            projetsDss: calcStats(uniqueProjetsDss, this.projetsDss, 'Nom projet', 'Statut migration'),
+            dataflows: calcStats(uniqueDataflows, this.dataflows, 'Nom', 'Statut migration'),
+            produits: { total: 1, migre: produitMigre, percentMigre: produitMigre * 100 }
+        };
     }
 
     /**
@@ -56,6 +150,7 @@ class MigrationPage {
                     <div class="migration-status-card" id="kpi-produits">
                         <div class="spinner"></div>
                     </div>
+                    <div class="pipeline-spacer"></div>
                     <div class="migration-status-card kpi-total" id="kpi-global">
                         <div class="spinner"></div>
                     </div>
@@ -105,16 +200,21 @@ class MigrationPage {
     async loadData() {
         console.log('[Migration] loadData starting...');
         try {
-            // Charger les statistiques de chaque type en parallèle
-            console.log('[Migration] Loading all stats...');
-            const [tablesMhStats, shoresStats, dssStats, dfStats, produitsStats, produitsData, fluxData] = await Promise.all([
+            // Charger les statistiques et données de chaque type en parallèle
+            console.log('[Migration] Loading all stats and data...');
+            const [tablesMhStats, shoresStats, dssStats, dfStats, produitsStats,
+                   produitsData, fluxData, shoresData, projetsDssData, dataflowsData, tablesMhData] = await Promise.all([
                 getMigrationStats('tTablesMHTech', 'OK DA ?'),
                 getMigrationStats('tShores', 'Migré Tech'),
                 getMigrationStats('tProjetsDSS', 'Statut migration'),
                 getMigrationStats('tDataflows', 'Statut migration'),
                 getMigrationStats('tProduits', 'Statut Migration'),
                 readTable('tProduits'),
-                readTable('tFlux')
+                readTable('tFlux'),
+                readTable('tShores'),
+                readTable('tProjetsDSS'),
+                readTable('tDataflows'),
+                readTable('tTablesMHTech')
             ]);
 
             console.log('[Migration] Stats loaded:', { tablesMhStats, shoresStats, dssStats, dfStats, produitsStats });
@@ -129,6 +229,10 @@ class MigrationPage {
 
             this.produits = produitsData.data;
             this.flux = fluxData.data;
+            this.shores = shoresData.data;
+            this.projetsDss = projetsDssData.data;
+            this.dataflows = dataflowsData.data;
+            this.tablesMh = tablesMhData.data;
 
             // Mettre à jour l'interface
             console.log('[Migration] Rendering KPIs...');
@@ -149,63 +253,74 @@ class MigrationPage {
      * Rendu des KPIs
      */
     renderKpis() {
+        // Utiliser les stats filtrées si un produit est sélectionné
+        const stats = this.filteredStats || this.stats;
+        const isFiltered = !!this.filteredStats;
+        const filterLabel = isFiltered ? ' (filtré)' : '';
+
         // Tables MH Tech
         this.renderKpiCard('kpi-tablesmh', {
-            label: 'Tables MH Tech',
-            value: this.stats.tablesMh.percentMigre,
-            total: this.stats.tablesMh.total,
-            migre: this.stats.tablesMh.migre,
-            icon: '&#128451;'
+            label: 'Tables MH Tech' + filterLabel,
+            value: stats.tablesMh.percentMigre,
+            total: stats.tablesMh.total,
+            migre: stats.tablesMh.migre,
+            icon: '&#128451;',
+            isFiltered
         });
 
         // Shores
         this.renderKpiCard('kpi-shores', {
-            label: 'Shores / Golds',
-            value: this.stats.shores.percentMigre,
-            total: this.stats.shores.total,
-            migre: this.stats.shores.migre,
-            icon: '&#128451;'
+            label: 'Shores / Golds' + filterLabel,
+            value: stats.shores.percentMigre,
+            total: stats.shores.total,
+            migre: stats.shores.migre,
+            icon: '&#128451;',
+            isFiltered
         });
 
         // Projets DSS
         this.renderKpiCard('kpi-projetsdss', {
-            label: 'Projets DSS',
-            value: this.stats.projetsDss.percentMigre,
-            total: this.stats.projetsDss.total,
-            migre: this.stats.projetsDss.migre,
-            icon: '&#128194;'
+            label: 'Projets DSS' + filterLabel,
+            value: stats.projetsDss.percentMigre,
+            total: stats.projetsDss.total,
+            migre: stats.projetsDss.migre,
+            icon: '&#128194;',
+            isFiltered
         });
 
         // Dataflows
         this.renderKpiCard('kpi-dataflows', {
-            label: 'Dataflows',
-            value: this.stats.dataflows.percentMigre,
-            total: this.stats.dataflows.total,
-            migre: this.stats.dataflows.migre,
-            icon: '&#128260;'
+            label: 'Dataflows' + filterLabel,
+            value: stats.dataflows.percentMigre,
+            total: stats.dataflows.total,
+            migre: stats.dataflows.migre,
+            icon: '&#128260;',
+            isFiltered
         });
 
         // Produits
         this.renderKpiCard('kpi-produits', {
-            label: 'Produits / Rapports',
-            value: this.stats.produits.percentMigre,
-            total: this.stats.produits.total,
-            migre: this.stats.produits.migre,
-            icon: '&#128202;'
+            label: 'Produits / Rapports' + filterLabel,
+            value: stats.produits.percentMigre,
+            total: stats.produits.total,
+            migre: stats.produits.migre,
+            icon: '&#128202;',
+            isFiltered
         });
 
         // Global (inclut tous les types)
-        const totalItems = this.stats.tablesMh.total + this.stats.shores.total + this.stats.projetsDss.total + this.stats.dataflows.total + this.stats.produits.total;
-        const totalMigre = this.stats.tablesMh.migre + this.stats.shores.migre + this.stats.projetsDss.migre + this.stats.dataflows.migre + this.stats.produits.migre;
+        const totalItems = stats.tablesMh.total + stats.shores.total + stats.projetsDss.total + stats.dataflows.total + stats.produits.total;
+        const totalMigre = stats.tablesMh.migre + stats.shores.migre + stats.projetsDss.migre + stats.dataflows.migre + stats.produits.migre;
         const globalPercent = totalItems > 0 ? Math.round((totalMigre / totalItems) * 100) : 0;
 
         this.renderKpiCard('kpi-global', {
-            label: 'Migration Globale',
+            label: isFiltered ? 'Lineage Produit' : 'Migration Globale',
             value: globalPercent,
             total: totalItems,
             migre: totalMigre,
             icon: '&#127919;',
-            isGlobal: true
+            isGlobal: true,
+            isFiltered
         });
     }
 
@@ -217,9 +332,11 @@ class MigrationPage {
         if (!container) return;
 
         const statusClass = data.value >= 70 ? 'status-success' : data.value >= 30 ? 'status-warning' : 'status-danger';
+        const filteredClass = data.isFiltered ? 'is-filtered' : '';
 
-        container.className = `migration-status-card ${statusClass}`;
+        container.className = `migration-status-card ${statusClass} ${filteredClass}`;
         container.innerHTML = `
+            ${data.isFiltered ? '<div class="kpi-filter-badge">Filtré</div>' : ''}
             <div class="status-icon">${data.icon}</div>
             <div class="status-value">${data.value}%</div>
             <div class="status-label">${data.label}</div>
@@ -258,23 +375,25 @@ class MigrationPage {
 
         if (!produit) {
             container.innerHTML = '<p class="text-muted">Sélectionnez un produit pour voir sa chaîne de dépendances complète.</p>';
+            // Réinitialiser les stats filtrées
+            this.filteredStats = null;
+            this.selectedProduitIndex = null;
+            this.renderKpis();
             return;
         }
+
+        // Mémoriser le produit sélectionné
+        this.selectedProduitIndex = produitIndex;
 
         // Afficher un spinner pendant le chargement
         container.innerHTML = '<div class="spinner"></div>';
 
-        // Charger les données liées
-        const [flux, projetsDss, dataflows, shores, tablesMh] = await Promise.all([
-            readTable('tFlux'),
-            readTable('tProjetsDSS'),
-            readTable('tDataflows'),
-            readTable('tShores'),
-            readTable('tTablesMHTech')
-        ]);
-
         // Trouver tous les flux correspondant au produit
-        const fluxProduits = flux.data.filter(f => f.Produit === produit.Nom);
+        const fluxProduits = this.flux.filter(f => f.Produit === produit.Nom);
+
+        // Calculer les stats filtrées pour ce produit
+        this.calculateFilteredStats(produit, fluxProduits);
+        this.renderKpis();
 
         if (fluxProduits.length === 0) {
             container.innerHTML = `
@@ -329,14 +448,12 @@ class MigrationPage {
 
         // Pour chaque flux, construire une ligne de lineage
         fluxProduits.forEach(fluxItem => {
-            const shore = shores.data.find(s => s.Nom === fluxItem['Shore/Gold']);
-            const projetDss = projetsDss.data.find(p => p['Nom projet'] === fluxItem['Projet DSS']);
-            const dataflow = dataflows.data.find(d => d.Nom === fluxItem['DFNom DF']);
+            const shore = this.shores.find(s => s.Nom === fluxItem['Shore/Gold']);
+            const projetDss = this.projetsDss.find(p => p['Nom projet'] === fluxItem['Projet DSS']);
+            const dataflow = this.dataflows.find(d => d.Nom === fluxItem['DFNom DF']);
 
-            // Trouver les tables MH Tech associées au Shore
-            const shoreNomPourTables = shore ? shore['Nom_pour_tables'] : null;
-            const tablesAssociees = shoreNomPourTables ?
-                tablesMh.data.filter(t => t.Table && t.Table.includes(shoreNomPourTables)) : [];
+            // Trouver les tables MH Tech associées au Shore via la colonne UC
+            const tablesAssociees = shore ? this.findTablesForShore(shore.Nom) : [];
 
             html += `
                 <tr>
@@ -426,21 +543,42 @@ class MigrationPage {
     }
 
     /**
+     * Formate une date pour l'affichage
+     */
+    formatDate(dateValue) {
+        if (!dateValue) return '-';
+        try {
+            // Gérer les dates Excel (nombre de jours depuis 1900)
+            if (typeof dateValue === 'number') {
+                const date = new Date((dateValue - 25569) * 86400 * 1000);
+                return date.toLocaleDateString('fr-FR');
+            }
+            // Gérer les chaînes de date
+            const date = new Date(dateValue);
+            if (isNaN(date.getTime())) return dateValue;
+            return date.toLocaleDateString('fr-FR');
+        } catch {
+            return dateValue || '-';
+        }
+    }
+
+    /**
+     * Tronque un texte à une longueur maximale
+     */
+    truncateText(text, maxLength) {
+        if (!text) return '-';
+        if (text.length <= maxLength) return text;
+        return text.substring(0, maxLength) + '...';
+    }
+
+    /**
      * Rendu du tableau de suivi par produit
      */
     async renderProductProgressTable() {
         const container = document.getElementById('productProgressTable');
         if (!container) return;
 
-        // Charger toutes les données nécessaires
-        const [shores, projetsDss, dataflows, tablesMh] = await Promise.all([
-            readTable('tShores'),
-            readTable('tProjetsDSS'),
-            readTable('tDataflows'),
-            readTable('tTablesMHTech')
-        ]);
-
-        // Calculer les stats par produit
+        // Calculer les stats par produit (utilise les données déjà chargées)
         const productStats = this.produits.map(produit => {
             // Trouver les flux de ce produit
             const productFlux = this.flux.filter(f => f.Produit === produit.Nom);
@@ -457,16 +595,10 @@ class MigrationPage {
                 if (f['DFNom DF']) uniqueDataflows.add(f['DFNom DF']);
             });
 
-            // Trouver les tables associées via les shores
+            // Trouver les tables associées via les shores (utilise la colonne UC)
             uniqueShores.forEach(shoreName => {
-                const shore = shores.data.find(s => s.Nom === shoreName);
-                if (shore && shore['Nom_pour_tables']) {
-                    tablesMh.data.forEach(t => {
-                        if (t.Table && t.Table.includes(shore['Nom_pour_tables'])) {
-                            uniqueTables.add(t.Table);
-                        }
-                    });
-                }
+                const tables = this.findTablesForShore(shoreName);
+                tables.forEach(t => uniqueTables.add(t.Table));
             });
 
             // Calculer les stats de migration pour chaque type
@@ -489,7 +621,7 @@ class MigrationPage {
                 const total = uniqueTables.size;
                 let migre = 0;
                 uniqueTables.forEach(tableName => {
-                    const table = tablesMh.data.find(t => t.Table === tableName);
+                    const table = this.tablesMh.find(t => t.Table === tableName);
                     if (table) {
                         const status = (table['OK DA ?'] || '').toLowerCase();
                         if (status === 'oui' || status.includes('migré')) {
@@ -500,9 +632,9 @@ class MigrationPage {
                 return { total, migre, percent: total > 0 ? Math.round((migre / total) * 100) : 0 };
             })();
 
-            const shoresStats = calcStats(uniqueShores, shores.data, 'Nom', 'Migré Tech');
-            const dssStats = calcStats(uniqueProjetsDss, projetsDss.data, 'Nom projet', 'Statut migration');
-            const dfStats = calcStats(uniqueDataflows, dataflows.data, 'Nom', 'Statut migration');
+            const shoresStats = calcStats(uniqueShores, this.shores, 'Nom', 'Migré Tech');
+            const dssStats = calcStats(uniqueProjetsDss, this.projetsDss, 'Nom projet', 'Statut migration');
+            const dfStats = calcStats(uniqueDataflows, this.dataflows, 'Nom', 'Statut migration');
 
             // Statut du produit lui-même
             const prodStatus = (produit['Statut Migration'] || '').toLowerCase();
@@ -564,28 +696,77 @@ class MigrationPage {
 
             // Lignes de détail des flux (si développé)
             if (isExpanded && ps.flux.length > 0) {
+                // Afficher un sous-tableau avec toutes les colonnes du flux
+                html += `
+                    <tr class="flux-detail-row">
+                        <td></td>
+                        <td colspan="7" style="padding: 0; background: var(--mh-gris-clair);">
+                            <div class="flux-nested-table-wrapper">
+                                <table class="flux-nested-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Shore/Gold</th>
+                                            <th>Projet DSS</th>
+                                            <th>Dataflow</th>
+                                            <th>Charge (jh)</th>
+                                            <th>Estimation</th>
+                                            <th>Date prévue</th>
+                                            <th>Sprint</th>
+                                            <th>Éligible SLA</th>
+                                            <th>Commentaire</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                `;
+
                 ps.flux.forEach((fluxItem) => {
+                    const fluxId = this.flux.findIndex(f =>
+                        f.Produit === fluxItem.Produit &&
+                        f['Shore/Gold'] === fluxItem['Shore/Gold'] &&
+                        f['Projet DSS'] === fluxItem['Projet DSS'] &&
+                        f['DFNom DF'] === fluxItem['DFNom DF']
+                    );
+
                     html += `
-                        <tr class="flux-detail-row">
-                            <td></td>
-                            <td colspan="6" style="padding-left: 40px; font-size: 13px; background: var(--mh-gris-clair);">
-                                <div style="display: flex; gap: 16px; flex-wrap: wrap;">
-                                    <span><strong>Shore:</strong> ${escapeHtml(fluxItem['Shore/Gold'] || '-')}</span>
-                                    <span><strong>Projet DSS:</strong> ${escapeHtml(fluxItem['Projet DSS'] || '-')}</span>
-                                    <span><strong>Dataflow:</strong> ${escapeHtml(fluxItem['DFNom DF'] || '-')}</span>
-                                    <span><strong>Sprint:</strong> ${escapeHtml(fluxItem['Sprint'] || '-')}</span>
-                                </div>
+                        <tr>
+                            <td>${escapeHtml(fluxItem['Shore/Gold'] || '-')}</td>
+                            <td>${escapeHtml(fluxItem['Projet DSS'] || '-')}</td>
+                            <td>${escapeHtml(fluxItem['DFNom DF'] || '-')}</td>
+                            <td>${escapeHtml(fluxItem['Charge (jh)'] || '-')}</td>
+                            <td>${escapeHtml(fluxItem['Estimation'] || '-')}</td>
+                            <td>${this.formatDate(fluxItem['Date prévisionnelle migration'])}</td>
+                            <td>${escapeHtml(fluxItem['Sprint'] || '-')}</td>
+                            <td>${escapeHtml(fluxItem['Eligible SLA'] || '-')}</td>
+                            <td class="flux-comment-cell" title="${escapeHtml(fluxItem['Commentaire'] || '')}">${escapeHtml(this.truncateText(fluxItem['Commentaire'], 30))}</td>
+                            <td class="flux-actions-cell">
+                                <button class="btn btn-xs btn-secondary btn-edit-flux" data-flux-index="${fluxId}" data-produit-index="${index}" title="Modifier">
+                                    &#9998;
+                                </button>
+                                <button class="btn btn-xs btn-danger btn-delete-flux" data-flux-index="${fluxId}" data-produit-index="${index}" title="Supprimer">
+                                    &#128465;
+                                </button>
                             </td>
-                            <td style="background: var(--mh-gris-clair);"></td>
                         </tr>
                     `;
                 });
+
+                html += `
+                                    </tbody>
+                                </table>
+                            </div>
+                        </td>
+                    </tr>
+                `;
             } else if (isExpanded && ps.flux.length === 0) {
                 html += `
                     <tr class="flux-detail-row">
                         <td></td>
-                        <td colspan="7" style="padding-left: 40px; font-style: italic; color: var(--mh-gris-moyen); background: var(--mh-gris-clair);">
-                            Aucun flux défini pour ce produit
+                        <td colspan="7" style="padding: 16px 40px; font-style: italic; color: var(--mh-gris-moyen); background: var(--mh-gris-clair);">
+                            Aucun flux défini pour ce produit.
+                            <button class="btn btn-sm btn-primary btn-add-flux" data-produit-index="${index}" style="margin-left: 16px;">
+                                + Ajouter un flux
+                            </button>
                         </td>
                     </tr>
                 `;
@@ -645,6 +826,354 @@ class MigrationPage {
                 this.showLineagePopup(index);
             });
         });
+
+        // Boutons d'édition de flux
+        document.querySelectorAll('.btn-edit-flux').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const fluxIndex = parseInt(e.currentTarget.dataset.fluxIndex);
+                this.editFlux(fluxIndex);
+            });
+        });
+
+        // Boutons de suppression de flux
+        document.querySelectorAll('.btn-delete-flux').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const fluxIndex = parseInt(e.currentTarget.dataset.fluxIndex);
+                this.confirmDeleteFlux(fluxIndex);
+            });
+        });
+
+        // Boutons d'ajout de flux
+        document.querySelectorAll('.btn-add-flux').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const produitIndex = parseInt(e.currentTarget.dataset.produitIndex);
+                this.addFlux(produitIndex);
+            });
+        });
+    }
+
+    /**
+     * Ouvre le formulaire d'édition d'un flux
+     */
+    async editFlux(fluxIndex) {
+        const flux = this.flux[fluxIndex];
+        if (!flux) {
+            showError('Flux non trouvé');
+            return;
+        }
+
+        // Préparer les options pour les selects
+        const shoresOptions = this.shores.map(s => s.Nom);
+        const projetsDssOptions = this.projetsDss.map(p => p['Nom projet']);
+        const dataflowsOptions = this.dataflows.map(d => d.Nom);
+        const produitsOptions = this.produits.map(p => p.Nom);
+
+        const content = `
+            <form id="formEditFlux" class="form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Produit</label>
+                        <select name="Produit" class="form-select" required>
+                            ${produitsOptions.map(p => `<option value="${escapeHtml(p)}" ${p === flux.Produit ? 'selected' : ''}>${escapeHtml(p)}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Shore/Gold</label>
+                        <select name="Shore/Gold" class="form-select">
+                            <option value="">-- Sélectionner --</option>
+                            ${shoresOptions.map(s => `<option value="${escapeHtml(s)}" ${s === flux['Shore/Gold'] ? 'selected' : ''}>${escapeHtml(s)}</option>`).join('')}
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Projet DSS</label>
+                        <select name="Projet DSS" class="form-select">
+                            <option value="">-- Sélectionner --</option>
+                            ${projetsDssOptions.map(p => `<option value="${escapeHtml(p)}" ${p === flux['Projet DSS'] ? 'selected' : ''}>${escapeHtml(p)}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Dataflow</label>
+                        <select name="DFNom DF" class="form-select">
+                            <option value="">-- Sélectionner --</option>
+                            ${dataflowsOptions.map(d => `<option value="${escapeHtml(d)}" ${d === flux['DFNom DF'] ? 'selected' : ''}>${escapeHtml(d)}</option>`).join('')}
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Charge (jh)</label>
+                        <input type="number" name="Charge (jh)" class="form-input" value="${flux['Charge (jh)'] || ''}" step="0.5" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Estimation</label>
+                        <input type="text" name="Estimation" class="form-input" value="${escapeHtml(flux['Estimation'] || '')}">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Date prévisionnelle migration</label>
+                        <input type="date" name="Date prévisionnelle migration" class="form-input" value="${this.formatDateForInput(flux['Date prévisionnelle migration'])}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Sprint</label>
+                        <input type="text" name="Sprint" class="form-input" value="${escapeHtml(flux['Sprint'] || '')}">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Éligible SLA</label>
+                        <select name="Eligible SLA" class="form-select">
+                            <option value="">-- Sélectionner --</option>
+                            <option value="Oui" ${flux['Eligible SLA'] === 'Oui' ? 'selected' : ''}>Oui</option>
+                            <option value="Non" ${flux['Eligible SLA'] === 'Non' ? 'selected' : ''}>Non</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Commentaire</label>
+                    <textarea name="Commentaire" class="form-textarea" rows="3">${escapeHtml(flux['Commentaire'] || '')}</textarea>
+                </div>
+            </form>
+        `;
+
+        showModal({
+            title: 'Modifier le flux',
+            content: content,
+            size: 'large',
+            buttons: [
+                { label: 'Annuler', class: 'btn-secondary', action: 'close' },
+                {
+                    label: 'Enregistrer',
+                    class: 'btn-primary',
+                    action: async () => {
+                        await this.saveFlux(fluxIndex);
+                    }
+                }
+            ]
+        });
+    }
+
+    /**
+     * Formate une date pour un input date
+     */
+    formatDateForInput(dateValue) {
+        if (!dateValue) return '';
+        try {
+            let date;
+            if (typeof dateValue === 'number') {
+                date = new Date((dateValue - 25569) * 86400 * 1000);
+            } else {
+                date = new Date(dateValue);
+            }
+            if (isNaN(date.getTime())) return '';
+            return date.toISOString().split('T')[0];
+        } catch {
+            return '';
+        }
+    }
+
+    /**
+     * Sauvegarde un flux modifié
+     */
+    async saveFlux(fluxIndex) {
+        const form = document.getElementById('formEditFlux');
+        if (!form) return;
+
+        const formData = new FormData(form);
+        const updatedFlux = {};
+
+        for (const [key, value] of formData.entries()) {
+            updatedFlux[key] = value;
+        }
+
+        try {
+            // Mettre à jour dans Excel via la table tFlux
+            await updateTableRow('tFlux', fluxIndex + 2, updatedFlux); // +2 car index Excel commence à 1 et il y a l'en-tête
+
+            showSuccess('Flux mis à jour avec succès');
+            closeModal();
+
+            // Recharger les données
+            await this.loadData();
+        } catch (error) {
+            console.error('Erreur lors de la mise à jour du flux:', error);
+            showError('Erreur lors de la mise à jour: ' + error.message);
+        }
+    }
+
+    /**
+     * Confirmation de suppression d'un flux
+     */
+    confirmDeleteFlux(fluxIndex) {
+        const flux = this.flux[fluxIndex];
+        if (!flux) return;
+
+        showModal({
+            title: 'Confirmer la suppression',
+            content: `
+                <p>Êtes-vous sûr de vouloir supprimer ce flux ?</p>
+                <div class="alert alert-warning" style="margin-top: 16px;">
+                    <strong>Produit:</strong> ${escapeHtml(flux.Produit || '-')}<br>
+                    <strong>Shore:</strong> ${escapeHtml(flux['Shore/Gold'] || '-')}<br>
+                    <strong>Projet DSS:</strong> ${escapeHtml(flux['Projet DSS'] || '-')}<br>
+                    <strong>Dataflow:</strong> ${escapeHtml(flux['DFNom DF'] || '-')}
+                </div>
+                <p class="text-danger" style="margin-top: 12px;">Cette action est irréversible.</p>
+            `,
+            buttons: [
+                { label: 'Annuler', class: 'btn-secondary', action: 'close' },
+                {
+                    label: 'Supprimer',
+                    class: 'btn-danger',
+                    action: async () => {
+                        await this.deleteFlux(fluxIndex);
+                    }
+                }
+            ]
+        });
+    }
+
+    /**
+     * Supprime un flux
+     */
+    async deleteFlux(fluxIndex) {
+        try {
+            await deleteTableRow('tFlux', fluxIndex + 2); // +2 car index Excel
+
+            showSuccess('Flux supprimé avec succès');
+            closeModal();
+
+            // Recharger les données
+            await this.loadData();
+        } catch (error) {
+            console.error('Erreur lors de la suppression du flux:', error);
+            showError('Erreur lors de la suppression: ' + error.message);
+        }
+    }
+
+    /**
+     * Ouvre le formulaire d'ajout d'un flux pour un produit
+     */
+    addFlux(produitIndex) {
+        const produit = this.produits[produitIndex];
+        if (!produit) return;
+
+        // Préparer les options pour les selects
+        const shoresOptions = this.shores.map(s => s.Nom);
+        const projetsDssOptions = this.projetsDss.map(p => p['Nom projet']);
+        const dataflowsOptions = this.dataflows.map(d => d.Nom);
+
+        const content = `
+            <form id="formAddFlux" class="form">
+                <div class="form-group">
+                    <label class="form-label">Produit</label>
+                    <input type="text" name="Produit" class="form-input" value="${escapeHtml(produit.Nom)}" readonly>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Shore/Gold</label>
+                        <select name="Shore/Gold" class="form-select">
+                            <option value="">-- Sélectionner --</option>
+                            ${shoresOptions.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Projet DSS</label>
+                        <select name="Projet DSS" class="form-select">
+                            <option value="">-- Sélectionner --</option>
+                            ${projetsDssOptions.map(p => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('')}
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Dataflow</label>
+                        <select name="DFNom DF" class="form-select">
+                            <option value="">-- Sélectionner --</option>
+                            ${dataflowsOptions.map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Charge (jh)</label>
+                        <input type="number" name="Charge (jh)" class="form-input" step="0.5" min="0">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Estimation</label>
+                        <input type="text" name="Estimation" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Date prévisionnelle migration</label>
+                        <input type="date" name="Date prévisionnelle migration" class="form-input">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Sprint</label>
+                        <input type="text" name="Sprint" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Éligible SLA</label>
+                        <select name="Eligible SLA" class="form-select">
+                            <option value="">-- Sélectionner --</option>
+                            <option value="Oui">Oui</option>
+                            <option value="Non">Non</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Commentaire</label>
+                    <textarea name="Commentaire" class="form-textarea" rows="3"></textarea>
+                </div>
+            </form>
+        `;
+
+        showModal({
+            title: 'Ajouter un flux',
+            content: content,
+            size: 'large',
+            buttons: [
+                { label: 'Annuler', class: 'btn-secondary', action: 'close' },
+                {
+                    label: 'Ajouter',
+                    class: 'btn-primary',
+                    action: async () => {
+                        await this.createFlux();
+                    }
+                }
+            ]
+        });
+    }
+
+    /**
+     * Crée un nouveau flux
+     */
+    async createFlux() {
+        const form = document.getElementById('formAddFlux');
+        if (!form) return;
+
+        const formData = new FormData(form);
+        const newFlux = {};
+
+        for (const [key, value] of formData.entries()) {
+            newFlux[key] = value;
+        }
+
+        try {
+            await addTableRow('tFlux', newFlux);
+
+            showSuccess('Flux ajouté avec succès');
+            closeModal();
+
+            // Recharger les données
+            await this.loadData();
+        } catch (error) {
+            console.error('Erreur lors de l\'ajout du flux:', error);
+            showError('Erreur lors de l\'ajout: ' + error.message);
+        }
     }
 
     /**
@@ -654,16 +1183,8 @@ class MigrationPage {
         const produit = this.produits[produitIndex];
         if (!produit) return;
 
-        // Charger les données
-        const [flux, projetsDss, dataflows, shores, tablesMh] = await Promise.all([
-            readTable('tFlux'),
-            readTable('tProjetsDSS'),
-            readTable('tDataflows'),
-            readTable('tShores'),
-            readTable('tTablesMHTech')
-        ]);
-
-        const fluxProduits = flux.data.filter(f => f.Produit === produit.Nom);
+        // Utiliser les données déjà chargées
+        const fluxProduits = this.flux.filter(f => f.Produit === produit.Nom);
 
         // Construire le contenu de la popup
         let content = `
@@ -703,13 +1224,12 @@ class MigrationPage {
             `;
 
             fluxProduits.forEach(fluxItem => {
-                const shore = shores.data.find(s => s.Nom === fluxItem['Shore/Gold']);
-                const projetDss = projetsDss.data.find(p => p['Nom projet'] === fluxItem['Projet DSS']);
-                const dataflow = dataflows.data.find(d => d.Nom === fluxItem['DFNom DF']);
+                const shore = this.shores.find(s => s.Nom === fluxItem['Shore/Gold']);
+                const projetDss = this.projetsDss.find(p => p['Nom projet'] === fluxItem['Projet DSS']);
+                const dataflow = this.dataflows.find(d => d.Nom === fluxItem['DFNom DF']);
 
-                const shoreNomPourTables = shore ? shore['Nom_pour_tables'] : null;
-                const tablesAssociees = shoreNomPourTables ?
-                    tablesMh.data.filter(t => t.Table && t.Table.includes(shoreNomPourTables)) : [];
+                // Utiliser la nouvelle méthode de correspondance Tables/Shore via UC
+                const tablesAssociees = shore ? this.findTablesForShore(shore.Nom) : [];
 
                 content += `
                     <tr>
