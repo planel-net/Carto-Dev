@@ -410,7 +410,11 @@ function showModal(options) {
                 } else if (typeof btn.action === 'function') {
                     try {
                         btnEl.disabled = true;
-                        await btn.action();
+                        const result = await btn.action();
+                        // Fermer la modale si l'action retourne true (ou ne retourne rien)
+                        if (result !== false) {
+                            closeModal();
+                        }
                     } catch (error) {
                         console.error('Erreur action bouton:', error);
                         showError('Erreur: ' + error.message);
