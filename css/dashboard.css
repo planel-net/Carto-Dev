@@ -1887,10 +1887,10 @@
     background: var(--mh-blanc);
 }
 
-/* Label "Chantiers" fixe - 200px + 2px border to match table */
+/* Label "Chantiers" fixe - 200px to match table column */
 .gantt-header-chantier-label {
-    width: 202px;
-    min-width: 202px;
+    width: 200px;
+    min-width: 200px;
     flex-shrink: 0;
     background: var(--mh-bleu-fonce);
     color: var(--mh-blanc);
