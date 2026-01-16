@@ -57,7 +57,7 @@ async function readTable(tableName, useCache = true) {
 
             // Convertir en tableau d'objets
             const data = rows.map((row, index) => {
-                const obj = { _rowIndex: index + 2 }; // +2 car Excel est 1-based et +1 pour l'en-tête
+                const obj = { _rowIndex: index }; // 0-based index pour les API getRow/getItemAt
                 headers.forEach((header, colIndex) => {
                     obj[header] = row[colIndex];
                 });

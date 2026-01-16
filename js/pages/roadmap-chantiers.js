@@ -123,6 +123,10 @@ class RoadmapChantiersPage {
                 return dateA - dateB;
             });
 
+            // Initialiser les filtres avec toutes les valeurs (pour afficher tout par défaut)
+            this.filters.perimetres = this.perimetres.map(p => p['Périmetre']).filter(Boolean);
+            this.filters.responsables = [...new Set(this.chantiers.map(c => c['Responsable']).filter(Boolean))];
+
         } catch (error) {
             console.error('Erreur chargement données roadmap chantiers:', error);
             showError('Erreur lors du chargement des données');
@@ -202,6 +206,15 @@ class RoadmapChantiersPage {
         const perimetresList = this.perimetres.map(p => p['Périmetre']).filter(Boolean);
         const responsablesList = [...new Set(this.chantiers.map(c => c['Responsable']).filter(Boolean))];
 
+        // Calcul des labels
+        const perimetreAllSelected = this.filters.perimetres.length === perimetresList.length;
+        const perimetreLabel = perimetreAllSelected ? 'Tous' :
+            (this.filters.perimetres.length === 0 ? 'Aucun' : this.filters.perimetres.length + ' sélectionné(s)');
+
+        const responsableAllSelected = this.filters.responsables.length === responsablesList.length;
+        const responsableLabel = responsableAllSelected ? 'Tous' :
+            (this.filters.responsables.length === 0 ? 'Aucun' : this.filters.responsables.length + ' sélectionné(s)');
+
         container.innerHTML = `
             <div class="filter-group">
                 <label>Période :</label>
@@ -213,7 +226,7 @@ class RoadmapChantiersPage {
                 <label>Périmètre :</label>
                 <div class="multi-select-wrapper" id="perimetreFilterWrapper">
                     <div class="multi-select-trigger" onclick="roadmapChantiersPageInstance.toggleMultiSelect('perimetre')">
-                        <span class="multi-select-label">${this.filters.perimetres.length === 0 ? 'Tous' : this.filters.perimetres.length + ' sélectionné(s)'}</span>
+                        <span class="multi-select-label">${perimetreLabel}</span>
                         <span class="multi-select-arrow">&#9662;</span>
                     </div>
                     <div class="multi-select-dropdown" id="perimetreDropdown">
@@ -238,7 +251,7 @@ class RoadmapChantiersPage {
                 <label>Responsable :</label>
                 <div class="multi-select-wrapper" id="responsableFilterWrapper">
                     <div class="multi-select-trigger" onclick="roadmapChantiersPageInstance.toggleMultiSelect('responsable')">
-                        <span class="multi-select-label">${this.filters.responsables.length === 0 ? 'Tous' : this.filters.responsables.length + ' sélectionné(s)'}</span>
+                        <span class="multi-select-label">${responsableLabel}</span>
                         <span class="multi-select-arrow">&#9662;</span>
                     </div>
                     <div class="multi-select-dropdown" id="responsableDropdown">
@@ -305,20 +318,24 @@ class RoadmapChantiersPage {
 
     /**
      * Obtient les chantiers filtrés
+     * Note: perimetres/responsables vides = aucun filtre sélectionné = ne rien afficher
+     * Pour tout afficher, toutes les valeurs doivent être dans le tableau
      */
     getFilteredChantiers() {
         return this.chantiers.filter(chantier => {
-            // Filtre par périmètre
-            if (this.filters.perimetres.length > 0) {
-                if (!this.filters.perimetres.includes(chantier['Perimetre'])) {
-                    return false;
-                }
+            // Filtre par périmètre (vide = afficher aucun)
+            if (this.filters.perimetres.length === 0) {
+                return false;
             }
-            // Filtre par responsable
-            if (this.filters.responsables.length > 0) {
-                if (!this.filters.responsables.includes(chantier['Responsable'])) {
-                    return false;
-                }
+            if (!this.filters.perimetres.includes(chantier['Perimetre'])) {
+                return false;
+            }
+            // Filtre par responsable (vide = afficher aucun)
+            if (this.filters.responsables.length === 0) {
+                return false;
+            }
+            if (!this.filters.responsables.includes(chantier['Responsable'])) {
+                return false;
             }
             return true;
         });
@@ -766,20 +783,20 @@ class RoadmapChantiersPage {
     }
 
     selectAllPerimetres() {
-        // Cocher toutes les cases
+        // "Tous" = cocher toutes les cases = afficher tous les chantiers
+        const allPerimetres = this.perimetres.map(p => p['Périmetre']).filter(Boolean);
         const checkboxes = document.querySelectorAll('#perimetreDropdown input[type="checkbox"]');
-        checkboxes.forEach(cb => cb.checked = false);
-        this.filters.perimetres = [];
+        checkboxes.forEach(cb => cb.checked = true);
+        this.filters.perimetres = [...allPerimetres];
         this.updatePerimetreLabel();
         this.applyFiltersWithoutRenderingFilters();
     }
 
     clearPerimetresFilter() {
-        // Décocher toutes les cases (= filtrer sur tous = afficher aucun si tous cochés)
-        const allPerimetres = this.perimetres.map(p => p['Périmetre']).filter(Boolean);
+        // "Aucun" = décocher toutes les cases = n'afficher aucun chantier
         const checkboxes = document.querySelectorAll('#perimetreDropdown input[type="checkbox"]');
-        checkboxes.forEach(cb => cb.checked = true);
-        this.filters.perimetres = [...allPerimetres];
+        checkboxes.forEach(cb => cb.checked = false);
+        this.filters.perimetres = [];
         this.updatePerimetreLabel();
         this.applyFiltersWithoutRenderingFilters();
     }
@@ -796,23 +813,28 @@ class RoadmapChantiersPage {
     updatePerimetreLabel() {
         const label = document.querySelector('#perimetreFilterWrapper .multi-select-label');
         if (label) {
-            label.textContent = this.filters.perimetres.length === 0 ? 'Tous' : this.filters.perimetres.length + ' sélectionné(s)';
+            const allPerimetres = this.perimetres.map(p => p['Périmetre']).filter(Boolean);
+            const allSelected = this.filters.perimetres.length === allPerimetres.length;
+            label.textContent = allSelected ? 'Tous' :
+                (this.filters.perimetres.length === 0 ? 'Aucun' : this.filters.perimetres.length + ' sélectionné(s)');
         }
     }
 
     selectAllResponsables() {
+        // "Tous" = cocher toutes les cases = afficher tous les chantiers
+        const allResponsables = [...new Set(this.chantiers.map(c => c['Responsable']).filter(Boolean))];
         const checkboxes = document.querySelectorAll('#responsableDropdown input[type="checkbox"]');
-        checkboxes.forEach(cb => cb.checked = false);
-        this.filters.responsables = [];
+        checkboxes.forEach(cb => cb.checked = true);
+        this.filters.responsables = [...allResponsables];
         this.updateResponsableLabel();
         this.applyFiltersWithoutRenderingFilters();
     }
 
     clearResponsablesFilter() {
-        const allResponsables = [...new Set(this.chantiers.map(c => c['Responsable']).filter(Boolean))];
+        // "Aucun" = décocher toutes les cases = n'afficher aucun chantier
         const checkboxes = document.querySelectorAll('#responsableDropdown input[type="checkbox"]');
-        checkboxes.forEach(cb => cb.checked = true);
-        this.filters.responsables = [...allResponsables];
+        checkboxes.forEach(cb => cb.checked = false);
+        this.filters.responsables = [];
         this.updateResponsableLabel();
         this.applyFiltersWithoutRenderingFilters();
     }
@@ -829,7 +851,10 @@ class RoadmapChantiersPage {
     updateResponsableLabel() {
         const label = document.querySelector('#responsableFilterWrapper .multi-select-label');
         if (label) {
-            label.textContent = this.filters.responsables.length === 0 ? 'Tous' : this.filters.responsables.length + ' sélectionné(s)';
+            const allResponsables = [...new Set(this.chantiers.map(c => c['Responsable']).filter(Boolean))];
+            const allSelected = this.filters.responsables.length === allResponsables.length;
+            label.textContent = allSelected ? 'Tous' :
+                (this.filters.responsables.length === 0 ? 'Aucun' : this.filters.responsables.length + ' sélectionné(s)');
         }
     }
 
@@ -845,11 +870,13 @@ class RoadmapChantiersPage {
     }
 
     resetFilters() {
+        // Réinitialiser avec les dates par défaut (aujourd'hui + 6 mois)
+        // et tous les périmètres/responsables sélectionnés
         this.filters = {
             dateDebut: new Date(),
             dateFin: new Date(new Date().setMonth(new Date().getMonth() + 6)),
-            perimetres: [],
-            responsables: []
+            perimetres: this.perimetres.map(p => p['Périmetre']).filter(Boolean),
+            responsables: [...new Set(this.chantiers.map(c => c['Responsable']).filter(Boolean))]
         };
         this.applyFilters();
     }
@@ -987,7 +1014,7 @@ class RoadmapChantiersPage {
 
         // Utiliser _rowIndex stocké par readTable
         const rowIndex = chantier._rowIndex;
-        if (!rowIndex) {
+        if (rowIndex === undefined || rowIndex === null) {
             console.error('Row index not found for chantier:', chantierName);
             showError('Erreur: index de ligne non trouvé');
             return;
@@ -1087,7 +1114,7 @@ class RoadmapChantiersPage {
                             // Supprimer les anciens liens (en ordre inverse pour éviter les décalages)
                             const liensToDelete = this.chantierProduit
                                 .filter(cp => cp['Chantier'] === chantierName)
-                                .sort((a, b) => (b._rowIndex || 0) - (a._rowIndex || 0));
+                                .sort((a, b) => (b._rowIndex ?? 0) - (a._rowIndex ?? 0));
 
                             for (const cp of liensToDelete) {
                                 if (cp._rowIndex) {
@@ -1142,7 +1169,7 @@ class RoadmapChantiersPage {
 
                     // Utiliser _rowIndex stocké par readTable
                     const rowIndex = chantier._rowIndex;
-                    if (!rowIndex) {
+                    if (rowIndex === undefined || rowIndex === null) {
                         console.error('Row index not found for chantier:', chantierName);
                         showError('Erreur: index de ligne non trouvé');
                         return;
@@ -1173,18 +1200,18 @@ class RoadmapChantiersPage {
                     // Supprimer les phases du chantier (en ordre inverse pour éviter les décalages d'index)
                     const phasesToDelete = this.phases
                         .filter(p => p['Chantier'] === chantierName)
-                        .sort((a, b) => (b._rowIndex || 0) - (a._rowIndex || 0));
+                        .sort((a, b) => (b._rowIndex ?? 0) - (a._rowIndex ?? 0));
 
                     for (const phase of phasesToDelete) {
-                        if (!phase._rowIndex) continue;
+                        if (phase._rowIndex === undefined || phase._rowIndex === null) continue;
 
                         // Supprimer les liens de la phase (en ordre inverse)
                         const liensToDelete = this.phasesLien
                             .filter(l => l['Phase'] === phase['Phase'])
-                            .sort((a, b) => (b._rowIndex || 0) - (a._rowIndex || 0));
+                            .sort((a, b) => (b._rowIndex ?? 0) - (a._rowIndex ?? 0));
 
                         for (const lien of liensToDelete) {
-                            if (lien._rowIndex) {
+                            if (lien._rowIndex !== undefined && lien._rowIndex !== null) {
                                 await deleteTableRow('tPhasesLien', lien._rowIndex);
                             }
                         }
@@ -1194,17 +1221,17 @@ class RoadmapChantiersPage {
                     // Supprimer les liens chantier-produit (en ordre inverse)
                     const produitsToDelete = this.chantierProduit
                         .filter(cp => cp['Chantier'] === chantierName)
-                        .sort((a, b) => (b._rowIndex || 0) - (a._rowIndex || 0));
+                        .sort((a, b) => (b._rowIndex ?? 0) - (a._rowIndex ?? 0));
 
                     for (const cp of produitsToDelete) {
-                        if (cp._rowIndex) {
+                        if (cp._rowIndex !== undefined && cp._rowIndex !== null) {
                             await deleteTableRow('tChantierProduit', cp._rowIndex);
                         }
                     }
 
                     // Supprimer le chantier
                     const chantier = [...this.chantiers, ...this.chantiersArchives].find(c => c['Chantier'] === chantierName);
-                    if (chantier && chantier._rowIndex) {
+                    if (chantier && (chantier._rowIndex !== undefined && chantier._rowIndex !== null)) {
                         await deleteTableRow('tChantiers', chantier._rowIndex);
                     }
 
@@ -1313,7 +1340,7 @@ class RoadmapChantiersPage {
 
             // Utiliser _rowIndex stocké par readTable
             const rowIndex = chantier._rowIndex;
-            if (!rowIndex) {
+            if (rowIndex === undefined || rowIndex === null) {
                 console.error('Row index not found for chantier:', chantierName);
                 showError('Erreur: index de ligne non trouvé');
                 return;
@@ -1467,7 +1494,7 @@ class RoadmapChantiersPage {
 
         // Utiliser _rowIndex stocké par readTable
         const rowIndex = phase._rowIndex;
-        if (!rowIndex) {
+        if (rowIndex === undefined || rowIndex === null) {
             console.error('Row index not found for phase:', phase['Phase']);
             showError('Erreur: index de ligne non trouvé');
             return;
@@ -1578,7 +1605,7 @@ class RoadmapChantiersPage {
                             // Supprimer les anciens liens (en ordre inverse pour éviter les décalages)
                             const oldLiens = this.phasesLien
                                 .filter(l => l['Phase'] === phase['Phase'])
-                                .sort((a, b) => (b._rowIndex || 0) - (a._rowIndex || 0));
+                                .sort((a, b) => (b._rowIndex ?? 0) - (a._rowIndex ?? 0));
 
                             for (const lien of oldLiens) {
                                 if (lien._rowIndex) {
@@ -1643,7 +1670,7 @@ class RoadmapChantiersPage {
 
         // Utiliser _rowIndex stocké par readTable
         const rowIndex = phase._rowIndex;
-        if (!rowIndex) {
+        if (rowIndex === undefined || rowIndex === null) {
             console.error('Row index not found for phase:', phase['Phase']);
             showError('Erreur: index de ligne non trouvé');
             return;
@@ -1657,10 +1684,10 @@ class RoadmapChantiersPage {
                     // Supprimer les liens (en ordre inverse pour éviter les décalages)
                     const liens = this.phasesLien
                         .filter(l => l['Phase'] === phase['Phase'])
-                        .sort((a, b) => (b._rowIndex || 0) - (a._rowIndex || 0));
+                        .sort((a, b) => (b._rowIndex ?? 0) - (a._rowIndex ?? 0));
 
                     for (const lien of liens) {
-                        if (lien._rowIndex) {
+                        if (lien._rowIndex !== undefined && lien._rowIndex !== null) {
                             await deleteTableRow('tPhasesLien', lien._rowIndex);
                         }
                     }
@@ -1718,7 +1745,7 @@ class RoadmapChantiersPage {
             if (newName && newName !== currentName) {
                 try {
                     const phase = this.phases[phaseIndex];
-                    if (!phase || !phase._rowIndex) {
+                    if (!phase || (phase._rowIndex === undefined || phase._rowIndex === null)) {
                         showError('Erreur: index de ligne non trouvé');
                         this.cancelInlineEdit();
                         return;
@@ -1831,7 +1858,7 @@ class RoadmapChantiersPage {
         const phaseData = { ...this.draggedPhase.phase };
         const rowIndex = this.draggedPhase.phase._rowIndex;
 
-        if (!rowIndex) {
+        if (rowIndex === undefined || rowIndex === null) {
             console.error('Row index not found for phase');
             showError('Erreur: index de ligne non trouvé');
             return;
@@ -1900,7 +1927,7 @@ class RoadmapChantiersPage {
 
         // Vérifier que _rowIndex existe
         const rowIndex = phase._rowIndex;
-        if (!rowIndex) {
+        if (rowIndex === undefined || rowIndex === null) {
             console.error('Row index not found for phase');
             showError('Erreur: index de ligne non trouvé');
             this.resizingPhase = null;

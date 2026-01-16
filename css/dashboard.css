@@ -1887,10 +1887,10 @@
     background: var(--mh-blanc);
 }
 
-/* Label "Chantiers" fixe */
+/* Label "Chantiers" fixe - 200px + 2px border to match table */
 .gantt-header-chantier-label {
-    width: 200px;
-    min-width: 200px;
+    width: 202px;
+    min-width: 202px;
     flex-shrink: 0;
     background: var(--mh-bleu-fonce);
     color: var(--mh-blanc);
@@ -1899,6 +1899,7 @@
     align-items: center;
     justify-content: center;
     padding: var(--spacing-sm);
+    border-right: 2px solid var(--mh-bleu-clair);
 }
 
 /* Timeline (mois + sprints) */
@@ -2156,15 +2157,17 @@
 .gantt-resize-handle-left {
     left: 0;
     border-radius: 4px 0 0 4px;
+    background: linear-gradient(to right, rgba(0, 0, 0, 0.15), transparent);
 }
 
 .gantt-resize-handle-right {
     right: 0;
     border-radius: 0 4px 4px 0;
+    background: linear-gradient(to left, rgba(0, 0, 0, 0.15), transparent);
 }
 
 .gantt-resize-handle:hover {
-    background: rgba(0, 0, 0, 0.1);
+    background: rgba(0, 0, 0, 0.25) !important;
 }
 
 /* Inline edit */
@@ -2336,9 +2339,10 @@
     }
 
     .gantt-chantier-cell,
-    .gantt-chantier-header {
-        min-width: 150px;
-        width: 150px;
+    .gantt-chantier-header,
+    .gantt-header-chantier-label {
+        min-width: 152px;
+        width: 152px;
     }
 
     .chantier-name {
