@@ -145,9 +145,34 @@ class RoadmapGanttPage {
      */
     getSprintMonthYear(sprint) {
         const date = this.parseDate(sprint['Début']);
-        if (isNaN(date.getTime())) return '';
+        if (isNaN(date.getTime())) return { month: '', year: '' };
         const months = ['Janv', 'Févr', 'Mars', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sept', 'Oct', 'Nov', 'Déc'];
-        return `${months[date.getMonth()]}`;
+        return {
+            month: months[date.getMonth()],
+            year: String(date.getFullYear()).slice(-2)
+        };
+    }
+
+    /**
+     * Formate une date pour affichage (dd/mm)
+     */
+    formatDateShort(dateValue) {
+        const date = this.parseDate(dateValue);
+        if (isNaN(date.getTime())) return '';
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        return `${day}/${month}`;
+    }
+
+    /**
+     * Obtient les dates de début et fin d'un sprint
+     */
+    getSprintDates(sprint) {
+        const debut = this.formatDateShort(sprint['Début']);
+        const fin = this.formatDateShort(sprint['Fin']);
+        if (!debut) return '';
+        if (!fin) return debut;
+        return `${debut} - ${fin}`;
     }
 
     /**
@@ -178,19 +203,23 @@ class RoadmapGanttPage {
 
         // Construire les lignes (Sprints)
         let rowsHtml = '';
-        let currentMonth = '';
+        let currentMonthKey = '';
 
         sortedSprints.forEach((sprint, sprintIndex) => {
             const sprintName = sprint.Sprint || `Sprint ${sprintIndex + 1}`;
-            const monthYear = this.getSprintMonthYear(sprint);
-            const showMonth = monthYear !== currentMonth;
-            currentMonth = monthYear;
+            const sprintDates = this.getSprintDates(sprint);
+            const monthYearObj = this.getSprintMonthYear(sprint);
+            const monthKey = `${monthYearObj.month}-${monthYearObj.year}`;
+            const showMonth = monthKey !== currentMonthKey;
+            currentMonthKey = monthKey;
 
             // Compter combien de sprints ont le même mois pour le rowspan
             let monthRowspan = 1;
             if (showMonth) {
                 for (let i = sprintIndex + 1; i < sortedSprints.length; i++) {
-                    if (this.getSprintMonthYear(sortedSprints[i]) === monthYear) {
+                    const nextMonthYear = this.getSprintMonthYear(sortedSprints[i]);
+                    const nextMonthKey = `${nextMonthYear.month}-${nextMonthYear.year}`;
+                    if (nextMonthKey === monthKey) {
                         monthRowspan++;
                     } else {
                         break;
@@ -198,15 +227,23 @@ class RoadmapGanttPage {
                 }
             }
 
-            rowsHtml += '<tr>';
+            rowsHtml += `<tr data-sprint-index="${sprintIndex}" data-sprint-name="${escapeHtml(sprintName)}">`;
 
-            // Colonne Mois (avec rowspan si nouveau mois)
+            // Colonne Mois avec année (avec rowspan si nouveau mois)
             if (showMonth) {
-                rowsHtml += `<td class="gantt-month-cell" rowspan="${monthRowspan}">${escapeHtml(monthYear)}</td>`;
+                rowsHtml += `<td class="gantt-month-cell" rowspan="${monthRowspan}">
+                    <div class="month-with-year">
+                        <span class="month-name">${escapeHtml(monthYearObj.month)}</span>
+                        <span class="month-year">${escapeHtml(monthYearObj.year)}</span>
+                    </div>
+                </td>`;
             }
 
-            // Colonne Sprint
-            rowsHtml += `<td class="gantt-sprint-cell">${escapeHtml(sprintName)}</td>`;
+            // Colonne Sprint avec dates
+            rowsHtml += `<td class="gantt-sprint-cell">
+                <div class="sprint-name">${escapeHtml(sprintName)}</div>
+                <div class="sprint-dates">${escapeHtml(sprintDates)}</div>
+            </td>`;
 
             // Cellules pour chaque colonne (processus/périmètre/produit)
             this.columns.forEach((col, colIndex) => {
@@ -223,9 +260,9 @@ class RoadmapGanttPage {
                 if (cellInfo) {
                     const { item, rowspan } = cellInfo;
                     const rowspanAttr = rowspan > 1 ? ` rowspan="${rowspan}"` : '';
-                    rowsHtml += `<td class="gantt-data-cell"${rowspanAttr}>${this.renderPhaseBlock(item, rowspan)}</td>`;
+                    rowsHtml += `<td class="gantt-data-cell" data-sprint-index="${sprintIndex}" data-col-index="${colIndex}"${rowspanAttr}>${this.renderPhaseBlock(item, rowspan, sprintIndex, colIndex)}</td>`;
                 } else {
-                    rowsHtml += '<td class="gantt-data-cell"></td>';
+                    rowsHtml += `<td class="gantt-data-cell" data-sprint-index="${sprintIndex}" data-col-index="${colIndex}"></td>`;
                 }
             });
 
@@ -378,7 +415,7 @@ class RoadmapGanttPage {
     /**
      * Rendu d'un bloc de phase (pleine largeur)
      */
-    renderPhaseBlock(item, rowspan = 1) {
+    renderPhaseBlock(item, rowspan = 1, sprintIndex = 0, colIndex = 0) {
         const phase = item.Phase || 'Sans phase';
         const produit = item.Produit || '';
         const description = item.Description || '';
@@ -391,12 +428,23 @@ class RoadmapGanttPage {
             tooltip += `\n\n${description}`;
         }
 
+        // Ajouter des handles de redimensionnement si rowspan > 1 ou si c'est une vignette simple
+        const resizeHandles = `
+            <div class="gantt-resize-handle gantt-resize-handle-top" data-resize="top"></div>
+            <div class="gantt-resize-handle gantt-resize-handle-bottom" data-resize="bottom"></div>
+        `;
+
         return `
             <div class="gantt-phase-block gantt-phase-fullwidth"
                  data-backlog-index="${backlogIndex}"
+                 data-sprint-start="${sprintIndex}"
+                 data-rowspan="${rowspan}"
+                 data-col-index="${colIndex}"
+                 draggable="true"
                  style="background-color: ${escapeHtml(color)};"
                  title="${escapeHtml(tooltip)}">
-                <span class="phase-text">${escapeHtml(phase)}</span>
+                ${resizeHandles}
+                <span class="phase-text" data-phase="${escapeHtml(phase)}">${escapeHtml(phase)}</span>
             </div>
         `;
     }
@@ -417,14 +465,377 @@ class RoadmapGanttPage {
      * Attache les événements sur les blocs de phase
      */
     attachPhaseBlockEvents() {
-        document.querySelectorAll('.gantt-phase-block').forEach(block => {
-            block.addEventListener('click', (e) => {
-                const index = parseInt(e.currentTarget.dataset.backlogIndex);
+        const blocks = document.querySelectorAll('.gantt-phase-block');
+
+        blocks.forEach(block => {
+            let clickTimer = null;
+            let isEditing = false;
+
+            // Double-clic : ouvrir la fiche
+            block.addEventListener('dblclick', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (clickTimer) {
+                    clearTimeout(clickTimer);
+                    clickTimer = null;
+                }
+                const index = parseInt(block.dataset.backlogIndex);
                 if (!isNaN(index)) {
                     this.editBacklogItem(index);
                 }
             });
+
+            // Simple clic : édition inline du titre
+            block.addEventListener('click', (e) => {
+                // Ignorer si on clique sur un handle de resize
+                if (e.target.classList.contains('gantt-resize-handle')) return;
+
+                e.preventDefault();
+                e.stopPropagation();
+
+                // Utiliser un timer pour différencier simple et double clic
+                if (clickTimer) {
+                    clearTimeout(clickTimer);
+                    clickTimer = null;
+                    return;
+                }
+
+                clickTimer = setTimeout(() => {
+                    clickTimer = null;
+                    if (!isEditing) {
+                        this.startInlineEdit(block);
+                    }
+                }, 250);
+            });
+
+            // Clic droit : menu contextuel
+            block.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const index = parseInt(block.dataset.backlogIndex);
+                if (!isNaN(index)) {
+                    this.showContextMenu(e.clientX, e.clientY, index);
+                }
+            });
+
+            // Drag & Drop
+            block.addEventListener('dragstart', (e) => {
+                if (isEditing) {
+                    e.preventDefault();
+                    return;
+                }
+                block.classList.add('dragging');
+                e.dataTransfer.setData('text/plain', block.dataset.backlogIndex);
+                e.dataTransfer.effectAllowed = 'move';
+            });
+
+            block.addEventListener('dragend', (e) => {
+                block.classList.remove('dragging');
+                document.querySelectorAll('.gantt-data-cell.drag-over, .gantt-data-cell.drag-invalid').forEach(cell => {
+                    cell.classList.remove('drag-over', 'drag-invalid');
+                });
+            });
+
+            // Resize handles
+            const resizeHandles = block.querySelectorAll('.gantt-resize-handle');
+            resizeHandles.forEach(handle => {
+                handle.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.startResize(block, handle.dataset.resize, e);
+                });
+            });
         });
+
+        // Drag over sur les cellules vides
+        document.querySelectorAll('.gantt-data-cell').forEach(cell => {
+            cell.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                const draggingBlock = document.querySelector('.gantt-phase-block.dragging');
+                if (draggingBlock) {
+                    // Vérifier si la cellule est dans la même colonne
+                    const dragColIndex = draggingBlock.dataset.colIndex;
+                    const cellColIndex = cell.dataset.colIndex;
+
+                    if (dragColIndex === cellColIndex) {
+                        cell.classList.add('drag-over');
+                        cell.classList.remove('drag-invalid');
+                        e.dataTransfer.dropEffect = 'move';
+                    } else {
+                        cell.classList.add('drag-invalid');
+                        cell.classList.remove('drag-over');
+                        e.dataTransfer.dropEffect = 'none';
+                    }
+                }
+            });
+
+            cell.addEventListener('dragleave', (e) => {
+                cell.classList.remove('drag-over', 'drag-invalid');
+            });
+
+            cell.addEventListener('drop', async (e) => {
+                e.preventDefault();
+                cell.classList.remove('drag-over', 'drag-invalid');
+
+                const backlogIndex = parseInt(e.dataTransfer.getData('text/plain'));
+                const targetSprintIndex = parseInt(cell.dataset.sprintIndex);
+                const targetColIndex = parseInt(cell.dataset.colIndex);
+
+                if (!isNaN(backlogIndex) && !isNaN(targetSprintIndex)) {
+                    await this.moveItemToSprint(backlogIndex, targetSprintIndex, targetColIndex);
+                }
+            });
+        });
+    }
+
+    /**
+     * Démarre l'édition inline du titre
+     */
+    startInlineEdit(block) {
+        const phaseText = block.querySelector('.phase-text');
+        if (!phaseText) return;
+
+        const currentText = phaseText.dataset.phase || phaseText.textContent;
+        const backlogIndex = parseInt(block.dataset.backlogIndex);
+
+        block.classList.add('editing');
+
+        // Créer l'input
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'phase-text-input';
+        input.value = currentText;
+        input.placeholder = 'Phase...';
+
+        // Remplacer le texte par l'input
+        phaseText.style.display = 'none';
+        block.appendChild(input);
+        input.focus();
+        input.select();
+
+        const finishEdit = async (save) => {
+            if (save && input.value !== currentText) {
+                await this.updatePhaseInline(backlogIndex, input.value);
+            }
+            block.classList.remove('editing');
+            input.remove();
+            phaseText.style.display = '';
+        };
+
+        input.addEventListener('blur', () => finishEdit(true));
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                input.blur();
+            } else if (e.key === 'Escape') {
+                finishEdit(false);
+            }
+        });
+    }
+
+    /**
+     * Met à jour la phase en inline
+     */
+    async updatePhaseInline(index, newPhase) {
+        const item = this.backlog[index];
+        if (!item) return;
+
+        try {
+            const updatedItem = { ...item, Phase: newPhase };
+            await updateTableRow('tBacklog', index + 2, updatedItem);
+            showSuccess('Phase mise à jour');
+            await this.loadData();
+        } catch (error) {
+            console.error('Erreur mise à jour inline:', error);
+            showError('Erreur lors de la mise à jour');
+        }
+    }
+
+    /**
+     * Affiche le menu contextuel
+     */
+    showContextMenu(x, y, backlogIndex) {
+        // Supprimer tout menu existant
+        this.hideContextMenu();
+
+        const item = this.backlog[backlogIndex];
+        if (!item) return;
+
+        const menu = document.createElement('div');
+        menu.className = 'gantt-context-menu';
+        menu.innerHTML = `
+            <div class="gantt-context-menu-item" data-action="edit">
+                <span>✏️</span> Modifier
+            </div>
+            <div class="gantt-context-menu-separator"></div>
+            <div class="gantt-context-menu-item danger" data-action="delete">
+                <span>🗑️</span> Supprimer
+            </div>
+        `;
+
+        // Positionner le menu
+        menu.style.left = `${x}px`;
+        menu.style.top = `${y}px`;
+
+        document.body.appendChild(menu);
+
+        // Ajuster si dépasse de l'écran
+        const rect = menu.getBoundingClientRect();
+        if (rect.right > window.innerWidth) {
+            menu.style.left = `${x - rect.width}px`;
+        }
+        if (rect.bottom > window.innerHeight) {
+            menu.style.top = `${y - rect.height}px`;
+        }
+
+        // Événements du menu
+        menu.querySelector('[data-action="edit"]').addEventListener('click', () => {
+            this.hideContextMenu();
+            this.editBacklogItem(backlogIndex);
+        });
+
+        menu.querySelector('[data-action="delete"]').addEventListener('click', () => {
+            this.hideContextMenu();
+            this.confirmDeleteBacklogItem(backlogIndex);
+        });
+
+        // Fermer le menu si on clique ailleurs
+        setTimeout(() => {
+            document.addEventListener('click', this.hideContextMenu.bind(this), { once: true });
+        }, 10);
+    }
+
+    /**
+     * Cache le menu contextuel
+     */
+    hideContextMenu() {
+        const existingMenu = document.querySelector('.gantt-context-menu');
+        if (existingMenu) {
+            existingMenu.remove();
+        }
+    }
+
+    /**
+     * Confirme la suppression d'un item
+     */
+    async confirmDeleteBacklogItem(index) {
+        const item = this.backlog[index];
+        if (!item) return;
+
+        const produit = item.Produit || 'cet élément';
+        const phase = item.Phase || '';
+        const message = phase
+            ? `Êtes-vous sûr de vouloir supprimer "${produit} - ${phase}" ?`
+            : `Êtes-vous sûr de vouloir supprimer "${produit}" ?`;
+
+        if (confirm(message)) {
+            await this.deleteBacklogItem(index);
+        }
+    }
+
+    /**
+     * Déplace un item vers un autre sprint
+     */
+    async moveItemToSprint(backlogIndex, targetSprintIndex, targetColIndex) {
+        const item = this.backlog[backlogIndex];
+        if (!item) return;
+
+        const sortedSprints = this.getSortedSprints();
+        const targetSprint = sortedSprints[targetSprintIndex];
+        if (!targetSprint) return;
+
+        // Vérifier que c'est la même colonne (même produit)
+        const sourceColIndex = parseInt(document.querySelector(`[data-backlog-index="${backlogIndex}"]`)?.dataset.colIndex);
+        if (sourceColIndex !== targetColIndex) {
+            showError('Déplacement uniquement dans la même colonne');
+            return;
+        }
+
+        try {
+            const currentRowspan = parseInt(document.querySelector(`[data-backlog-index="${backlogIndex}"]`)?.dataset.rowspan) || 1;
+            const updatedItem = { ...item };
+
+            // Calculer le nouveau sprint de fin
+            updatedItem['Sprint début'] = targetSprint.Sprint;
+
+            if (currentRowspan > 1) {
+                const newEndIndex = Math.min(targetSprintIndex + currentRowspan - 1, sortedSprints.length - 1);
+                updatedItem['Sprint fin'] = sortedSprints[newEndIndex].Sprint;
+            } else {
+                updatedItem['Sprint fin'] = targetSprint.Sprint;
+            }
+
+            await updateTableRow('tBacklog', backlogIndex + 2, updatedItem);
+            showSuccess('Projet déplacé');
+            await this.loadData();
+        } catch (error) {
+            console.error('Erreur déplacement:', error);
+            showError('Erreur lors du déplacement');
+        }
+    }
+
+    /**
+     * Démarre le redimensionnement d'une vignette
+     */
+    startResize(block, direction, startEvent) {
+        const backlogIndex = parseInt(block.dataset.backlogIndex);
+        const item = this.backlog[backlogIndex];
+        if (!item) return;
+
+        block.classList.add('resizing');
+
+        const sortedSprints = this.getSortedSprints();
+        const startY = startEvent.clientY;
+        const rowHeight = 48; // Hauteur d'une ligne
+        const currentRowspan = parseInt(block.dataset.rowspan) || 1;
+        const currentSprintStart = parseInt(block.dataset.sprintStart);
+
+        const onMouseMove = (e) => {
+            const deltaY = e.clientY - startY;
+            const deltaRows = Math.round(deltaY / rowHeight);
+
+            if (deltaRows !== 0) {
+                // Prévisualiser visuellement (optionnel)
+            }
+        };
+
+        const onMouseUp = async (e) => {
+            block.classList.remove('resizing');
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+
+            const deltaY = e.clientY - startY;
+            const deltaRows = Math.round(deltaY / rowHeight);
+
+            if (deltaRows === 0) return;
+
+            try {
+                const updatedItem = { ...item };
+
+                if (direction === 'top') {
+                    // Modifier le sprint de début
+                    const newStartIndex = Math.max(0, currentSprintStart + deltaRows);
+                    if (newStartIndex < sortedSprints.length) {
+                        updatedItem['Sprint début'] = sortedSprints[newStartIndex].Sprint;
+                    }
+                } else {
+                    // Modifier le sprint de fin
+                    const currentEndIndex = currentSprintStart + currentRowspan - 1;
+                    const newEndIndex = Math.max(currentSprintStart, Math.min(currentEndIndex + deltaRows, sortedSprints.length - 1));
+                    updatedItem['Sprint fin'] = sortedSprints[newEndIndex].Sprint;
+                }
+
+                await updateTableRow('tBacklog', backlogIndex + 2, updatedItem);
+                showSuccess('Durée mise à jour');
+                await this.loadData();
+            } catch (error) {
+                console.error('Erreur redimensionnement:', error);
+                showError('Erreur lors du redimensionnement');
+            }
+        };
+
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
     }
 
     /**
@@ -523,7 +934,7 @@ class RoadmapGanttPage {
                     label: 'Supprimer',
                     class: 'btn-danger',
                     action: async () => {
-                        await this.deleteBacklogItem(index);
+                        await this.confirmDeleteBacklogItem(index);
                     }
                 },
                 {
@@ -579,15 +990,11 @@ class RoadmapGanttPage {
     }
 
     /**
-     * Supprime un item backlog
+     * Supprime un item backlog (appelé après confirmation)
      */
     async deleteBacklogItem(index) {
         const item = this.backlog[index];
         if (!item) return;
-
-        // Demander confirmation
-        const confirmed = confirm(`Êtes-vous sûr de vouloir supprimer "${item.Produit || 'cet élément'}" ?`);
-        if (!confirmed) return;
 
         try {
             await deleteTableRow('tBacklog', index + 2);
@@ -601,6 +1008,13 @@ class RoadmapGanttPage {
             console.error('Erreur lors de la suppression:', error);
             showError('Erreur lors de la suppression: ' + error.message);
         }
+    }
+
+    /**
+     * Supprime avec confirmation depuis le modal
+     */
+    async deleteBacklogItemWithConfirm(index) {
+        await this.confirmDeleteBacklogItem(index);
     }
 
     /**
