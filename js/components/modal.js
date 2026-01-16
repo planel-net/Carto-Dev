@@ -349,6 +349,11 @@ let _activeModal = null;
 function showModal(options) {
     const { title, content, size = 'md', buttons = [] } = options;
 
+    // Fermer toute modale existante avant d'en ouvrir une nouvelle
+    if (_activeModal) {
+        closeModal();
+    }
+
     // Créer la modale
     const modalId = 'modal_' + generateId();
     const container = document.getElementById('modalContainer') || document.body;
@@ -394,8 +399,16 @@ function showModal(options) {
         modal.classList.add('show');
     });
 
-    // Stocker la référence
-    _activeModal = { modal, backdrop, buttons };
+    // Fermeture sur Escape - créer le handler avant de le stocker
+    const escapeHandler = (e) => {
+        if (e.key === 'Escape') {
+            closeModal();
+        }
+    };
+    document.addEventListener('keydown', escapeHandler);
+
+    // Stocker la référence (incluant le handler pour pouvoir le supprimer)
+    _activeModal = { modal, backdrop, buttons, escapeHandler };
 
     // Attacher les événements
     backdrop.addEventListener('click', () => closeModal());
@@ -427,15 +440,6 @@ function showModal(options) {
         }
     });
 
-    // Fermeture sur Escape
-    const escapeHandler = (e) => {
-        if (e.key === 'Escape') {
-            closeModal();
-            document.removeEventListener('keydown', escapeHandler);
-        }
-    };
-    document.addEventListener('keydown', escapeHandler);
-
     return { modal, backdrop };
 }
 
@@ -445,7 +449,12 @@ function showModal(options) {
 function closeModal() {
     if (!_activeModal) return;
 
-    const { modal, backdrop } = _activeModal;
+    const { modal, backdrop, escapeHandler } = _activeModal;
+
+    // Supprimer le handler d'échappement
+    if (escapeHandler) {
+        document.removeEventListener('keydown', escapeHandler);
+    }
 
     // Animation de fermeture
     if (backdrop) backdrop.classList.remove('show');

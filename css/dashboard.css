@@ -2087,6 +2087,7 @@
     flex-direction: column;
     gap: 2px;
     height: 100%;
+    width: 100%;
 }
 
 .gantt-phases-container.multi-phases {
@@ -2111,11 +2112,13 @@
 
 .gantt-phase-block.fullwidth {
     height: 100%;
+    width: 100%;
 }
 
 .gantt-phase-block.shared {
     flex: 1;
     min-height: 20px;
+    width: 100%;
 }
 
 .gantt-phase-block:hover {

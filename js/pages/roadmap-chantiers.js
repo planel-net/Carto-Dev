@@ -1496,6 +1496,15 @@ class RoadmapChantiersPage {
         });
     }
 
+    /**
+     * Ouvre la modale d'ajout de phase pour un chantier (sans sprint pré-sélectionné)
+     */
+    showAddPhaseModalForChantier(chantierName) {
+        // Utiliser le premier sprint visible comme valeur par défaut
+        const firstSprint = this.filteredSprints.length > 0 ? this.filteredSprints[0]['Sprint'] : '';
+        this.showAddPhaseModal(chantierName, firstSprint);
+    }
+
     async showEditPhaseModal(phaseIndex) {
         const phase = this.phases[phaseIndex];
         if (!phase) return;
@@ -1800,11 +1809,17 @@ class RoadmapChantiersPage {
     showContextMenu(x, y, phaseIndex) {
         this.hideContextMenu();
 
+        const phase = this.phases[phaseIndex];
+        const chantierName = phase ? phase['Chantier'] : '';
+
         const menu = document.createElement('div');
         menu.className = 'gantt-context-menu';
         menu.innerHTML = `
             <div class="context-menu-item" onclick="roadmapChantiersPageInstance.showEditPhaseModal(${phaseIndex})">
                 <span>&#9998;</span> Modifier
+            </div>
+            <div class="context-menu-item" onclick="roadmapChantiersPageInstance.hideContextMenu(); roadmapChantiersPageInstance.showAddPhaseModalForChantier('${escapeHtml(chantierName)}')">
+                <span>&#10133;</span> Ajouter une phase
             </div>
             <div class="context-menu-item danger" onclick="roadmapChantiersPageInstance.showDeletePhaseConfirmation(${phaseIndex})">
                 <span>&#128465;</span> Supprimer
