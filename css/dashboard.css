@@ -2035,10 +2035,11 @@
     gap: 2px;
     height: 100%;
     width: 100%;
+    align-items: flex-start;
 }
 
 .gantt-phases-container.multi-phases {
-    /* Phases empilées verticalement */
+    /* Phases empilées verticalement avec largeurs proportionnelles */
 }
 
 /* ===========================================
@@ -2063,9 +2064,9 @@
 }
 
 .gantt-phase-block.shared {
-    flex: 1;
+    flex: 0 0 auto;
     min-height: 20px;
-    width: 100%;
+    /* width est défini inline selon le colspan de la phase */
 }
 
 .gantt-phase-block:hover {

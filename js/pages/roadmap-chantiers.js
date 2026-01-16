@@ -522,18 +522,20 @@ class RoadmapChantiersPage {
                 }
                 // Si continuation, la cellule est gérée par le colspan
             } else {
-                // Calculer le colspan max
-                const maxColspan = Math.max(...phasesToRender.map(p => {
-                    // Limiter le colspan aux sprints visibles
+                // Calculer le colspan effectif de chaque phase et le max
+                const phasesWithColspan = phasesToRender.map(p => {
                     const endIdx = Math.min(p.startIdx + p.colspan - 1, visibleSprintNames.length - 1);
-                    return endIdx - sprintIdx + 1;
-                }));
+                    const effectiveColspan = endIdx - sprintIdx + 1;
+                    return { ...p, effectiveColspan };
+                });
+
+                const maxColspan = Math.max(...phasesWithColspan.map(p => p.effectiveColspan));
 
                 // Marquer les phases comme rendues
-                phasesToRender.forEach(p => renderedPhases.add(p.phase['Phase']));
+                phasesWithColspan.forEach(p => renderedPhases.add(p.phase['Phase']));
 
-                const phasesHtml = phasesToRender.map((p, idx) =>
-                    this.renderPhaseBlock(p.phase, phasesToRender.length, idx)
+                const phasesHtml = phasesWithColspan.map((p, idx) =>
+                    this.renderPhaseBlock(p.phase, phasesWithColspan.length, idx, p.effectiveColspan, maxColspan)
                 ).join('');
 
                 cellsHtml.push(`
@@ -555,18 +557,24 @@ class RoadmapChantiersPage {
     /**
      * Rendu d'un bloc de phase
      */
-    renderPhaseBlock(phase, totalInCell, indexInCell) {
+    renderPhaseBlock(phase, totalInCell, indexInCell, phaseColspan = 1, maxColspan = 1) {
         const typePhase = phase['Type phase'] || '';
         const color = CONFIG.PHASE_COLORS[typePhase] || '#E0E0E0';
         const phaseName = phase['Phase'] || '';
         const phaseIndex = this.phases.findIndex(p => p['Phase'] === phaseName && p['Chantier'] === phase['Chantier']);
 
+        // Calculer la largeur proportionnelle de la phase
+        const widthPercent = (phaseColspan / maxColspan) * 100;
+        const isShared = totalInCell > 1;
+        const widthStyle = isShared ? `width: ${widthPercent}%;` : 'width: 100%;';
+
         return `
-            <div class="gantt-phase-block ${totalInCell > 1 ? 'shared' : 'fullwidth'}"
-                 style="background-color: ${color};"
+            <div class="gantt-phase-block ${isShared ? 'shared' : 'fullwidth'}"
+                 style="background-color: ${color}; ${widthStyle}"
                  data-phase-index="${phaseIndex}"
                  data-phase-name="${escapeHtml(phaseName)}"
                  data-chantier="${escapeHtml(phase['Chantier'])}"
+                 data-colspan="${phaseColspan}"
                  draggable="true">
                 <div class="gantt-resize-handle gantt-resize-handle-left" data-direction="left"></div>
                 <span class="phase-name">${escapeHtml(phaseName)}</span>
