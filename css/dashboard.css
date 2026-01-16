@@ -2038,15 +2038,17 @@
     background: rgba(0, 102, 204, 0.05);
 }
 
-/* Container des phases */
+/* Container des phases - positionné absolument pour couvrir toute la cellule */
 .gantt-phases-container {
     display: flex;
     flex-direction: column;
     gap: 2px;
-    height: 100%;
-    width: 100%;
+    position: absolute;
+    left: 0;
+    top: 2px;
+    right: 0;
+    bottom: 2px;
     align-items: flex-start;
-    position: relative;
     z-index: 5; /* Au-dessus des cellules vides adjacentes */
 }
 
@@ -2073,8 +2075,7 @@
 }
 
 .gantt-phase-block.fullwidth {
-    height: calc(100% - 4px);
-    margin: 2px 0;
+    height: 100%;
     /* width est défini inline en pixels selon le colspan */
 }
 
