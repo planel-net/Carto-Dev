@@ -374,59 +374,8 @@ class RoadmapChantiersPage {
             return;
         }
 
-        // Calculer la période totale (premier jour du premier mois au dernier jour du dernier mois)
-        const firstSprint = visibleSprints[0];
-        const lastSprint = visibleSprints[visibleSprints.length - 1];
-        const firstDate = this.parseDate(firstSprint['Début']);
-        const lastDate = this.parseDate(lastSprint['Fin']);
-
-        // Début du premier mois et fin du dernier mois
-        const periodStart = new Date(firstDate.getFullYear(), firstDate.getMonth(), 1);
-        const periodEnd = new Date(lastDate.getFullYear(), lastDate.getMonth() + 1, 0); // Dernier jour du mois
-
-        const totalDays = Math.ceil((periodEnd - periodStart) / (1000 * 60 * 60 * 24)) + 1;
-
-        // Construire les mois avec leurs pourcentages
-        const months = [];
-        let currentDate = new Date(periodStart);
-        while (currentDate <= periodEnd) {
-            const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-            const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-
-            // Ajuster si c'est le premier ou dernier mois
-            const effectiveStart = monthStart < periodStart ? periodStart : monthStart;
-            const effectiveEnd = monthEnd > periodEnd ? periodEnd : monthEnd;
-
-            const daysInMonth = Math.ceil((effectiveEnd - effectiveStart) / (1000 * 60 * 60 * 24)) + 1;
-            const widthPercent = (daysInMonth / totalDays) * 100;
-
-            months.push({
-                date: new Date(currentDate),
-                daysInMonth,
-                widthPercent
-            });
-
-            // Passer au mois suivant
-            currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
-        }
-
-        // Calculer la position et largeur de chaque sprint
-        const sprintsWithPositions = visibleSprints.map(sprint => {
-            const sprintStart = this.parseDate(sprint['Début']);
-            const sprintEnd = this.parseDate(sprint['Fin']);
-
-            const daysFromStart = Math.ceil((sprintStart - periodStart) / (1000 * 60 * 60 * 24));
-            const sprintDuration = Math.ceil((sprintEnd - sprintStart) / (1000 * 60 * 60 * 24)) + 1;
-
-            const leftPercent = (daysFromStart / totalDays) * 100;
-            const widthPercent = (sprintDuration / totalDays) * 100;
-
-            return {
-                ...sprint,
-                leftPercent,
-                widthPercent
-            };
-        });
+        // Largeur fixe pour chaque colonne sprint (en pixels)
+        const SPRINT_COL_WIDTH = 90;
 
         // Construire les lignes de chantiers
         const rowsHtml = filteredChantiers.map((chantier, chantierIndex) => {
@@ -459,49 +408,31 @@ class RoadmapChantiersPage {
             `;
         }).join('');
 
-        // Générer les colgroup pour les largeurs proportionnelles
-        // Utiliser calc() pour ajuster les pourcentages par rapport à la largeur restante après la colonne 200px
+        // Générer les colgroup avec largeurs fixes
         const colgroupHtml = `
             <colgroup>
                 <col class="gantt-col-chantier" style="width: 200px; min-width: 200px;">
-                ${sprintsWithPositions.map(s => {
-                    const percent = s.widthPercent;
-                    // calc(X% - 200px * X/100) pour que le pourcentage soit relatif à l'espace restant
-                    return `<col style="width: calc(${percent.toFixed(2)}% - ${(200 * percent / 100).toFixed(2)}px);">`;
-                }).join('')}
+                ${visibleSprints.map(() => `<col style="width: ${SPRINT_COL_WIDTH}px; min-width: ${SPRINT_COL_WIDTH}px;">`).join('')}
             </colgroup>
         `;
 
-        // Générer le HTML des mois avec largeurs en pourcentage (basé sur les jours)
-        const monthsHtml = months.map(m =>
-            `<div class="gantt-month-header-cell" style="width: ${m.widthPercent.toFixed(2)}%;">${this.formatMonth(m.date)}</div>`
-        ).join('');
-
-        // Générer le HTML des sprints positionnés absolument
-        const sprintsHtml = sprintsWithPositions.map(sprint => `
-            <div class="gantt-sprint-header-cell"
-                 data-sprint="${escapeHtml(sprint['Sprint'])}"
-                 style="left: ${sprint.leftPercent.toFixed(2)}%; width: ${sprint.widthPercent.toFixed(2)}%;">
+        // Générer le HTML des sprints (header de table)
+        const sprintsHeaderHtml = visibleSprints.map(sprint => `
+            <th class="gantt-sprint-header-cell" data-sprint="${escapeHtml(sprint['Sprint'])}">
                 <div class="sprint-name">${escapeHtml(sprint['Sprint'])}</div>
-                <div class="sprint-dates">${this.formatDate(sprint['Début'])} - ${this.formatDate(sprint['Fin'])}</div>
-            </div>
+                <div class="sprint-date">${this.formatDate(sprint['Début'])}</div>
+                <div class="sprint-date">${this.formatDate(sprint['Fin'])}</div>
+            </th>
         `).join('');
 
         container.innerHTML = `
-            <div class="gantt-proportional-header">
-                <div class="gantt-header-chantier-label">Chantiers</div>
-                <div class="gantt-header-timeline">
-                    <div class="gantt-months-flex-row">${monthsHtml}</div>
-                    <div class="gantt-sprints-absolute-row">${sprintsHtml}</div>
-                </div>
-            </div>
             <div class="gantt-body-wrapper">
-                <table class="gantt-chantiers-table gantt-proportional">
+                <table class="gantt-chantiers-table gantt-fixed-columns">
                     ${colgroupHtml}
-                    <thead style="visibility: collapse; height: 0;">
-                        <tr>
-                            <th></th>
-                            ${sprintsWithPositions.map(() => '<th></th>').join('')}
+                    <thead>
+                        <tr class="gantt-header-row">
+                            <th class="gantt-chantier-header">Chantiers</th>
+                            ${sprintsHeaderHtml}
                         </tr>
                     </thead>
                     <tbody>
@@ -517,10 +448,8 @@ class RoadmapChantiersPage {
             </div>
         `;
 
-        // Stocker les données de position pour l'utilisation dans les cellules
-        this._periodStart = periodStart;
-        this._totalDays = totalDays;
-        this._sprintsWithPositions = sprintsWithPositions;
+        // Stocker les sprints visibles pour référence
+        this._visibleSprints = visibleSprints;
 
         // Attacher les événements des cellules
         this.attachCellEvents();
