@@ -1930,6 +1930,7 @@ class RoadmapChantiersPage {
     async refresh() {
         await this.loadData();
         this.renderFilters();
+        this.attachFilterEvents();
         this.renderGantt();
         this.attachCellEvents();
     }
