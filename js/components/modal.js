@@ -226,13 +226,14 @@ class Modal {
 
 /**
  * Crée et affiche une modale de confirmation
+ * @param {string} title - Titre de la modale
  * @param {string} message - Message de confirmation
  * @param {Function} onConfirm - Callback de confirmation
  * @param {Object} options - Options supplémentaires
  */
-function showConfirmModal(message, onConfirm, options = {}) {
+function showConfirmModal(title, message, onConfirm, options = {}) {
     return new Modal({
-        title: options.title || 'Confirmation',
+        title: title || 'Confirmation',
         size: 'sm',
         content: `<p>${escapeHtml(message)}</p>`,
         confirmText: options.confirmText || 'Confirmer',

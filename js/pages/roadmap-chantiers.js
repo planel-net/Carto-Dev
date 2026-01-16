@@ -450,56 +450,49 @@ class RoadmapChantiersPage {
             </colgroup>
         `;
 
-        // Regénérer les HTML des mois avec colspan (calculer combien de sprints par mois)
-        const monthSprintCounts = [];
-        sprintsWithPositions.forEach(sprint => {
-            const sprintStart = this.parseDate(sprint['Début']);
-            const monthIdx = months.findIndex(m =>
-                m.date.getFullYear() === sprintStart.getFullYear() &&
-                m.date.getMonth() === sprintStart.getMonth()
-            );
+        // Générer le HTML des mois avec largeurs en pourcentage (basé sur les jours)
+        const monthsHtml = months.map(m =>
+            `<div class="gantt-month-header-cell" style="width: ${m.widthPercent.toFixed(2)}%;">${this.formatMonth(m.date)}</div>`
+        ).join('');
 
-            if (!monthSprintCounts[monthIdx]) {
-                monthSprintCounts[monthIdx] = { month: months[monthIdx], count: 0 };
-            }
-            monthSprintCounts[monthIdx].count++;
-        });
-
-        const monthsHtmlTable = monthSprintCounts
-            .filter(m => m && m.count > 0)
-            .map(m => `<th class="gantt-month-header" colspan="${m.count}">${this.formatMonth(m.month.date)}</th>`)
-            .join('');
-
-        // Sprints avec largeurs CSS variables pour le positionnement visuel
-        const sprintsHtmlTable = sprintsWithPositions.map(sprint => `
-            <th class="gantt-sprint-header" data-sprint="${escapeHtml(sprint['Sprint'])}">
+        // Générer le HTML des sprints positionnés absolument
+        const sprintsHtml = sprintsWithPositions.map(sprint => `
+            <div class="gantt-sprint-header-cell"
+                 data-sprint="${escapeHtml(sprint['Sprint'])}"
+                 style="left: ${sprint.leftPercent.toFixed(2)}%; width: ${sprint.widthPercent.toFixed(2)}%;">
                 <div class="sprint-name">${escapeHtml(sprint['Sprint'])}</div>
                 <div class="sprint-dates">${this.formatDate(sprint['Début'])} - ${this.formatDate(sprint['Fin'])}</div>
-            </th>
+            </div>
         `).join('');
 
         container.innerHTML = `
-            <table class="gantt-chantiers-table gantt-proportional">
-                ${colgroupHtml}
-                <thead>
-                    <tr class="gantt-months-row">
-                        <th class="gantt-chantier-header" rowspan="2">Chantiers</th>
-                        ${monthsHtmlTable}
-                    </tr>
-                    <tr class="gantt-sprints-row">
-                        ${sprintsHtmlTable}
-                    </tr>
-                </thead>
-                <tbody>
-                    ${rowsHtml.length > 0 ? rowsHtml : `
+            <div class="gantt-proportional-header">
+                <div class="gantt-header-chantier-label">Chantiers</div>
+                <div class="gantt-header-timeline">
+                    <div class="gantt-months-flex-row">${monthsHtml}</div>
+                    <div class="gantt-sprints-absolute-row">${sprintsHtml}</div>
+                </div>
+            </div>
+            <div class="gantt-body-wrapper">
+                <table class="gantt-chantiers-table gantt-proportional">
+                    ${colgroupHtml}
+                    <thead style="visibility: collapse; height: 0;">
                         <tr>
-                            <td colspan="${visibleSprints.length + 1}" class="empty-row">
-                                <div class="empty-state-inline">Aucun chantier ne correspond aux filtres</div>
-                            </td>
+                            <th></th>
+                            ${sprintsWithPositions.map(() => '<th></th>').join('')}
                         </tr>
-                    `}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml.length > 0 ? rowsHtml : `
+                            <tr>
+                                <td colspan="${visibleSprints.length + 1}" class="empty-row">
+                                    <div class="empty-state-inline">Aucun chantier ne correspond aux filtres</div>
+                                </td>
+                            </tr>
+                        `}
+                    </tbody>
+                </table>
+            </div>
         `;
 
         // Stocker les données de position pour l'utilisation dans les cellules
@@ -1595,8 +1588,7 @@ class RoadmapChantiersPage {
                     console.error('Erreur suppression phase:', error);
                     showError('Erreur lors de la suppression');
                 }
-            },
-            'danger'
+            }
         );
     }
 
@@ -1612,6 +1604,12 @@ class RoadmapChantiersPage {
         const nameSpan = block.querySelector('.phase-name');
         const currentName = nameSpan.textContent;
         const phaseIndex = parseInt(block.dataset.phaseIndex);
+
+        // Vérifier que la phase existe
+        if (phaseIndex < 0 || phaseIndex >= this.phases.length) {
+            console.error('Index de phase invalide:', phaseIndex);
+            return;
+        }
 
         this.editingPhaseBlock = block;
         block.classList.add('editing');
@@ -1630,9 +1628,10 @@ class RoadmapChantiersPage {
             const newName = input.value.trim();
             if (newName && newName !== currentName) {
                 try {
-                    const phase = this.phases[phaseIndex];
-                    phase['Phase'] = newName;
-                    await updateTableRow('tPhases', phaseIndex + 2, phase);
+                    // Copier les données de la phase pour éviter les mutations
+                    const phaseData = { ...this.phases[phaseIndex] };
+                    phaseData['Phase'] = newName;
+                    await updateTableRow('tPhases', phaseIndex + 2, phaseData);
                     invalidateCache('tPhases');
                     nameSpan.textContent = newName;
                 } catch (error) {
@@ -1733,13 +1732,14 @@ class RoadmapChantiersPage {
             return;
         }
 
-        const phase = this.draggedPhase.phase;
+        // Copier les données avant le traitement async
+        const phaseData = { ...this.draggedPhase.phase };
         const phaseIndex = this.draggedPhase.index;
 
         // Calculer le décalage
-        const oldStartIdx = this.getSprintIndex(phase['Sprint début']);
-        const oldEndIdx = this.getSprintIndex(phase['Sprint fin']);
-        const duration = oldEndIdx - oldStartIdx;
+        const oldStartIdx = this.getSprintIndex(phaseData['Sprint début']);
+        const oldEndIdx = this.getSprintIndex(phaseData['Sprint fin'] || phaseData['Sprint début']);
+        const duration = Math.max(0, oldEndIdx - oldStartIdx);
 
         const newStartIdx = this.getSprintIndex(targetSprint);
         const newEndIdx = newStartIdx + duration;
@@ -1750,10 +1750,10 @@ class RoadmapChantiersPage {
         }
 
         try {
-            phase['Sprint début'] = this.sprints[newStartIdx]['Sprint'];
-            phase['Sprint fin'] = this.sprints[newEndIdx]['Sprint'];
+            phaseData['Sprint début'] = this.sprints[newStartIdx]['Sprint'];
+            phaseData['Sprint fin'] = this.sprints[newEndIdx]['Sprint'];
 
-            await updateTableRow('tPhases', phaseIndex + 2, phase);
+            await updateTableRow('tPhases', phaseIndex + 2, phaseData);
             invalidateCache('tPhases');
 
             await this.refresh();
@@ -1767,15 +1767,19 @@ class RoadmapChantiersPage {
         const phaseIndex = parseInt(block.dataset.phaseIndex);
         const phase = this.phases[phaseIndex];
 
+        // Stocker les handlers liés pour pouvoir les supprimer plus tard
+        this._boundResizeMove = this.handleResizeMove.bind(this);
+        this._boundResizeEnd = this.handleResizeEnd.bind(this);
+
         this.resizingPhase = {
             index: phaseIndex,
-            phase: phase,
+            phase: { ...phase }, // Copie pour éviter les mutations
             direction: direction,
             startX: e.clientX
         };
 
-        document.addEventListener('mousemove', this.handleResizeMove.bind(this));
-        document.addEventListener('mouseup', this.handleResizeEnd.bind(this));
+        document.addEventListener('mousemove', this._boundResizeMove);
+        document.addEventListener('mouseup', this._boundResizeEnd);
     }
 
     handleResizeMove(e) {
@@ -1786,8 +1790,9 @@ class RoadmapChantiersPage {
     async handleResizeEnd(e) {
         if (!this.resizingPhase) return;
 
-        document.removeEventListener('mousemove', this.handleResizeMove.bind(this));
-        document.removeEventListener('mouseup', this.handleResizeEnd.bind(this));
+        // Supprimer les event listeners avec les mêmes références
+        document.removeEventListener('mousemove', this._boundResizeMove);
+        document.removeEventListener('mouseup', this._boundResizeEnd);
 
         const { index, phase, direction, startX } = this.resizingPhase;
         const deltaX = e.clientX - startX;
@@ -1803,7 +1808,7 @@ class RoadmapChantiersPage {
 
         try {
             const startIdx = this.getSprintIndex(phase['Sprint début']);
-            const endIdx = this.getSprintIndex(phase['Sprint fin']);
+            const endIdx = this.getSprintIndex(phase['Sprint fin'] || phase['Sprint début']);
 
             if (direction === 'left') {
                 const newStartIdx = Math.max(0, startIdx + sprintDelta);

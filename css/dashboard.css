@@ -1875,8 +1875,100 @@
 }
 
 /* ===========================================
-   ROADMAP CHANTIERS - Table avec largeurs proportionnelles
+   ROADMAP CHANTIERS - Header proportionnel avec sprints à cheval
    =========================================== */
+
+/* Container du header proportionnel */
+.gantt-proportional-header {
+    display: flex;
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background: var(--mh-blanc);
+}
+
+/* Label "Chantiers" fixe */
+.gantt-header-chantier-label {
+    width: 200px;
+    min-width: 200px;
+    flex-shrink: 0;
+    background: var(--mh-bleu-fonce);
+    color: var(--mh-blanc);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-sm);
+}
+
+/* Timeline (mois + sprints) */
+.gantt-header-timeline {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Ligne des mois (flexbox) */
+.gantt-months-flex-row {
+    display: flex;
+    width: 100%;
+    background: var(--mh-bleu-fonce);
+}
+
+/* Cellule de mois */
+.gantt-month-header-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-sm);
+    color: var(--mh-blanc);
+    font-weight: 600;
+    font-size: var(--font-size-sm);
+    text-align: center;
+    border-left: 1px solid rgba(255, 255, 255, 0.2);
+    box-sizing: border-box;
+    min-height: 36px;
+}
+
+.gantt-month-header-cell:first-child {
+    border-left: none;
+}
+
+/* Ligne des sprints (position relative pour absolute children) */
+.gantt-sprints-absolute-row {
+    position: relative;
+    width: 100%;
+    height: 48px;
+    background: var(--mh-bleu-clair);
+}
+
+/* Cellule de sprint (positionnée absolument) */
+.gantt-sprint-header-cell {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-xs) 2px;
+    color: var(--mh-blanc);
+    font-size: 11px;
+    text-align: center;
+    border-left: 1px solid rgba(255, 255, 255, 0.3);
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+.gantt-sprint-header-cell:first-child {
+    border-left: none;
+}
+
+/* Body wrapper */
+.gantt-body-wrapper {
+    overflow-x: auto;
+}
 
 /* Table proportionnelle */
 .gantt-proportional {
@@ -1884,35 +1976,8 @@
     width: 100%;
 }
 
-/* En-tête des mois */
-.gantt-month-header {
-    background: var(--mh-bleu-fonce);
-    color: var(--mh-blanc);
-    font-weight: 600;
-    font-size: var(--font-size-sm);
-    text-align: center;
-    padding: var(--spacing-sm);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    position: sticky;
-    top: 0;
-    z-index: 20;
-}
-
-/* En-tête des sprints */
-.gantt-sprint-header {
-    background: var(--mh-bleu-clair);
-    color: var(--mh-blanc);
-    font-size: 11px;
-    text-align: center;
-    padding: var(--spacing-xs) 2px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    position: sticky;
-    top: 38px;
-    z-index: 19;
-    vertical-align: middle;
-}
-
-/* Ligne des mois */
+/* Anciens styles pour compatibilité */
+.gantt-month-header,
 .gantt-months-row th {
     background: var(--mh-bleu-fonce);
     color: var(--mh-blanc);
@@ -1920,21 +1985,15 @@
     font-size: var(--font-size-sm);
     text-align: center;
     padding: var(--spacing-sm);
-    position: sticky;
-    top: 0;
-    z-index: 20;
 }
 
-/* Ligne des sprints */
+.gantt-sprint-header,
 .gantt-sprints-row th {
     background: var(--mh-bleu-clair);
     color: var(--mh-blanc);
     font-size: 11px;
     text-align: center;
     padding: var(--spacing-xs);
-    position: sticky;
-    top: 36px;
-    z-index: 19;
 }
 
 /* Colonne des chantiers */

@@ -6,7 +6,7 @@
 const CONFIG = {
     // Nom de l'application
     APP_NAME: 'Carto',
-    APP_VERSION: '1.0.41',
+    APP_VERSION: '1.0.42',
 
     // Noms des feuilles spéciales
     SHEETS: {
