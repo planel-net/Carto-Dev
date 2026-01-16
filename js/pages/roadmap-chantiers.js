@@ -443,10 +443,15 @@ class RoadmapChantiersPage {
         }).join('');
 
         // Générer les colgroup pour les largeurs proportionnelles
+        // Utiliser calc() pour ajuster les pourcentages par rapport à la largeur restante après la colonne 200px
         const colgroupHtml = `
             <colgroup>
                 <col class="gantt-col-chantier" style="width: 200px; min-width: 200px;">
-                ${sprintsWithPositions.map(s => `<col style="width: ${s.widthPercent.toFixed(2)}%;">`).join('')}
+                ${sprintsWithPositions.map(s => {
+                    const percent = s.widthPercent;
+                    // calc(X% - 200px * X/100) pour que le pourcentage soit relatif à l'espace restant
+                    return `<col style="width: calc(${percent.toFixed(2)}% - ${(200 * percent / 100).toFixed(2)}px);">`;
+                }).join('')}
             </colgroup>
         `;
 
@@ -761,14 +766,22 @@ class RoadmapChantiersPage {
     }
 
     selectAllPerimetres() {
+        // Cocher toutes les cases
+        const checkboxes = document.querySelectorAll('#perimetreDropdown input[type="checkbox"]');
+        checkboxes.forEach(cb => cb.checked = false);
         this.filters.perimetres = [];
-        this.applyFilters();
+        this.updatePerimetreLabel();
+        this.applyFiltersWithoutRenderingFilters();
     }
 
     clearPerimetresFilter() {
+        // Décocher toutes les cases (= filtrer sur tous = afficher aucun si tous cochés)
         const allPerimetres = this.perimetres.map(p => p['Périmetre']).filter(Boolean);
+        const checkboxes = document.querySelectorAll('#perimetreDropdown input[type="checkbox"]');
+        checkboxes.forEach(cb => cb.checked = true);
         this.filters.perimetres = [...allPerimetres];
-        this.applyFilters();
+        this.updatePerimetreLabel();
+        this.applyFiltersWithoutRenderingFilters();
     }
 
     onPerimetreCheckChange() {
@@ -776,18 +789,32 @@ class RoadmapChantiersPage {
         this.filters.perimetres = Array.from(checkboxes)
             .filter(cb => cb.checked)
             .map(cb => cb.value);
-        this.applyFilters();
+        this.updatePerimetreLabel();
+        this.applyFiltersWithoutRenderingFilters();
+    }
+
+    updatePerimetreLabel() {
+        const label = document.querySelector('#perimetreFilterWrapper .multi-select-label');
+        if (label) {
+            label.textContent = this.filters.perimetres.length === 0 ? 'Tous' : this.filters.perimetres.length + ' sélectionné(s)';
+        }
     }
 
     selectAllResponsables() {
+        const checkboxes = document.querySelectorAll('#responsableDropdown input[type="checkbox"]');
+        checkboxes.forEach(cb => cb.checked = false);
         this.filters.responsables = [];
-        this.applyFilters();
+        this.updateResponsableLabel();
+        this.applyFiltersWithoutRenderingFilters();
     }
 
     clearResponsablesFilter() {
         const allResponsables = [...new Set(this.chantiers.map(c => c['Responsable']).filter(Boolean))];
+        const checkboxes = document.querySelectorAll('#responsableDropdown input[type="checkbox"]');
+        checkboxes.forEach(cb => cb.checked = true);
         this.filters.responsables = [...allResponsables];
-        this.applyFilters();
+        this.updateResponsableLabel();
+        this.applyFiltersWithoutRenderingFilters();
     }
 
     onResponsableCheckChange() {
@@ -795,7 +822,20 @@ class RoadmapChantiersPage {
         this.filters.responsables = Array.from(checkboxes)
             .filter(cb => cb.checked)
             .map(cb => cb.value);
-        this.applyFilters();
+        this.updateResponsableLabel();
+        this.applyFiltersWithoutRenderingFilters();
+    }
+
+    updateResponsableLabel() {
+        const label = document.querySelector('#responsableFilterWrapper .multi-select-label');
+        if (label) {
+            label.textContent = this.filters.responsables.length === 0 ? 'Tous' : this.filters.responsables.length + ' sélectionné(s)';
+        }
+    }
+
+    applyFiltersWithoutRenderingFilters() {
+        this.renderGantt();
+        this.attachCellEvents();
     }
 
     applyFilters() {
@@ -945,7 +985,13 @@ class RoadmapChantiersPage {
                         this.chantiersArchives.find(c => c['Chantier'] === chantierName);
         if (!chantier) return;
 
-        const chantierIndex = [...this.chantiers, ...this.chantiersArchives].findIndex(c => c['Chantier'] === chantierName);
+        // Utiliser _rowIndex stocké par readTable
+        const rowIndex = chantier._rowIndex;
+        if (!rowIndex) {
+            console.error('Row index not found for chantier:', chantierName);
+            showError('Erreur: index de ligne non trouvé');
+            return;
+        }
 
         // Produits associés
         const produitsAssocies = this.chantierProduit
@@ -1034,14 +1080,18 @@ class RoadmapChantiersPage {
 
                         try {
                             // Mettre à jour le chantier
-                            await updateTableRow('tChantiers', chantierIndex + 2, updatedChantier);
+                            await updateTableRow('tChantiers', rowIndex, updatedChantier);
                             invalidateCache('tChantiers');
 
                             // Mettre à jour les liens produits
-                            // Supprimer les anciens liens
-                            for (let i = this.chantierProduit.length - 1; i >= 0; i--) {
-                                if (this.chantierProduit[i]['Chantier'] === chantierName) {
-                                    await deleteTableRow('tChantierProduit', i + 2);
+                            // Supprimer les anciens liens (en ordre inverse pour éviter les décalages)
+                            const liensToDelete = this.chantierProduit
+                                .filter(cp => cp['Chantier'] === chantierName)
+                                .sort((a, b) => (b._rowIndex || 0) - (a._rowIndex || 0));
+
+                            for (const cp of liensToDelete) {
+                                if (cp._rowIndex) {
+                                    await deleteTableRow('tChantierProduit', cp._rowIndex);
                                 }
                             }
                             // Ajouter les nouveaux liens
@@ -1087,13 +1137,21 @@ class RoadmapChantiersPage {
             `Êtes-vous sûr de vouloir archiver le chantier "${chantierName}" ?`,
             async () => {
                 try {
-                    const chantierIndex = this.chantiers.findIndex(c => c['Chantier'] === chantierName);
-                    if (chantierIndex === -1) return;
+                    const chantier = this.chantiers.find(c => c['Chantier'] === chantierName);
+                    if (!chantier) return;
 
-                    const chantier = this.chantiers[chantierIndex];
-                    chantier['Archivé'] = 'TRUE';
+                    // Utiliser _rowIndex stocké par readTable
+                    const rowIndex = chantier._rowIndex;
+                    if (!rowIndex) {
+                        console.error('Row index not found for chantier:', chantierName);
+                        showError('Erreur: index de ligne non trouvé');
+                        return;
+                    }
 
-                    await updateTableRow('tChantiers', chantierIndex + 2, chantier);
+                    const updatedChantier = { ...chantier };
+                    updatedChantier['Archivé'] = 'TRUE';
+
+                    await updateTableRow('tChantiers', rowIndex, updatedChantier);
                     invalidateCache('tChantiers');
 
                     showSuccess('Chantier archivé');
@@ -1112,36 +1170,42 @@ class RoadmapChantiersPage {
             `Êtes-vous sûr de vouloir supprimer définitivement le chantier "${chantierName}" et toutes ses phases ?`,
             async () => {
                 try {
-                    // Supprimer les phases du chantier
-                    const phasesToDelete = this.phases.filter(p => p['Chantier'] === chantierName);
+                    // Supprimer les phases du chantier (en ordre inverse pour éviter les décalages d'index)
+                    const phasesToDelete = this.phases
+                        .filter(p => p['Chantier'] === chantierName)
+                        .sort((a, b) => (b._rowIndex || 0) - (a._rowIndex || 0));
+
                     for (const phase of phasesToDelete) {
-                        const phaseIdx = this.phases.findIndex(p => p['Phase'] === phase['Phase'] && p['Chantier'] === chantierName);
-                        if (phaseIdx !== -1) {
-                            // Supprimer les liens de la phase
-                            const liensToDelete = this.phasesLien.filter(l => l['Phase'] === phase['Phase']);
-                            for (const lien of liensToDelete) {
-                                const lienIdx = this.phasesLien.findIndex(l => l === lien);
-                                if (lienIdx !== -1) {
-                                    await deleteTableRow('tPhasesLien', lienIdx + 2);
-                                }
+                        if (!phase._rowIndex) continue;
+
+                        // Supprimer les liens de la phase (en ordre inverse)
+                        const liensToDelete = this.phasesLien
+                            .filter(l => l['Phase'] === phase['Phase'])
+                            .sort((a, b) => (b._rowIndex || 0) - (a._rowIndex || 0));
+
+                        for (const lien of liensToDelete) {
+                            if (lien._rowIndex) {
+                                await deleteTableRow('tPhasesLien', lien._rowIndex);
                             }
-                            await deleteTableRow('tPhases', phaseIdx + 2);
                         }
+                        await deleteTableRow('tPhases', phase._rowIndex);
                     }
 
-                    // Supprimer les liens chantier-produit
-                    const produitsToDelete = this.chantierProduit.filter(cp => cp['Chantier'] === chantierName);
+                    // Supprimer les liens chantier-produit (en ordre inverse)
+                    const produitsToDelete = this.chantierProduit
+                        .filter(cp => cp['Chantier'] === chantierName)
+                        .sort((a, b) => (b._rowIndex || 0) - (a._rowIndex || 0));
+
                     for (const cp of produitsToDelete) {
-                        const cpIdx = this.chantierProduit.findIndex(c => c === cp);
-                        if (cpIdx !== -1) {
-                            await deleteTableRow('tChantierProduit', cpIdx + 2);
+                        if (cp._rowIndex) {
+                            await deleteTableRow('tChantierProduit', cp._rowIndex);
                         }
                     }
 
                     // Supprimer le chantier
-                    const chantierIndex = [...this.chantiers, ...this.chantiersArchives].findIndex(c => c['Chantier'] === chantierName);
-                    if (chantierIndex !== -1) {
-                        await deleteTableRow('tChantiers', chantierIndex + 2);
+                    const chantier = [...this.chantiers, ...this.chantiersArchives].find(c => c['Chantier'] === chantierName);
+                    if (chantier && chantier._rowIndex) {
+                        await deleteTableRow('tChantiers', chantier._rowIndex);
                     }
 
                     invalidateCache('tChantiers');
@@ -1244,16 +1308,21 @@ class RoadmapChantiersPage {
 
     async unarchiveChantier(chantierName) {
         try {
-            const chantierIndex = this.chantiersArchives.findIndex(c => c['Chantier'] === chantierName);
-            if (chantierIndex === -1) return;
+            const chantier = this.chantiersArchives.find(c => c['Chantier'] === chantierName);
+            if (!chantier) return;
 
-            // Index réel dans la table complète
-            const realIndex = this.chantiers.length + chantierIndex;
+            // Utiliser _rowIndex stocké par readTable
+            const rowIndex = chantier._rowIndex;
+            if (!rowIndex) {
+                console.error('Row index not found for chantier:', chantierName);
+                showError('Erreur: index de ligne non trouvé');
+                return;
+            }
 
-            const chantier = this.chantiersArchives[chantierIndex];
-            chantier['Archivé'] = 'FALSE';
+            const updatedChantier = { ...chantier };
+            updatedChantier['Archivé'] = 'FALSE';
 
-            await updateTableRow('tChantiers', realIndex + 2, chantier);
+            await updateTableRow('tChantiers', rowIndex, updatedChantier);
             invalidateCache('tChantiers');
 
             showSuccess('Chantier réaffiché');
@@ -1396,6 +1465,14 @@ class RoadmapChantiersPage {
         const phase = this.phases[phaseIndex];
         if (!phase) return;
 
+        // Utiliser _rowIndex stocké par readTable
+        const rowIndex = phase._rowIndex;
+        if (!rowIndex) {
+            console.error('Row index not found for phase:', phase['Phase']);
+            showError('Erreur: index de ligne non trouvé');
+            return;
+        }
+
         // Récupérer les liens de cette phase
         const liens = this.phasesLien.filter(l => l['Phase'] === phase['Phase']);
 
@@ -1495,15 +1572,17 @@ class RoadmapChantiersPage {
                         };
 
                         try {
-                            await updateTableRow('tPhases', phaseIndex + 2, updatedPhase);
+                            await updateTableRow('tPhases', rowIndex, updatedPhase);
                             invalidateCache('tPhases');
 
-                            // Supprimer les anciens liens
-                            const oldLiens = this.phasesLien.filter(l => l['Phase'] === phase['Phase']);
-                            for (let i = oldLiens.length - 1; i >= 0; i--) {
-                                const lienIdx = this.phasesLien.findIndex(l => l === oldLiens[i]);
-                                if (lienIdx !== -1) {
-                                    await deleteTableRow('tPhasesLien', lienIdx + 2);
+                            // Supprimer les anciens liens (en ordre inverse pour éviter les décalages)
+                            const oldLiens = this.phasesLien
+                                .filter(l => l['Phase'] === phase['Phase'])
+                                .sort((a, b) => (b._rowIndex || 0) - (a._rowIndex || 0));
+
+                            for (const lien of oldLiens) {
+                                if (lien._rowIndex) {
+                                    await deleteTableRow('tPhasesLien', lien._rowIndex);
                                 }
                             }
 
@@ -1562,22 +1641,32 @@ class RoadmapChantiersPage {
         const phase = this.phases[phaseIndex];
         if (!phase) return;
 
+        // Utiliser _rowIndex stocké par readTable
+        const rowIndex = phase._rowIndex;
+        if (!rowIndex) {
+            console.error('Row index not found for phase:', phase['Phase']);
+            showError('Erreur: index de ligne non trouvé');
+            return;
+        }
+
         showConfirmModal(
             'Supprimer la phase',
             `Êtes-vous sûr de vouloir supprimer la phase "${phase['Phase']}" ?`,
             async () => {
                 try {
-                    // Supprimer les liens
-                    const liens = this.phasesLien.filter(l => l['Phase'] === phase['Phase']);
+                    // Supprimer les liens (en ordre inverse pour éviter les décalages)
+                    const liens = this.phasesLien
+                        .filter(l => l['Phase'] === phase['Phase'])
+                        .sort((a, b) => (b._rowIndex || 0) - (a._rowIndex || 0));
+
                     for (const lien of liens) {
-                        const lienIdx = this.phasesLien.findIndex(l => l === lien);
-                        if (lienIdx !== -1) {
-                            await deleteTableRow('tPhasesLien', lienIdx + 2);
+                        if (lien._rowIndex) {
+                            await deleteTableRow('tPhasesLien', lien._rowIndex);
                         }
                     }
 
                     // Supprimer la phase
-                    await deleteTableRow('tPhases', phaseIndex + 2);
+                    await deleteTableRow('tPhases', rowIndex);
 
                     invalidateCache('tPhases');
                     invalidateCache('tPhasesLien');
@@ -1628,10 +1717,16 @@ class RoadmapChantiersPage {
             const newName = input.value.trim();
             if (newName && newName !== currentName) {
                 try {
+                    const phase = this.phases[phaseIndex];
+                    if (!phase || !phase._rowIndex) {
+                        showError('Erreur: index de ligne non trouvé');
+                        this.cancelInlineEdit();
+                        return;
+                    }
                     // Copier les données de la phase pour éviter les mutations
-                    const phaseData = { ...this.phases[phaseIndex] };
+                    const phaseData = { ...phase };
                     phaseData['Phase'] = newName;
-                    await updateTableRow('tPhases', phaseIndex + 2, phaseData);
+                    await updateTableRow('tPhases', phase._rowIndex, phaseData);
                     invalidateCache('tPhases');
                     nameSpan.textContent = newName;
                 } catch (error) {
@@ -1734,7 +1829,13 @@ class RoadmapChantiersPage {
 
         // Copier les données avant le traitement async
         const phaseData = { ...this.draggedPhase.phase };
-        const phaseIndex = this.draggedPhase.index;
+        const rowIndex = this.draggedPhase.phase._rowIndex;
+
+        if (!rowIndex) {
+            console.error('Row index not found for phase');
+            showError('Erreur: index de ligne non trouvé');
+            return;
+        }
 
         // Calculer le décalage
         const oldStartIdx = this.getSprintIndex(phaseData['Sprint début']);
@@ -1753,7 +1854,7 @@ class RoadmapChantiersPage {
             phaseData['Sprint début'] = this.sprints[newStartIdx]['Sprint'];
             phaseData['Sprint fin'] = this.sprints[newEndIdx]['Sprint'];
 
-            await updateTableRow('tPhases', phaseIndex + 2, phaseData);
+            await updateTableRow('tPhases', rowIndex, phaseData);
             invalidateCache('tPhases');
 
             await this.refresh();
@@ -1794,8 +1895,17 @@ class RoadmapChantiersPage {
         document.removeEventListener('mousemove', this._boundResizeMove);
         document.removeEventListener('mouseup', this._boundResizeEnd);
 
-        const { index, phase, direction, startX } = this.resizingPhase;
+        const { phase, direction, startX } = this.resizingPhase;
         const deltaX = e.clientX - startX;
+
+        // Vérifier que _rowIndex existe
+        const rowIndex = phase._rowIndex;
+        if (!rowIndex) {
+            console.error('Row index not found for phase');
+            showError('Erreur: index de ligne non trouvé');
+            this.resizingPhase = null;
+            return;
+        }
 
         // Calculer le nombre de sprints à ajouter/retirer basé sur le déplacement
         const sprintWidth = 100; // Largeur approximative d'une colonne sprint
@@ -1822,7 +1932,7 @@ class RoadmapChantiersPage {
                 }
             }
 
-            await updateTableRow('tPhases', index + 2, phase);
+            await updateTableRow('tPhases', rowIndex, phase);
             invalidateCache('tPhases');
 
             await this.refresh();
