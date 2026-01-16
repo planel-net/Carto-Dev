@@ -50,14 +50,6 @@ class RoadmapChantiersPage {
                     <div class="page-header-left">
                         <h1>Roadmap - Visualisation projets</h1>
                     </div>
-                    <div class="page-header-right">
-                        <button id="btnRefreshChantiers" class="btn btn-secondary btn-sm">
-                            <span>&#8635;</span> Actualiser
-                        </button>
-                        <button id="btnCloseChantiers" class="btn btn-secondary btn-sm">
-                            <span>&#10005;</span> Fermer
-                        </button>
-                    </div>
                 </div>
 
                 <!-- Légende -->
@@ -570,15 +562,6 @@ class RoadmapChantiersPage {
      * Attache les événements généraux
      */
     attachEvents() {
-        // Boutons header
-        document.getElementById('btnRefreshChantiers')?.addEventListener('click', () => {
-            this.refresh();
-        });
-
-        document.getElementById('btnCloseChantiers')?.addEventListener('click', () => {
-            Office.context.ui.messageParent(JSON.stringify({ type: 'CLOSE_DIALOG' }));
-        });
-
         // Filtres
         document.getElementById('filterDateDebut')?.addEventListener('change', (e) => {
             this.filters.dateDebut = new Date(e.target.value);
@@ -799,9 +782,10 @@ class RoadmapChantiersPage {
                 </div>
                 <div class="form-group">
                     <label class="form-label">Produits associés</label>
-                    <div class="checkbox-group produits-list">
+                    <input type="text" class="form-control" id="searchProduitsAdd" placeholder="Rechercher un produit..." style="margin-bottom: 8px;">
+                    <div class="checkbox-group produits-list" id="produitsListAdd">
                         ${this.produits.map(p => `
-                            <label class="checkbox-label">
+                            <label class="checkbox-label" data-produit="${escapeHtml(p['Nom']).toLowerCase()}">
                                 <input type="checkbox" name="Produits" value="${escapeHtml(p['Nom'])}">
                                 <span>${escapeHtml(p['Nom'])}</span>
                             </label>
@@ -847,8 +831,10 @@ class RoadmapChantiersPage {
 
                         try {
                             // Ajouter le chantier
+                            console.log('Ajout chantier:', chantierData);
                             await addTableRow('tChantier', chantierData);
                             invalidateCache('tChantier');
+                            console.log('Chantier ajouté avec succès');
 
                             // Ajouter les liens chantier-produit
                             for (const produit of produitsSelected) {
@@ -864,13 +850,28 @@ class RoadmapChantiersPage {
                             return true;
                         } catch (error) {
                             console.error('Erreur ajout chantier:', error);
-                            showError('Erreur lors de l\'ajout du chantier');
+                            const errorMsg = error.message || 'Erreur inconnue';
+                            showError(`Erreur lors de l'ajout du chantier: ${errorMsg}`);
                             return false;
                         }
                     }
                 }
             ]
         });
+
+        // Attacher l'événement de recherche après le rendu de la modale
+        setTimeout(() => {
+            const searchInput = document.getElementById('searchProduitsAdd');
+            if (searchInput) {
+                searchInput.addEventListener('input', (e) => {
+                    const term = e.target.value.toLowerCase();
+                    document.querySelectorAll('#produitsListAdd .checkbox-label').forEach(label => {
+                        const produitName = label.dataset.produit || '';
+                        label.style.display = produitName.includes(term) ? '' : 'none';
+                    });
+                });
+            }
+        }, 100);
     }
 
     async showEditChantierModal(chantierName) {
@@ -918,9 +919,10 @@ class RoadmapChantiersPage {
                 </div>
                 <div class="form-group">
                     <label class="form-label">Produits associés</label>
-                    <div class="checkbox-group produits-list">
+                    <input type="text" class="form-control" id="searchProduitsEdit" placeholder="Rechercher un produit..." style="margin-bottom: 8px;">
+                    <div class="checkbox-group produits-list" id="produitsListEdit">
                         ${this.produits.map(p => `
-                            <label class="checkbox-label">
+                            <label class="checkbox-label" data-produit="${escapeHtml(p['Nom']).toLowerCase()}">
                                 <input type="checkbox" name="Produits" value="${escapeHtml(p['Nom'])}"
                                     ${produitsAssocies.includes(p['Nom']) ? 'checked' : ''}>
                                 <span>${escapeHtml(p['Nom'])}</span>
@@ -997,6 +999,20 @@ class RoadmapChantiersPage {
                 }
             ]
         });
+
+        // Attacher l'événement de recherche après le rendu de la modale
+        setTimeout(() => {
+            const searchInput = document.getElementById('searchProduitsEdit');
+            if (searchInput) {
+                searchInput.addEventListener('input', (e) => {
+                    const term = e.target.value.toLowerCase();
+                    document.querySelectorAll('#produitsListEdit .checkbox-label').forEach(label => {
+                        const produitName = label.dataset.produit || '';
+                        label.style.display = produitName.includes(term) ? '' : 'none';
+                    });
+                });
+            }
+        }, 100);
     }
 
     async showArchiveConfirmation(chantierName) {
