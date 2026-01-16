@@ -586,6 +586,12 @@ textarea.form-control {
     margin-bottom: var(--spacing-lg);
 }
 
+/* Tabs dans le header : pas de marge */
+.page-header-right .tabs {
+    margin-bottom: 0;
+    border-bottom: none;
+}
+
 .tab {
     padding: var(--spacing-sm) var(--spacing-lg);
     color: var(--mh-gris-moyen);
@@ -594,6 +600,15 @@ textarea.form-control {
     border-bottom: 2px solid transparent;
     margin-bottom: -2px;
     transition: all var(--transition-fast);
+    white-space: nowrap;
+}
+
+/* Tabs responsifs */
+@media (max-width: 768px) {
+    .tab {
+        padding: var(--spacing-xs) var(--spacing-sm);
+        font-size: 12px;
+    }
 }
 
 .tab:hover {

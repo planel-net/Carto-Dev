@@ -36,6 +36,9 @@ class ParcPage {
                         <div class="tab active" data-view="process">Vue Processus</div>
                         <div class="tab" data-view="list">Vue Liste</div>
                     </div>
+                    <button id="btnAddProduit" class="btn btn-primary">
+                        + Ajouter
+                    </button>
                 </div>
             </div>
 
@@ -1165,6 +1168,12 @@ class ParcPage {
                 this.switchView(tab.dataset.view);
             });
         });
+
+        // Bouton ajouter
+        const btnAdd = document.getElementById('btnAddProduit');
+        if (btnAdd) {
+            btnAdd.addEventListener('click', () => this.showAddProductForm());
+        }
     }
 
     /**
