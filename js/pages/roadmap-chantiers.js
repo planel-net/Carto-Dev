@@ -93,7 +93,7 @@ class RoadmapChantiersPage {
                 perimetresData,
                 produitsData
             ] = await Promise.all([
-                readTable('tChantier'),
+                readTable('tChantiers'),
                 readTable('tPhases'),
                 readTable('tPhasesLien'),
                 readTable('tChantierProduit'),
@@ -832,8 +832,8 @@ class RoadmapChantiersPage {
                         try {
                             // Ajouter le chantier
                             console.log('Ajout chantier:', chantierData);
-                            await addTableRow('tChantier', chantierData);
-                            invalidateCache('tChantier');
+                            await addTableRow('tChantiers', chantierData);
+                            invalidateCache('tChantiers');
                             console.log('Chantier ajouté avec succès');
 
                             // Ajouter les liens chantier-produit
@@ -968,8 +968,8 @@ class RoadmapChantiersPage {
 
                         try {
                             // Mettre à jour le chantier
-                            await updateTableRow('tChantier', chantierIndex + 2, updatedChantier);
-                            invalidateCache('tChantier');
+                            await updateTableRow('tChantiers', chantierIndex + 2, updatedChantier);
+                            invalidateCache('tChantiers');
 
                             // Mettre à jour les liens produits
                             // Supprimer les anciens liens
@@ -1027,8 +1027,8 @@ class RoadmapChantiersPage {
                     const chantier = this.chantiers[chantierIndex];
                     chantier['Archivé'] = 'TRUE';
 
-                    await updateTableRow('tChantier', chantierIndex + 2, chantier);
-                    invalidateCache('tChantier');
+                    await updateTableRow('tChantiers', chantierIndex + 2, chantier);
+                    invalidateCache('tChantiers');
 
                     showSuccess('Chantier archivé');
                     await this.refresh();
@@ -1075,10 +1075,10 @@ class RoadmapChantiersPage {
                     // Supprimer le chantier
                     const chantierIndex = [...this.chantiers, ...this.chantiersArchives].findIndex(c => c['Chantier'] === chantierName);
                     if (chantierIndex !== -1) {
-                        await deleteTableRow('tChantier', chantierIndex + 2);
+                        await deleteTableRow('tChantiers', chantierIndex + 2);
                     }
 
-                    invalidateCache('tChantier');
+                    invalidateCache('tChantiers');
                     invalidateCache('tPhases');
                     invalidateCache('tPhasesLien');
                     invalidateCache('tChantierProduit');
@@ -1187,8 +1187,8 @@ class RoadmapChantiersPage {
             const chantier = this.chantiersArchives[chantierIndex];
             chantier['Archivé'] = 'FALSE';
 
-            await updateTableRow('tChantier', realIndex + 2, chantier);
-            invalidateCache('tChantier');
+            await updateTableRow('tChantiers', realIndex + 2, chantier);
+            invalidateCache('tChantiers');
 
             showSuccess('Chantier réaffiché');
 

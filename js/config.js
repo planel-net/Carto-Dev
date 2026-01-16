@@ -6,7 +6,7 @@
 const CONFIG = {
     // Nom de l'application
     APP_NAME: 'Carto',
-    APP_VERSION: '1.0.39',
+    APP_VERSION: '1.0.40',
 
     // Noms des feuilles spéciales
     SHEETS: {
@@ -201,7 +201,7 @@ const CONFIG = {
         },
         // Tables pour la nouvelle Roadmap (Chantiers)
         CHANTIER: {
-            name: 'tChantier',
+            name: 'tChantiers',
             sheet: 'Chantier',
             displayName: 'Chantiers',
             icon: '&#128736;',
