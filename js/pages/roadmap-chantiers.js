@@ -647,10 +647,9 @@ class RoadmapChantiersPage {
     }
 
     /**
-     * Attache les événements généraux
+     * Attache les événements des filtres (appelé après chaque renderFilters)
      */
-    attachEvents() {
-        // Filtres
+    attachFilterEvents() {
         document.getElementById('filterDateDebut')?.addEventListener('change', (e) => {
             this.filters.dateDebut = new Date(e.target.value);
             this.applyFilters();
@@ -664,6 +663,14 @@ class RoadmapChantiersPage {
         document.getElementById('btnResetFilters')?.addEventListener('click', () => {
             this.resetFilters();
         });
+    }
+
+    /**
+     * Attache les événements généraux
+     */
+    attachEvents() {
+        // Filtres
+        this.attachFilterEvents();
 
         // Boutons d'action
         document.getElementById('btnAddChantier')?.addEventListener('click', () => {
@@ -865,6 +872,7 @@ class RoadmapChantiersPage {
 
     applyFilters() {
         this.renderFilters();
+        this.attachFilterEvents();
         this.renderGantt();
         this.attachCellEvents();
     }
