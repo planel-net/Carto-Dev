@@ -90,24 +90,35 @@ class RoadmapGanttPage {
     }
 
     /**
+     * Normalise une chaîne (trim, lowercase pour comparaison)
+     */
+    normalizeString(str) {
+        return (str || '').trim().toLowerCase();
+    }
+
+    /**
      * Construit les colonnes (Processus -> Périmètre -> Produit)
      */
     buildColumns() {
         this.columns = [];
-        const seen = new Set();
+        const seen = new Map(); // Utiliser Map pour conserver la version originale
 
         // Collecter toutes les combinaisons uniques depuis le backlog
         this.backlog.forEach(item => {
-            const proc = item.Processus || 'Non défini';
-            const perim = item['Périmètre'] || 'Non défini';
-            const produit = item.Produit || 'Non défini';
-            const key = `${proc}|${perim}|${produit}`;
+            const proc = (item.Processus || 'Non défini').trim();
+            const perim = (item['Périmètre'] || 'Non défini').trim();
+            const produit = (item.Produit || 'Non défini').trim();
 
-            if (!seen.has(key)) {
-                seen.add(key);
-                this.columns.push({ processus: proc, perimetre: perim, produit: produit });
+            // Clé normalisée pour détecter les doublons
+            const normalizedKey = `${this.normalizeString(proc)}|${this.normalizeString(perim)}|${this.normalizeString(produit)}`;
+
+            if (!seen.has(normalizedKey)) {
+                seen.set(normalizedKey, { processus: proc, perimetre: perim, produit: produit });
             }
         });
+
+        // Convertir en tableau
+        this.columns = Array.from(seen.values());
 
         // Trier par processus, puis périmètre, puis produit
         this.columns.sort((a, b) => {
@@ -257,12 +268,23 @@ class RoadmapGanttPage {
                 // Récupérer les infos de la cellule
                 const cellInfo = cellsOccupied.cells.get(cellKey);
 
-                if (cellInfo) {
-                    const { item, rowspan } = cellInfo;
+                if (cellInfo && cellInfo.items.length > 0) {
+                    const { items, rowspan } = cellInfo;
                     const rowspanAttr = rowspan > 1 ? ` rowspan="${rowspan}"` : '';
-                    rowsHtml += `<td class="gantt-data-cell" data-sprint-index="${sprintIndex}" data-col-index="${colIndex}"${rowspanAttr}>${this.renderPhaseBlock(item, rowspan, sprintIndex, colIndex)}</td>`;
+
+                    // Rendre toutes les vignettes de cette cellule
+                    const blocksHtml = items.map((itemData, idx) =>
+                        this.renderPhaseBlock(itemData.item, itemData.rowspan, sprintIndex, colIndex, items.length, idx)
+                    ).join('');
+
+                    const wrapperClass = items.length > 1 ? 'gantt-multi-blocks' : '';
+                    rowsHtml += `<td class="gantt-data-cell" data-sprint-index="${sprintIndex}" data-col-index="${colIndex}"${rowspanAttr}>
+                        <div class="gantt-cell-content ${wrapperClass}" data-item-count="${items.length}">${blocksHtml}</div>
+                    </td>`;
                 } else {
-                    rowsHtml += `<td class="gantt-data-cell" data-sprint-index="${sprintIndex}" data-col-index="${colIndex}"></td>`;
+                    rowsHtml += `<td class="gantt-data-cell" data-sprint-index="${sprintIndex}" data-col-index="${colIndex}">
+                        <div class="gantt-cell-content" data-item-count="0"></div>
+                    </td>`;
                 }
             });
 
@@ -344,18 +366,19 @@ class RoadmapGanttPage {
     }
 
     /**
-     * Précalcule les cellules occupées pour gérer les rowspans
+     * Précalcule les cellules occupées pour gérer les rowspans et vignettes multiples
      */
     buildCellsOccupied(sortedSprints) {
-        const cells = new Map(); // cellKey -> { item, rowspan }
-        const skipped = new Set(); // cellKeys à ignorer (occupés par rowspan)
+        const cells = new Map(); // cellKey -> { items: [{item, rowspan, startIndex, endIndex}] }
+        const skipped = new Map(); // cellKey -> parentCellKey (pour savoir quelle cellule gère ce rowspan)
 
         // Pour chaque item du backlog, déterminer sa position et son rowspan
-        this.backlog.forEach(item => {
+        this.backlog.forEach((item, itemIndex) => {
+            // Trouver la colonne avec normalisation
             const colIndex = this.columns.findIndex(col =>
-                col.processus === (item.Processus || 'Non défini') &&
-                col.perimetre === (item['Périmètre'] || 'Non défini') &&
-                col.produit === (item.Produit || 'Non défini')
+                this.normalizeString(col.processus) === this.normalizeString(item.Processus || 'Non défini') &&
+                this.normalizeString(col.perimetre) === this.normalizeString(item['Périmètre'] || 'Non défini') &&
+                this.normalizeString(col.produit) === this.normalizeString(item.Produit || 'Non défini')
             );
 
             if (colIndex === -1) return;
@@ -371,18 +394,58 @@ class RoadmapGanttPage {
             const actualEndIndex = endIndex === -1 ? startIndex : endIndex;
             const rowspan = actualEndIndex - startIndex + 1;
 
-            const cellKey = `${startIndex}-${colIndex}`;
+            // Pour chaque sprint couvert par cet item
+            for (let sprintIdx = startIndex; sprintIdx <= actualEndIndex; sprintIdx++) {
+                const cellKey = `${sprintIdx}-${colIndex}`;
 
-            // Enregistrer la cellule de départ
-            cells.set(cellKey, { item, rowspan });
+                if (!cells.has(cellKey)) {
+                    cells.set(cellKey, { items: [] });
+                }
 
-            // Marquer les cellules suivantes comme "skipped"
-            for (let i = startIndex + 1; i <= actualEndIndex; i++) {
-                skipped.add(`${i}-${colIndex}`);
+                // Ajouter l'item à cette cellule avec ses infos de position
+                cells.get(cellKey).items.push({
+                    item,
+                    itemIndex,
+                    rowspan,
+                    startIndex,
+                    endIndex: actualEndIndex,
+                    isStart: sprintIdx === startIndex,
+                    isContinuation: sprintIdx > startIndex
+                });
             }
         });
 
-        return { cells, skipped };
+        // Maintenant, pour chaque cellule, déterminer si on doit afficher ou skip
+        // On affiche seulement la cellule de départ pour les items multi-sprints
+        const finalCells = new Map();
+        const finalSkipped = new Set();
+
+        cells.forEach((cellData, cellKey) => {
+            const [sprintIdx, colIdx] = cellKey.split('-').map(Number);
+
+            // Filtrer : ne garder que les items qui DÉMARRENT ici ou sont mono-sprint ici
+            const itemsStartingHere = cellData.items.filter(d => d.isStart);
+            const itemsContinuingHere = cellData.items.filter(d => d.isContinuation);
+
+            if (itemsStartingHere.length > 0) {
+                // Calculer le rowspan max parmi les items qui démarrent ici
+                const maxRowspan = Math.max(...itemsStartingHere.map(d => d.rowspan));
+                finalCells.set(cellKey, {
+                    items: itemsStartingHere,
+                    rowspan: maxRowspan
+                });
+
+                // Marquer les cellules suivantes comme skipped (pour le rowspan)
+                for (let i = sprintIdx + 1; i < sprintIdx + maxRowspan; i++) {
+                    finalSkipped.add(`${i}-${colIdx}`);
+                }
+            } else if (itemsContinuingHere.length > 0 && !finalSkipped.has(cellKey)) {
+                // Cellule avec seulement des continuations non-skipped
+                // (ne devrait pas arriver normalement mais sécurité)
+            }
+        });
+
+        return { cells: finalCells, skipped: finalSkipped };
     }
 
     /**
@@ -413,9 +476,15 @@ class RoadmapGanttPage {
     }
 
     /**
-     * Rendu d'un bloc de phase (pleine largeur)
+     * Rendu d'un bloc de phase
+     * @param {Object} item - L'item du backlog
+     * @param {number} rowspan - Nombre de sprints couverts
+     * @param {number} sprintIndex - Index du sprint de départ
+     * @param {number} colIndex - Index de la colonne
+     * @param {number} totalInCell - Nombre total d'items dans cette cellule
+     * @param {number} indexInCell - Index de cet item dans la cellule
      */
-    renderPhaseBlock(item, rowspan = 1, sprintIndex = 0, colIndex = 0) {
+    renderPhaseBlock(item, rowspan = 1, sprintIndex = 0, colIndex = 0, totalInCell = 1, indexInCell = 0) {
         const phase = item.Phase || 'Sans phase';
         const produit = item.Produit || '';
         const description = item.Description || '';
@@ -431,19 +500,24 @@ class RoadmapGanttPage {
             tooltip += `\n\n${description}`;
         }
 
-        // Ajouter des handles de redimensionnement si rowspan > 1 ou si c'est une vignette simple
+        // Ajouter des handles de redimensionnement
         const resizeHandles = `
             <div class="gantt-resize-handle gantt-resize-handle-top" data-resize="top"></div>
             <div class="gantt-resize-handle gantt-resize-handle-bottom" data-resize="bottom"></div>
         `;
 
+        // Classe pour gérer la largeur quand plusieurs items
+        const multiClass = totalInCell > 1 ? 'gantt-phase-shared' : 'gantt-phase-fullwidth';
+
         return `
-            <div class="gantt-phase-block gantt-phase-fullwidth"
+            <div class="gantt-phase-block ${multiClass}"
                  data-backlog-index="${backlogIndex}"
                  data-item-key="${escapeHtml(itemKey)}"
                  data-sprint-start="${sprintIndex}"
                  data-rowspan="${rowspan}"
                  data-col-index="${colIndex}"
+                 data-total-in-cell="${totalInCell}"
+                 data-index-in-cell="${indexInCell}"
                  draggable="true"
                  style="background-color: ${escapeHtml(color)};"
                  title="${escapeHtml(tooltip)}">
@@ -553,7 +627,7 @@ class RoadmapGanttPage {
             });
         });
 
-        // Drag over sur les cellules vides
+        // Drag over sur toutes les cellules (y compris occupées)
         document.querySelectorAll('.gantt-data-cell').forEach(cell => {
             cell.addEventListener('dragover', (e) => {
                 e.preventDefault();
@@ -770,26 +844,15 @@ class RoadmapGanttPage {
         const targetSprint = sortedSprints[targetSprintIndex];
         if (!targetSprint) return;
 
-        // Vérifier que la cellule cible est vide ou c'est le même item
-        const existingItemInTarget = this.backlog.find((b, idx) => {
-            if (idx === actualIndex) return false; // C'est le même item
-            const colIdx = this.columns.findIndex(col =>
-                col.processus === (b.Processus || 'Non défini') &&
-                col.perimetre === (b['Périmètre'] || 'Non défini') &&
-                col.produit === (b.Produit || 'Non défini')
-            );
-            if (colIdx !== targetColIndex) return false;
+        // Vérifier que c'est la même colonne (même produit)
+        const sourceColIndex = this.columns.findIndex(col =>
+            this.normalizeString(col.processus) === this.normalizeString(item.Processus || 'Non défini') &&
+            this.normalizeString(col.perimetre) === this.normalizeString(item['Périmètre'] || 'Non défini') &&
+            this.normalizeString(col.produit) === this.normalizeString(item.Produit || 'Non défini')
+        );
 
-            const sprintDebut = b['Sprint début'];
-            const sprintFin = b['Sprint fin'] || sprintDebut;
-            const startIdx = sortedSprints.findIndex(s => s.Sprint === sprintDebut);
-            const endIdx = sortedSprints.findIndex(s => s.Sprint === sprintFin);
-
-            return targetSprintIndex >= startIdx && targetSprintIndex <= endIdx;
-        });
-
-        if (existingItemInTarget) {
-            showError('Cette cellule est déjà occupée');
+        if (sourceColIndex !== targetColIndex) {
+            showError('Déplacement uniquement dans la même colonne produit');
             return;
         }
 
