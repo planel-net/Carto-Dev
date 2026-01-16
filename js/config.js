@@ -6,7 +6,7 @@
 const CONFIG = {
     // Nom de l'application
     APP_NAME: 'Carto',
-    APP_VERSION: '1.0.37',
+    APP_VERSION: '1.0.38',
 
     // Noms des feuilles spéciales
     SHEETS: {
@@ -198,6 +198,56 @@ const CONFIG = {
                 { field: 'Recette OK ?', label: 'Recette OK', type: 'select', options: ['Oui', 'Non', 'En cours'] },
                 { field: 'Commentaire', label: 'Commentaire', type: 'textarea' }
             ]
+        },
+        // Tables pour la nouvelle Roadmap (Chantiers)
+        CHANTIER: {
+            name: 'tChantier',
+            sheet: 'Chantier',
+            displayName: 'Chantiers',
+            icon: '&#128736;',
+            columns: [
+                { field: 'Chantier', label: 'Chantier', type: 'text', required: true },
+                { field: 'Responsable', label: 'Responsable', type: 'select', source: 'ACTEURS', sourceField: 'Mail' },
+                { field: 'Archivé', label: 'Archivé', type: 'checkbox' },
+                { field: 'Perimetre', label: 'Périmètre', type: 'select', source: 'PERIMETRES', sourceField: 'Périmetre' }
+            ]
+        },
+        PHASES: {
+            name: 'tPhases',
+            sheet: 'Phases',
+            displayName: 'Phases',
+            icon: '&#128197;',
+            columns: [
+                { field: 'Phase', label: 'Phase', type: 'text', required: true },
+                { field: 'Type phase', label: 'Type phase', type: 'select', options: ['EB', 'Cadrage', 'Dev', 'Recette', 'MEP'] },
+                { field: 'Description', label: 'Description', type: 'textarea' },
+                { field: 'Chantier', label: 'Chantier', type: 'select', source: 'CHANTIER', sourceField: 'Chantier' },
+                { field: 'Sprint début', label: 'Sprint début', type: 'select', source: 'SPRINTS', sourceField: 'Sprint' },
+                { field: 'Sprint fin', label: 'Sprint fin', type: 'select', source: 'SPRINTS', sourceField: 'Sprint' },
+                { field: 'Couleur', label: 'Couleur', type: 'color' },
+                { field: 'Lien Teams', label: 'Lien Teams', type: 'text' }
+            ]
+        },
+        PHASES_LIEN: {
+            name: 'tPhasesLien',
+            sheet: 'PhasesLien',
+            displayName: 'Liens des phases',
+            icon: '&#128279;',
+            columns: [
+                { field: 'Phase', label: 'Phase', type: 'select', source: 'PHASES', sourceField: 'Phase' },
+                { field: 'Nom lien', label: 'Nom du lien', type: 'text' },
+                { field: 'Lien', label: 'URL', type: 'text' }
+            ]
+        },
+        CHANTIER_PRODUIT: {
+            name: 'tChantierProduit',
+            sheet: 'ChantierProduit',
+            displayName: 'Chantiers-Produits',
+            icon: '&#128279;',
+            columns: [
+                { field: 'Chantier', label: 'Chantier', type: 'select', source: 'CHANTIER', sourceField: 'Chantier' },
+                { field: 'Produit', label: 'Produit', type: 'select', source: 'PRODUITS', sourceField: 'Nom' }
+            ]
         }
     },
 
@@ -214,6 +264,15 @@ const CONFIG = {
         RUN: { value: 'Run', color: '#C8E6C9', label: 'Run' },           // Vert pastel
         EVOLUTION: { value: 'Evolution', color: '#F8BBD9', label: 'Evolution' }, // Rose pastel
         BACKLOG: { value: 'Backlog', color: '#B2EBF2', label: 'Backlog' }  // Cyan pastel
+    },
+
+    // Couleurs par type de phase (Roadmap Chantiers)
+    PHASE_COLORS: {
+        'EB': '#A8D5E5',        // Bleu pastel
+        'Cadrage': '#B8E0B8',   // Vert pastel
+        'Dev': '#F5D5A8',       // Orange pastel
+        'Recette': '#F5F5A8',   // Jaune pastel
+        'MEP': '#E5B8E0'        // Violet pastel
     },
 
     // Capacité par défaut (jours par sprint par acteur)
@@ -234,7 +293,8 @@ const CONFIG = {
         FONCTIONNEL: [
             { id: 'migration', label: 'Cartographie', icon: '&#128640;', page: 'migration' },
             { id: 'parc', label: 'Parc Applicatif', icon: '&#128202;', page: 'parc' },
-            { id: 'roadmap-gantt', label: 'Roadmap', icon: '&#128197;', page: 'roadmap-gantt' },
+            { id: 'roadmap-chantiers', label: 'Roadmap', icon: '&#128197;', page: 'roadmap-chantiers' },
+            { id: 'roadmap-gantt', label: 'Ancienne Roadmap', icon: '&#128197;', page: 'roadmap-gantt' },
             { id: 'roadmap', label: 'Backlog', icon: '&#128203;', page: 'roadmap' }
         ],
         PARAMETRES: [

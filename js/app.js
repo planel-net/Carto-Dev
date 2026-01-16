@@ -207,6 +207,10 @@ async function navigateTo(page, table = null) {
                 await renderRoadmapGanttPage(container);
                 break;
 
+            case 'roadmap-chantiers':
+                await renderRoadmapChantiersPage(container);
+                break;
+
             case 'migration':
                 await renderMigrationPage(container);
                 break;
@@ -306,6 +310,9 @@ async function refreshCurrentPage() {
         switch (AppState.currentPage) {
             case 'roadmap-gantt':
                 await refreshRoadmapGanttPage();
+                break;
+            case 'roadmap-chantiers':
+                await refreshRoadmapChantiersPage();
                 break;
             case 'migration':
                 await refreshMigrationPage();
