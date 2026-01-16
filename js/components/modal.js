@@ -460,6 +460,9 @@ function closeModal() {
     if (backdrop) backdrop.classList.remove('show');
     if (modal) modal.classList.remove('show');
 
+    // Capturer la référence du modal actuel pour vérification dans le timeout
+    const currentModal = _activeModal;
+
     // Supprimer du DOM après animation
     setTimeout(() => {
         if (backdrop && backdrop.parentNode) {
@@ -468,6 +471,10 @@ function closeModal() {
         if (modal && modal.parentNode) {
             modal.parentNode.removeChild(modal);
         }
-        _activeModal = null;
+        // Seulement mettre à null si c'est toujours le même modal
+        // (évite d'écraser la référence d'un nouveau modal ouvert entre temps)
+        if (_activeModal === currentModal) {
+            _activeModal = null;
+        }
     }, 300);
 }
