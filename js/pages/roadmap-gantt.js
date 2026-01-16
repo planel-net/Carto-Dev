@@ -272,9 +272,9 @@ class RoadmapGanttPage {
                     const { items, rowspan } = cellInfo;
                     const rowspanAttr = rowspan > 1 ? ` rowspan="${rowspan}"` : '';
 
-                    // Rendre toutes les vignettes de cette cellule
+                    // Rendre toutes les vignettes de cette cellule - passer l'index exact
                     const blocksHtml = items.map((itemData, idx) =>
-                        this.renderPhaseBlock(itemData.item, itemData.rowspan, sprintIndex, colIndex, items.length, idx)
+                        this.renderPhaseBlock(itemData.item, itemData.rowspan, sprintIndex, colIndex, items.length, idx, itemData.itemIndex)
                     ).join('');
 
                     const wrapperClass = items.length > 1 ? 'gantt-multi-blocks' : '';
@@ -483,13 +483,15 @@ class RoadmapGanttPage {
      * @param {number} colIndex - Index de la colonne
      * @param {number} totalInCell - Nombre total d'items dans cette cellule
      * @param {number} indexInCell - Index de cet item dans la cellule
+     * @param {number} exactIndex - L'index exact dans le tableau backlog (optionnel)
      */
-    renderPhaseBlock(item, rowspan = 1, sprintIndex = 0, colIndex = 0, totalInCell = 1, indexInCell = 0) {
+    renderPhaseBlock(item, rowspan = 1, sprintIndex = 0, colIndex = 0, totalInCell = 1, indexInCell = 0, exactIndex = -1) {
         const phase = item.Phase || 'Sans phase';
         const produit = item.Produit || '';
         const description = item.Description || '';
         const color = item.Couleur || this.getDefaultColor(phase);
-        const backlogIndex = this.backlog.indexOf(item);
+        // Utiliser l'index exact si fourni, sinon fallback sur indexOf
+        const backlogIndex = exactIndex >= 0 ? exactIndex : this.backlog.indexOf(item);
 
         // Créer un identifiant unique basé sur les données de l'item
         const itemKey = `${produit}|${item.Processus || ''}|${item['Périmètre'] || ''}|${phase}|${item['Sprint début'] || ''}`;
@@ -548,6 +550,7 @@ class RoadmapGanttPage {
         blocks.forEach(block => {
             let clickTimer = null;
             let isEditing = false;
+            let isDragging = false;
 
             // Double-clic : ouvrir la fiche
             block.addEventListener('dblclick', (e) => {
@@ -557,6 +560,7 @@ class RoadmapGanttPage {
                     clearTimeout(clickTimer);
                     clickTimer = null;
                 }
+                if (isDragging) return;
                 const index = parseInt(block.dataset.backlogIndex);
                 if (!isNaN(index)) {
                     this.editBacklogItem(index);
@@ -565,8 +569,9 @@ class RoadmapGanttPage {
 
             // Simple clic : édition inline du titre
             block.addEventListener('click', (e) => {
-                // Ignorer si on clique sur un handle de resize
+                // Ignorer si on clique sur un handle de resize ou si on drag
                 if (e.target.classList.contains('gantt-resize-handle')) return;
+                if (isDragging) return;
 
                 e.preventDefault();
                 e.stopPropagation();
@@ -580,7 +585,7 @@ class RoadmapGanttPage {
 
                 clickTimer = setTimeout(() => {
                     clickTimer = null;
-                    if (!isEditing) {
+                    if (!isEditing && !isDragging) {
                         this.startInlineEdit(block);
                     }
                 }, 250);
@@ -590,6 +595,7 @@ class RoadmapGanttPage {
             block.addEventListener('contextmenu', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                if (isDragging) return;
                 const index = parseInt(block.dataset.backlogIndex);
                 if (!isNaN(index)) {
                     this.showContextMenu(e.clientX, e.clientY, index);
@@ -602,6 +608,12 @@ class RoadmapGanttPage {
                     e.preventDefault();
                     return;
                 }
+                // Annuler le timer de clic si en cours
+                if (clickTimer) {
+                    clearTimeout(clickTimer);
+                    clickTimer = null;
+                }
+                isDragging = true;
                 block.classList.add('dragging');
                 // Envoyer l'index ET la clé unique pour retrouver l'item
                 const transferData = `${block.dataset.backlogIndex}|||${block.dataset.itemKey || ''}`;
@@ -610,6 +622,7 @@ class RoadmapGanttPage {
             });
 
             block.addEventListener('dragend', (e) => {
+                isDragging = false;
                 block.classList.remove('dragging');
                 document.querySelectorAll('.gantt-data-cell.drag-over, .gantt-data-cell.drag-invalid').forEach(cell => {
                     cell.classList.remove('drag-over', 'drag-invalid');

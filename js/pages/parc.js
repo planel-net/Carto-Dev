@@ -26,29 +26,29 @@ class ParcPage {
      */
     async render(container) {
         container.innerHTML = `
-            <div class="page-header">
+            <div class="page-header parc-header">
                 <div class="page-header-left">
                     <h1>Parc Applicatif</h1>
-                    <p>Cartographie des rapports et applications</p>
+                    <p class="hide-mobile">Cartographie des rapports et applications</p>
                 </div>
                 <div class="page-header-right">
-                    <div class="tabs">
-                        <div class="tab active" data-view="process">Vue Processus</div>
-                        <div class="tab" data-view="list">Vue Liste</div>
+                    <div class="tabs tabs-compact">
+                        <div class="tab active" data-view="process">Processus</div>
+                        <div class="tab" data-view="list">Liste</div>
                     </div>
-                    <button id="btnAddProduit" class="btn btn-primary">
+                    <button id="btnAddProduit" class="btn btn-primary btn-sm">
                         + Ajouter
                     </button>
                 </div>
             </div>
 
             <!-- Vue Processus (Matrice) -->
-            <section id="viewProcess" class="section">
+            <section id="viewProcess" class="section parc-section">
                 <div id="processMatrix"></div>
             </section>
 
             <!-- Vue Liste -->
-            <section id="viewList" class="section hidden">
+            <section id="viewList" class="section parc-section hidden">
                 <div id="tableProduits"></div>
             </section>
 

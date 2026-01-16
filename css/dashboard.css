@@ -1274,14 +1274,18 @@
 
 .gantt-month-header {
     background: var(--mh-bleu-fonce) !important;
-    width: auto;
+    width: 70px;
+    min-width: 70px;
+    max-width: 70px;
     white-space: nowrap;
     padding: var(--spacing-xs) var(--spacing-sm);
 }
 
 .gantt-sprint-header {
     background: var(--mh-bleu-fonce) !important;
-    width: auto;
+    width: 90px;
+    min-width: 90px;
+    max-width: 90px;
     white-space: nowrap;
     padding: var(--spacing-xs) var(--spacing-sm);
 }
@@ -1338,7 +1342,9 @@
     font-weight: 600;
     color: var(--mh-bleu-fonce);
     text-align: center;
-    width: auto;
+    width: 70px;
+    min-width: 70px;
+    max-width: 70px;
     white-space: nowrap;
     padding: var(--spacing-xs) var(--spacing-sm);
     height: 48px;
@@ -1346,13 +1352,15 @@
 
 .gantt-sprint-cell {
     position: sticky;
-    left: auto;
+    left: 70px;
     z-index: 10;
     background: #f8f9fa;
     font-weight: 500;
     text-align: center;
     color: var(--mh-gris-fonce);
-    width: auto;
+    width: 90px;
+    min-width: 90px;
+    max-width: 90px;
     white-space: nowrap;
     height: 48px;
     padding: var(--spacing-xs) var(--spacing-sm);
