@@ -422,6 +422,9 @@ class RoadmapGanttPage {
         const color = item.Couleur || this.getDefaultColor(phase);
         const backlogIndex = this.backlog.indexOf(item);
 
+        // Créer un identifiant unique basé sur les données de l'item
+        const itemKey = `${produit}|${item.Processus || ''}|${item['Périmètre'] || ''}|${phase}|${item['Sprint début'] || ''}`;
+
         // Construire le tooltip avec description si remplie
         let tooltip = `${produit} - ${phase}`;
         if (description) {
@@ -437,6 +440,7 @@ class RoadmapGanttPage {
         return `
             <div class="gantt-phase-block gantt-phase-fullwidth"
                  data-backlog-index="${backlogIndex}"
+                 data-item-key="${escapeHtml(itemKey)}"
                  data-sprint-start="${sprintIndex}"
                  data-rowspan="${rowspan}"
                  data-col-index="${colIndex}"
@@ -525,7 +529,9 @@ class RoadmapGanttPage {
                     return;
                 }
                 block.classList.add('dragging');
-                e.dataTransfer.setData('text/plain', block.dataset.backlogIndex);
+                // Envoyer l'index ET la clé unique pour retrouver l'item
+                const transferData = `${block.dataset.backlogIndex}|||${block.dataset.itemKey || ''}`;
+                e.dataTransfer.setData('text/plain', transferData);
                 e.dataTransfer.effectAllowed = 'move';
             });
 
@@ -577,12 +583,14 @@ class RoadmapGanttPage {
                 e.preventDefault();
                 cell.classList.remove('drag-over', 'drag-invalid');
 
-                const backlogIndex = parseInt(e.dataTransfer.getData('text/plain'));
+                const transferData = e.dataTransfer.getData('text/plain');
+                const [backlogIndexStr, itemKey] = transferData.split('|||');
+                const backlogIndex = parseInt(backlogIndexStr);
                 const targetSprintIndex = parseInt(cell.dataset.sprintIndex);
                 const targetColIndex = parseInt(cell.dataset.colIndex);
 
                 if (!isNaN(backlogIndex) && !isNaN(targetSprintIndex)) {
-                    await this.moveItemToSprint(backlogIndex, targetSprintIndex, targetColIndex);
+                    await this.moveItemToSprint(backlogIndex, targetSprintIndex, targetColIndex, itemKey);
                 }
             });
         });
@@ -736,23 +744,58 @@ class RoadmapGanttPage {
     /**
      * Déplace un item vers un autre sprint
      */
-    async moveItemToSprint(backlogIndex, targetSprintIndex, targetColIndex) {
-        const item = this.backlog[backlogIndex];
-        if (!item) return;
+    async moveItemToSprint(backlogIndex, targetSprintIndex, targetColIndex, itemKey) {
+        // Retrouver l'item par sa clé unique si possible (plus fiable que l'index)
+        let item = this.backlog[backlogIndex];
+        let actualIndex = backlogIndex;
+
+        if (itemKey) {
+            // Chercher l'item par sa clé pour éviter les erreurs d'index
+            const foundIndex = this.backlog.findIndex(b => {
+                const key = `${b.Produit || ''}|${b.Processus || ''}|${b['Périmètre'] || ''}|${b.Phase || ''}|${b['Sprint début'] || ''}`;
+                return key === itemKey;
+            });
+            if (foundIndex !== -1) {
+                item = this.backlog[foundIndex];
+                actualIndex = foundIndex;
+            }
+        }
+
+        if (!item) {
+            showError('Élément non trouvé');
+            return;
+        }
 
         const sortedSprints = this.getSortedSprints();
         const targetSprint = sortedSprints[targetSprintIndex];
         if (!targetSprint) return;
 
-        // Vérifier que c'est la même colonne (même produit)
-        const sourceColIndex = parseInt(document.querySelector(`[data-backlog-index="${backlogIndex}"]`)?.dataset.colIndex);
-        if (sourceColIndex !== targetColIndex) {
-            showError('Déplacement uniquement dans la même colonne');
+        // Vérifier que la cellule cible est vide ou c'est le même item
+        const existingItemInTarget = this.backlog.find((b, idx) => {
+            if (idx === actualIndex) return false; // C'est le même item
+            const colIdx = this.columns.findIndex(col =>
+                col.processus === (b.Processus || 'Non défini') &&
+                col.perimetre === (b['Périmètre'] || 'Non défini') &&
+                col.produit === (b.Produit || 'Non défini')
+            );
+            if (colIdx !== targetColIndex) return false;
+
+            const sprintDebut = b['Sprint début'];
+            const sprintFin = b['Sprint fin'] || sprintDebut;
+            const startIdx = sortedSprints.findIndex(s => s.Sprint === sprintDebut);
+            const endIdx = sortedSprints.findIndex(s => s.Sprint === sprintFin);
+
+            return targetSprintIndex >= startIdx && targetSprintIndex <= endIdx;
+        });
+
+        if (existingItemInTarget) {
+            showError('Cette cellule est déjà occupée');
             return;
         }
 
         try {
-            const currentRowspan = parseInt(document.querySelector(`[data-backlog-index="${backlogIndex}"]`)?.dataset.rowspan) || 1;
+            const block = document.querySelector(`[data-backlog-index="${backlogIndex}"]`);
+            const currentRowspan = parseInt(block?.dataset.rowspan) || 1;
             const updatedItem = { ...item };
 
             // Calculer le nouveau sprint de fin
@@ -765,7 +808,7 @@ class RoadmapGanttPage {
                 updatedItem['Sprint fin'] = targetSprint.Sprint;
             }
 
-            await updateTableRow('tBacklog', backlogIndex + 2, updatedItem);
+            await updateTableRow('tBacklog', actualIndex + 2, updatedItem);
             showSuccess('Projet déplacé');
             await this.loadData();
         } catch (error) {
