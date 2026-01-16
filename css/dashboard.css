@@ -2073,10 +2073,11 @@
     /* width est défini inline en pixels selon le colspan */
 }
 
-.gantt-phase-block.shared {
-    flex: 0 0 auto;
-    min-height: 20px;
-    /* width est défini inline en pixels selon le colspan */
+.gantt-phase-block.lane-mode {
+    position: absolute;
+    left: 0;
+    /* height et top sont définis inline selon la lane */
+    min-height: 18px;
 }
 
 .gantt-phase-block:hover {

@@ -492,13 +492,69 @@ class RoadmapChantiersPage {
     }
 
     /**
+     * Calcule les lanes (voies) pour les phases qui se chevauchent
+     * Retourne un objet avec les infos de lane pour chaque phase et le nombre total de lanes
+     */
+    calculatePhaseLanes(phases, visibleSprints) {
+        const visibleSprintNames = visibleSprints.map(s => s['Sprint']);
+        const phaseLanes = new Map(); // phase name -> lane number
+        const lanes = []; // lanes[i] = end index of last phase in lane i
+
+        // Trier les phases par sprint de début puis par sprint de fin
+        const sortedPhases = [...phases].map(phase => {
+            const startSprint = phase['Sprint début'];
+            const endSprint = phase['Sprint fin'] || startSprint;
+            const startIdx = visibleSprintNames.indexOf(startSprint);
+            const endIdx = visibleSprintNames.indexOf(endSprint);
+            return {
+                phase,
+                startIdx: startIdx === -1 ? Infinity : startIdx,
+                endIdx: endIdx === -1 ? startIdx : endIdx
+            };
+        }).filter(p => p.startIdx !== Infinity)
+          .sort((a, b) => a.startIdx - b.startIdx || a.endIdx - b.endIdx);
+
+        // Assigner chaque phase à une lane
+        sortedPhases.forEach(({ phase, startIdx, endIdx }) => {
+            // Trouver la première lane disponible
+            let assignedLane = -1;
+            for (let i = 0; i < lanes.length; i++) {
+                if (lanes[i] < startIdx) {
+                    // Cette lane est libre (la dernière phase finit avant notre début)
+                    assignedLane = i;
+                    break;
+                }
+            }
+
+            if (assignedLane === -1) {
+                // Créer une nouvelle lane
+                assignedLane = lanes.length;
+                lanes.push(endIdx);
+            } else {
+                // Mettre à jour la fin de la lane
+                lanes[assignedLane] = endIdx;
+            }
+
+            phaseLanes.set(phase['Phase'], assignedLane);
+        });
+
+        return {
+            phaseLanes,
+            totalLanes: Math.max(1, lanes.length)
+        };
+    }
+
+    /**
      * Rendu des cellules d'un chantier
-     * Nouvelle approche : une cellule par sprint, phases positionnées en CSS
+     * Nouvelle approche : une cellule par sprint, phases positionnées en CSS avec lanes
      */
     renderChantierCells(chantierName, chantierPhases, visibleSprints, phasesBySprintRange) {
         const cellsHtml = [];
         const renderedPhases = new Set();
         const visibleSprintNames = visibleSprints.map(s => s['Sprint']);
+
+        // Calculer les lanes pour ce chantier
+        const { phaseLanes, totalLanes } = this.calculatePhaseLanes(chantierPhases, visibleSprints);
 
         visibleSprints.forEach((sprint, sprintIdx) => {
             const sprintName = sprint['Sprint'];
@@ -512,16 +568,17 @@ class RoadmapChantiersPage {
             // Marquer les phases comme rendues
             phasesToRender.forEach(p => renderedPhases.add(p.phase['Phase']));
 
-            // Calculer le colspan effectif de chaque phase
+            // Calculer le colspan effectif de chaque phase et ajouter les infos de lane
             const phasesWithColspan = phasesToRender.map(p => {
                 const endIdx = Math.min(p.startIdx + p.colspan - 1, visibleSprintNames.length - 1);
                 const effectiveColspan = endIdx - sprintIdx + 1;
-                return { ...p, effectiveColspan };
+                const lane = phaseLanes.get(p.phase['Phase']) || 0;
+                return { ...p, effectiveColspan, lane };
             });
 
             // Générer le HTML des phases qui commencent ici
-            const phasesHtml = phasesWithColspan.map((p, idx) =>
-                this.renderPhaseBlock(p.phase, phasesWithColspan.length, idx, p.effectiveColspan)
+            const phasesHtml = phasesWithColspan.map((p) =>
+                this.renderPhaseBlock(p.phase, totalLanes, p.lane, p.effectiveColspan)
             ).join('');
 
             // Toujours créer une cellule pour chaque sprint
@@ -532,8 +589,9 @@ class RoadmapChantiersPage {
                 <td class="gantt-data-cell ${cellClass}"
                     data-chantier="${escapeHtml(chantierName)}"
                     data-sprint="${escapeHtml(sprintName)}"
+                    data-total-lanes="${totalLanes}"
                     ${!hasPhases ? `onclick="roadmapChantiersPageInstance.showAddPhaseModal('${escapeHtml(chantierName)}', '${escapeHtml(sprintName)}')"` : ''}>
-                    ${hasPhases ? `<div class="gantt-phases-container ${phasesWithColspan.length > 1 ? 'multi-phases' : ''}">${phasesHtml}</div>` : ''}
+                    ${hasPhases ? `<div class="gantt-phases-container" data-total-lanes="${totalLanes}">${phasesHtml}</div>` : ''}
                 </td>
             `);
         });
@@ -543,9 +601,10 @@ class RoadmapChantiersPage {
 
     /**
      * Rendu d'un bloc de phase
-     * La largeur est calculée pour s'étendre sur plusieurs colonnes si nécessaire
+     * La largeur est calculée pour s'étendre sur plusieurs colonnes
+     * La hauteur et position verticale dépendent du nombre de lanes
      */
-    renderPhaseBlock(phase, totalInCell, indexInCell, phaseColspan = 1) {
+    renderPhaseBlock(phase, totalLanes, lane, phaseColspan = 1) {
         const typePhase = phase['Type phase'] || '';
         const color = CONFIG.PHASE_COLORS[typePhase] || '#E0E0E0';
         const phaseName = phase['Phase'] || '';
@@ -555,17 +614,21 @@ class RoadmapChantiersPage {
         const SPRINT_COL_WIDTH = 90;
 
         // Calculer la largeur en pixels pour couvrir plusieurs colonnes
-        // On utilise calc() pour tenir compte des bordures/padding
         const widthPx = (phaseColspan * SPRINT_COL_WIDTH) - 4; // -4 pour le padding
-        const isShared = totalInCell > 1;
+
+        // Calculer la hauteur et la position verticale en fonction des lanes
+        const heightPercent = 100 / totalLanes;
+        const topPercent = (lane / totalLanes) * 100;
+        const hasMultipleLanes = totalLanes > 1;
 
         return `
-            <div class="gantt-phase-block ${isShared ? 'shared' : 'fullwidth'}"
-                 style="background-color: ${color}; width: ${widthPx}px; min-width: ${widthPx}px;"
+            <div class="gantt-phase-block ${hasMultipleLanes ? 'lane-mode' : 'fullwidth'}"
+                 style="background-color: ${color}; width: ${widthPx}px; min-width: ${widthPx}px; ${hasMultipleLanes ? `height: calc(${heightPercent}% - 2px); top: ${topPercent}%;` : ''}"
                  data-phase-index="${phaseIndex}"
                  data-phase-name="${escapeHtml(phaseName)}"
                  data-chantier="${escapeHtml(phase['Chantier'])}"
                  data-colspan="${phaseColspan}"
+                 data-lane="${lane}"
                  draggable="true">
                 <div class="gantt-resize-handle gantt-resize-handle-left" data-direction="left"></div>
                 <span class="phase-name">${escapeHtml(phaseName)}</span>
