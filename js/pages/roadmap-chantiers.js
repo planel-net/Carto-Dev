@@ -493,6 +493,7 @@ class RoadmapChantiersPage {
 
     /**
      * Rendu des cellules d'un chantier
+     * Nouvelle approche : une cellule par sprint, phases positionnées en CSS
      */
     renderChantierCells(chantierName, chantierPhases, visibleSprints, phasesBySprintRange) {
         const cellsHtml = [];
@@ -503,52 +504,38 @@ class RoadmapChantiersPage {
             const sprintName = sprint['Sprint'];
             const phasesInCell = phasesBySprintRange[sprintName] || [];
 
-            // Filtrer les phases qui commencent ici et pas déjà rendues
+            // Filtrer les phases qui COMMENCENT à ce sprint et pas déjà rendues
             const phasesToRender = phasesInCell.filter(p =>
                 p.isStart && !renderedPhases.has(p.phase['Phase'])
             );
 
-            if (phasesToRender.length === 0) {
-                // Cellule vide ou continuation
-                const isContinuation = phasesInCell.some(p => !p.isStart);
-                if (!isContinuation) {
-                    cellsHtml.push(`
-                        <td class="gantt-data-cell gantt-empty-cell"
-                            data-chantier="${escapeHtml(chantierName)}"
-                            data-sprint="${escapeHtml(sprintName)}"
-                            onclick="roadmapChantiersPageInstance.showAddPhaseModal('${escapeHtml(chantierName)}', '${escapeHtml(sprintName)}')">
-                        </td>
-                    `);
-                }
-                // Si continuation, la cellule est gérée par le colspan
-            } else {
-                // Calculer le colspan effectif de chaque phase et le max
-                const phasesWithColspan = phasesToRender.map(p => {
-                    const endIdx = Math.min(p.startIdx + p.colspan - 1, visibleSprintNames.length - 1);
-                    const effectiveColspan = endIdx - sprintIdx + 1;
-                    return { ...p, effectiveColspan };
-                });
+            // Marquer les phases comme rendues
+            phasesToRender.forEach(p => renderedPhases.add(p.phase['Phase']));
 
-                const maxColspan = Math.max(...phasesWithColspan.map(p => p.effectiveColspan));
+            // Calculer le colspan effectif de chaque phase
+            const phasesWithColspan = phasesToRender.map(p => {
+                const endIdx = Math.min(p.startIdx + p.colspan - 1, visibleSprintNames.length - 1);
+                const effectiveColspan = endIdx - sprintIdx + 1;
+                return { ...p, effectiveColspan };
+            });
 
-                // Marquer les phases comme rendues
-                phasesWithColspan.forEach(p => renderedPhases.add(p.phase['Phase']));
+            // Générer le HTML des phases qui commencent ici
+            const phasesHtml = phasesWithColspan.map((p, idx) =>
+                this.renderPhaseBlock(p.phase, phasesWithColspan.length, idx, p.effectiveColspan)
+            ).join('');
 
-                const phasesHtml = phasesWithColspan.map((p, idx) =>
-                    this.renderPhaseBlock(p.phase, phasesWithColspan.length, idx, p.effectiveColspan, maxColspan)
-                ).join('');
+            // Toujours créer une cellule pour chaque sprint
+            const hasPhases = phasesWithColspan.length > 0;
+            const cellClass = hasPhases ? 'gantt-phase-cell' : 'gantt-empty-cell';
 
-                cellsHtml.push(`
-                    <td class="gantt-data-cell gantt-phase-cell"
-                        colspan="${maxColspan}"
-                        data-chantier="${escapeHtml(chantierName)}"
-                        data-sprint="${escapeHtml(sprintName)}">
-                        <div class="gantt-phases-container ${phasesToRender.length > 1 ? 'multi-phases' : ''}">
-                            ${phasesHtml}
-                        </div>
-                    </td>
-                `);
-            }
+            cellsHtml.push(`
+                <td class="gantt-data-cell ${cellClass}"
+                    data-chantier="${escapeHtml(chantierName)}"
+                    data-sprint="${escapeHtml(sprintName)}"
+                    ${!hasPhases ? `onclick="roadmapChantiersPageInstance.showAddPhaseModal('${escapeHtml(chantierName)}', '${escapeHtml(sprintName)}')"` : ''}>
+                    ${hasPhases ? `<div class="gantt-phases-container ${phasesWithColspan.length > 1 ? 'multi-phases' : ''}">${phasesHtml}</div>` : ''}
+                </td>
+            `);
         });
 
         return cellsHtml.join('');
@@ -556,21 +543,25 @@ class RoadmapChantiersPage {
 
     /**
      * Rendu d'un bloc de phase
+     * La largeur est calculée pour s'étendre sur plusieurs colonnes si nécessaire
      */
-    renderPhaseBlock(phase, totalInCell, indexInCell, phaseColspan = 1, maxColspan = 1) {
+    renderPhaseBlock(phase, totalInCell, indexInCell, phaseColspan = 1) {
         const typePhase = phase['Type phase'] || '';
         const color = CONFIG.PHASE_COLORS[typePhase] || '#E0E0E0';
         const phaseName = phase['Phase'] || '';
         const phaseIndex = this.phases.findIndex(p => p['Phase'] === phaseName && p['Chantier'] === phase['Chantier']);
 
-        // Calculer la largeur proportionnelle de la phase
-        const widthPercent = (phaseColspan / maxColspan) * 100;
+        // Largeur de colonne sprint (doit correspondre au CSS)
+        const SPRINT_COL_WIDTH = 90;
+
+        // Calculer la largeur en pixels pour couvrir plusieurs colonnes
+        // On utilise calc() pour tenir compte des bordures/padding
+        const widthPx = (phaseColspan * SPRINT_COL_WIDTH) - 4; // -4 pour le padding
         const isShared = totalInCell > 1;
-        const widthStyle = isShared ? `width: ${widthPercent}%;` : 'width: 100%;';
 
         return `
             <div class="gantt-phase-block ${isShared ? 'shared' : 'fullwidth'}"
-                 style="background-color: ${color}; ${widthStyle}"
+                 style="background-color: ${color}; width: ${widthPx}px; min-width: ${widthPx}px;"
                  data-phase-index="${phaseIndex}"
                  data-phase-name="${escapeHtml(phaseName)}"
                  data-chantier="${escapeHtml(phase['Chantier'])}"
