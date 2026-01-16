@@ -1861,7 +1861,7 @@
    =========================================== */
 
 .gantt-chantiers-table {
-    width: 100%;
+    /* Pas de width: 100% pour respecter les largeurs du colgroup */
     border-collapse: separate;
     border-spacing: 0;
     table-layout: fixed;
@@ -2009,25 +2009,29 @@
     color: var(--mh-rouge-erreur);
 }
 
-/* Cellules de données */
-.gantt-data-cell {
+/* Ligne de chantier - fond blanc sur la ligne pour ne pas couvrir les phases */
+.gantt-chantier-row {
     background: var(--mh-blanc);
+}
+
+/* Cellules de données - PAS de fond pour permettre aux phases de s'étendre */
+.gantt-data-cell {
     min-height: 50px;
     height: 50px;
     padding: 2px;
     position: relative;
     border-right: 1px dashed #e0e0e0;
     overflow: visible; /* Permet aux phases de déborder sur les colonnes suivantes */
+    background: transparent;
 }
 
 .gantt-phase-cell {
-    z-index: 2; /* Les cellules avec phases sont au-dessus des cellules vides */
+    /* Pas de z-index pour éviter de créer un contexte d'empilement qui bloquerait les phases étendues */
 }
 
 .gantt-empty-cell {
     cursor: pointer;
     transition: background var(--transition-fast);
-    z-index: 1;
 }
 
 .gantt-empty-cell:hover {
@@ -2069,7 +2073,8 @@
 }
 
 .gantt-phase-block.fullwidth {
-    height: 100%;
+    height: calc(100% - 4px);
+    margin: 2px 0;
     /* width est défini inline en pixels selon le colspan */
 }
 

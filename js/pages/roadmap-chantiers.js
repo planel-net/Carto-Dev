@@ -614,7 +614,9 @@ class RoadmapChantiersPage {
         const SPRINT_COL_WIDTH = 90;
 
         // Calculer la largeur en pixels pour couvrir plusieurs colonnes
-        const widthPx = (phaseColspan * SPRINT_COL_WIDTH) - 4; // -4 pour le padding
+        // La cellule a padding: 2px, donc le contenu fait 86px par colonne
+        // Pour s'étendre sur n colonnes: (n-1)*90 + 86 = n*90 - 4
+        const widthPx = (phaseColspan * SPRINT_COL_WIDTH) - 4;
 
         // Calculer la hauteur et la position verticale en fonction des lanes
         const heightPercent = 100 / totalLanes;
