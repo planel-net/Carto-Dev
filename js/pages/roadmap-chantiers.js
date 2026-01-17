@@ -627,7 +627,7 @@ class RoadmapChantiersPage {
 
         return `
             <div class="gantt-phase-block ${hasMultipleLanes ? 'lane-mode' : 'fullwidth'}"
-                 style="background-color: ${color}; width: ${widthPx}px; min-width: ${widthPx}px; ${hasMultipleLanes ? `height: calc(${heightPercent}% - 2px); top: ${topPercent}%;` : ''}"
+                 style="background-color: ${color}; margin-left: ${PHASE_MARGIN}px; width: ${widthPx}px; min-width: ${widthPx}px; ${hasMultipleLanes ? `height: calc(${heightPercent}% - 2px); top: ${topPercent}%;` : ''}"
                  data-phase-index="${phaseIndex}"
                  data-phase-name="${escapeHtml(phaseName)}"
                  data-chantier="${escapeHtml(phase['Chantier'])}"

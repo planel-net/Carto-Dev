@@ -2039,13 +2039,12 @@
 }
 
 /* Container des phases - positionné absolument pour couvrir toute la cellule */
-/* La marge left: 4px correspond à PHASE_MARGIN dans roadmap-chantiers.js */
 .gantt-phases-container {
     display: flex;
     flex-direction: column;
     gap: 2px;
     position: absolute;
-    left: 4px;
+    left: 0;
     top: 2px;
     right: 0;
     bottom: 2px;
