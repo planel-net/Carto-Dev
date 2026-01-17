@@ -453,6 +453,9 @@ class RoadmapChantiersPage {
 
         // Attacher les événements des cellules
         this.attachCellEvents();
+
+        // Calculer les largeurs des phases après le rendu (basé sur la largeur réelle des colonnes)
+        this.updatePhaseWidths();
     }
 
     /**
@@ -601,7 +604,7 @@ class RoadmapChantiersPage {
 
     /**
      * Rendu d'un bloc de phase
-     * La largeur est calculée pour s'étendre sur plusieurs colonnes
+     * La largeur sera calculée dynamiquement après le rendu via updatePhaseWidths()
      * La hauteur et position verticale dépendent du nombre de lanes
      */
     renderPhaseBlock(phase, totalLanes, lane, phaseColspan = 1) {
@@ -610,24 +613,18 @@ class RoadmapChantiersPage {
         const phaseName = phase['Phase'] || '';
         const phaseIndex = this.phases.findIndex(p => p['Phase'] === phaseName && p['Chantier'] === phase['Chantier']);
 
-        // Largeur de colonne sprint (doit correspondre au CSS)
-        const SPRINT_COL_WIDTH = 90;
-        // Marge à gauche et à droite de la phase (pour ne pas coller aux bords)
+        // Marge à gauche de la phase (pour ne pas coller aux bords)
         const PHASE_MARGIN = 4;
-
-        // Calculer la largeur en pixels pour couvrir plusieurs colonnes
-        // Formule: (largeur_colonne × nombre_sprints) - (marge × 2)
-        // Exemple: phase sur 3 sprints = (90 × 3) - (4 × 2) = 270 - 8 = 262px
-        const widthPx = (phaseColspan * SPRINT_COL_WIDTH) - (PHASE_MARGIN * 2);
 
         // Calculer la hauteur et la position verticale en fonction des lanes
         const heightPercent = 100 / totalLanes;
         const topPercent = (lane / totalLanes) * 100;
         const hasMultipleLanes = totalLanes > 1;
 
+        // Note: width sera calculée dynamiquement par updatePhaseWidths() après le rendu
         return `
             <div class="gantt-phase-block ${hasMultipleLanes ? 'lane-mode' : 'fullwidth'}"
-                 style="background-color: ${color}; margin-left: ${PHASE_MARGIN}px; width: ${widthPx}px; min-width: ${widthPx}px; ${hasMultipleLanes ? `height: calc(${heightPercent}% - 2px); top: ${topPercent}%;` : ''}"
+                 style="background-color: ${color}; margin-left: ${PHASE_MARGIN}px; ${hasMultipleLanes ? `height: calc(${heightPercent}% - 2px); top: ${topPercent}%;` : ''}"
                  data-phase-index="${phaseIndex}"
                  data-phase-name="${escapeHtml(phaseName)}"
                  data-chantier="${escapeHtml(phase['Chantier'])}"
@@ -639,6 +636,31 @@ class RoadmapChantiersPage {
                 <div class="gantt-resize-handle gantt-resize-handle-right" data-direction="right"></div>
             </div>
         `;
+    }
+
+    /**
+     * Met à jour les largeurs des blocs de phase après le rendu
+     * Calcule la largeur réelle des colonnes depuis le DOM
+     */
+    updatePhaseWidths() {
+        const PHASE_MARGIN = 4;
+
+        // Trouver une cellule de sprint pour mesurer sa largeur réelle
+        const sprintCell = document.querySelector('.gantt-chantiers-table .gantt-data-cell');
+        if (!sprintCell) return;
+
+        // Obtenir la largeur réelle de la cellule (sans bordures)
+        const cellWidth = sprintCell.getBoundingClientRect().width;
+
+        // Mettre à jour chaque bloc de phase
+        const phaseBlocks = document.querySelectorAll('.gantt-chantiers-table .gantt-phase-block');
+        phaseBlocks.forEach(block => {
+            const colspan = parseInt(block.dataset.colspan) || 1;
+            // Formule: (largeur_cellule × nombre_sprints) - (marge × 2)
+            const widthPx = (colspan * cellWidth) - (PHASE_MARGIN * 2);
+            block.style.width = `${widthPx}px`;
+            block.style.minWidth = `${widthPx}px`;
+        });
     }
 
     /**
