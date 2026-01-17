@@ -1366,7 +1366,8 @@
     padding: var(--spacing-xs) var(--spacing-sm);
 }
 
-.gantt-data-cell {
+/* Cellules de données pour roadmap-gantt (pas roadmap-chantiers) */
+.roadmap-gantt-table .gantt-data-cell {
     background: var(--mh-blanc);
     min-width: 100px;
     max-width: 150px;
@@ -2014,11 +2015,11 @@
     background: var(--mh-blanc);
 }
 
-/* Cellules de données - PAS de fond pour permettre aux phases de s'étendre */
-.gantt-data-cell {
+/* Cellules de données pour roadmap-chantiers - PAS de fond pour permettre aux phases de s'étendre */
+.gantt-chantiers-table .gantt-data-cell {
     min-height: 50px;
     height: 50px;
-    padding: 2px;
+    padding: 0; /* Pas de padding pour que les phases remplissent toute la cellule */
     position: relative;
     border-right: 1px dashed #e0e0e0;
     overflow: visible; /* Permet aux phases de déborder sur les colonnes suivantes */
