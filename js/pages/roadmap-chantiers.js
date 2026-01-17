@@ -612,12 +612,13 @@ class RoadmapChantiersPage {
 
         // Largeur de colonne sprint (doit correspondre au CSS)
         const SPRINT_COL_WIDTH = 90;
+        // Marge à gauche et à droite de la phase (pour ne pas coller aux bords)
+        const PHASE_MARGIN = 4;
 
         // Calculer la largeur en pixels pour couvrir plusieurs colonnes
-        // La phase doit remplir entièrement les colonnes de sprint
-        // La cellule a un padding de 4px, mais on utilise la largeur complète
-        // car la phase démarre à gauche du conteneur et doit atteindre le bord droit de la dernière colonne
-        const widthPx = phaseColspan * SPRINT_COL_WIDTH;
+        // Formule: (largeur_colonne × nombre_sprints) - (marge × 2)
+        // Exemple: phase sur 3 sprints = (90 × 3) - (4 × 2) = 270 - 8 = 262px
+        const widthPx = (phaseColspan * SPRINT_COL_WIDTH) - (PHASE_MARGIN * 2);
 
         // Calculer la hauteur et la position verticale en fonction des lanes
         const heightPercent = 100 / totalLanes;
