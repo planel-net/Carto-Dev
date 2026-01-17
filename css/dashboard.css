@@ -1379,8 +1379,8 @@
     min-height: 48px;
 }
 
-/* Phase Block */
-.gantt-phase-block {
+/* Phase Block - ROADMAP GANTT ONLY */
+.roadmap-gantt-table .gantt-phase-block {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1405,14 +1405,14 @@
     box-sizing: border-box;
 }
 
-.gantt-phase-block:hover {
+.roadmap-gantt-table .gantt-phase-block:hover {
     filter: brightness(1.1);
     box-shadow: var(--shadow-md);
     z-index: 5;
     position: relative;
 }
 
-.gantt-phase-block .phase-text {
+.roadmap-gantt-table .gantt-phase-block .phase-text {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1636,11 +1636,11 @@
    ROADMAP GANTT - Inline Editing
    =========================================== */
 
-.gantt-phase-block.editing {
+.roadmap-gantt-table .gantt-phase-block.editing {
     cursor: text;
 }
 
-.gantt-phase-block .phase-text-input {
+.roadmap-gantt-table .gantt-phase-block .phase-text-input {
     background: transparent;
     border: none;
     color: white;
@@ -1652,7 +1652,7 @@
     text-shadow: inherit;
 }
 
-.gantt-phase-block .phase-text-input::placeholder {
+.roadmap-gantt-table .gantt-phase-block .phase-text-input::placeholder {
     color: rgba(255, 255, 255, 0.7);
 }
 
@@ -1660,20 +1660,20 @@
    ROADMAP GANTT - Drag & Drop
    =========================================== */
 
-.gantt-phase-block.dragging {
+.roadmap-gantt-table .gantt-phase-block.dragging {
     opacity: 0.8;
     transform: scale(1.02);
     box-shadow: var(--shadow-lg);
     z-index: 1000;
 }
 
-.gantt-data-cell.drag-over {
+.roadmap-gantt-table .gantt-data-cell.drag-over {
     background: rgba(0, 102, 204, 0.1);
     outline: 2px dashed var(--mh-bleu-clair);
     outline-offset: -2px;
 }
 
-.gantt-data-cell.drag-invalid {
+.roadmap-gantt-table .gantt-data-cell.drag-invalid {
     background: rgba(220, 53, 69, 0.1);
     outline: 2px dashed var(--mh-rouge-erreur);
     outline-offset: -2px;
@@ -1683,11 +1683,11 @@
    ROADMAP GANTT - Resize Handles
    =========================================== */
 
-.gantt-phase-block {
+.roadmap-gantt-table .gantt-phase-block {
     position: relative;
 }
 
-.gantt-resize-handle {
+.roadmap-gantt-table .gantt-resize-handle {
     position: absolute;
     left: 0;
     right: 0;
@@ -1696,19 +1696,19 @@
     z-index: 10;
 }
 
-.gantt-resize-handle-top {
+.roadmap-gantt-table .gantt-resize-handle-top {
     top: -4px;
 }
 
-.gantt-resize-handle-bottom {
+.roadmap-gantt-table .gantt-resize-handle-bottom {
     bottom: -4px;
 }
 
-.gantt-resize-handle:hover {
+.roadmap-gantt-table .gantt-resize-handle:hover {
     background: rgba(255, 255, 255, 0.3);
 }
 
-.gantt-phase-block.resizing {
+.roadmap-gantt-table .gantt-phase-block.resizing {
     opacity: 0.9;
 }
 
@@ -1904,6 +1904,10 @@
     padding: var(--spacing-xs) 2px;
     border-left: 1px solid rgba(255, 255, 255, 0.3);
     vertical-align: middle;
+    /* Largeur fixe correspondant à SPRINT_COL_WIDTH dans roadmap-chantiers.js */
+    width: 90px;
+    min-width: 90px;
+    max-width: 90px;
 }
 
 .gantt-sprint-header-cell:first-of-type {
@@ -2017,6 +2021,10 @@
 
 /* Cellules de données pour roadmap-chantiers - PAS de fond pour permettre aux phases de s'étendre */
 .gantt-chantiers-table .gantt-data-cell {
+    /* Largeur fixe correspondant à SPRINT_COL_WIDTH dans roadmap-chantiers.js */
+    width: 90px;
+    min-width: 90px;
+    max-width: 90px;
     min-height: 50px;
     height: 50px;
     padding: 0; /* Pas de padding pour que les phases remplissent toute la cellule */
@@ -2039,8 +2047,8 @@
     background: rgba(0, 102, 204, 0.05);
 }
 
-/* Container des phases - positionné absolument pour couvrir toute la cellule */
-.gantt-phases-container {
+/* Container des phases pour roadmap-chantiers - positionné absolument */
+.gantt-chantiers-table .gantt-phases-container {
     display: flex;
     flex-direction: column;
     gap: 2px;
@@ -2050,18 +2058,15 @@
     right: 0;
     bottom: 2px;
     align-items: flex-start;
-    z-index: 5; /* Au-dessus des cellules vides adjacentes */
-}
-
-.gantt-phases-container.multi-phases {
-    /* Phases empilées verticalement avec largeurs proportionnelles */
+    z-index: 5;
 }
 
 /* ===========================================
    ROADMAP CHANTIERS - Blocs de phases
+   Tous les sélecteurs sont qualifiés pour éviter les conflits avec roadmap-gantt
    =========================================== */
 
-.gantt-phase-block {
+.gantt-chantiers-table .gantt-phase-block {
     border-radius: 4px;
     padding: 4px 8px;
     cursor: move;
@@ -2071,28 +2076,26 @@
     justify-content: center;
     min-height: 40px;
     transition: transform var(--transition-fast), box-shadow var(--transition-fast);
-    z-index: 10; /* Au-dessus des cellules adjacentes */
+    z-index: 10;
     box-sizing: border-box;
 }
 
-.gantt-phase-block.fullwidth {
+.gantt-chantiers-table .gantt-phase-block.fullwidth {
     height: 100%;
-    /* width est défini inline en pixels selon le colspan */
 }
 
-.gantt-phase-block.lane-mode {
+.gantt-chantiers-table .gantt-phase-block.lane-mode {
     position: absolute;
     left: 0;
-    /* height et top sont définis inline selon la lane */
     min-height: 18px;
 }
 
-.gantt-phase-block:hover {
+.gantt-chantiers-table .gantt-phase-block:hover {
     box-shadow: var(--shadow-sm);
     transform: translateY(-1px);
 }
 
-.gantt-phase-block .phase-name {
+.gantt-chantiers-table .gantt-phase-block .phase-name {
     font-size: 11px;
     font-weight: 500;
     color: var(--mh-gris-fonce);
@@ -2106,8 +2109,8 @@
     word-break: break-word;
 }
 
-/* Resize handles pour les phases (horizontal) */
-.gantt-phase-block .gantt-resize-handle {
+/* Resize handles pour les phases roadmap-chantiers (horizontal) */
+.gantt-chantiers-table .gantt-phase-block .gantt-resize-handle {
     position: absolute;
     top: 0;
     bottom: 0;
@@ -2119,28 +2122,28 @@
     transition: opacity var(--transition-fast);
 }
 
-.gantt-phase-block:hover .gantt-resize-handle {
+.gantt-chantiers-table .gantt-phase-block:hover .gantt-resize-handle {
     opacity: 1;
 }
 
-.gantt-resize-handle-left {
+.gantt-chantiers-table .gantt-resize-handle-left {
     left: 0;
     border-radius: 4px 0 0 4px;
     background: linear-gradient(to right, rgba(0, 0, 0, 0.15), transparent);
 }
 
-.gantt-resize-handle-right {
+.gantt-chantiers-table .gantt-resize-handle-right {
     right: 0;
     border-radius: 0 4px 4px 0;
     background: linear-gradient(to left, rgba(0, 0, 0, 0.15), transparent);
 }
 
-.gantt-resize-handle:hover {
+.gantt-chantiers-table .gantt-resize-handle:hover {
     background: rgba(0, 0, 0, 0.25) !important;
 }
 
-/* Inline edit */
-.inline-edit-input {
+/* Inline edit - roadmap-chantiers */
+.gantt-chantiers-table .inline-edit-input {
     border: none;
     background: rgba(255, 255, 255, 0.9);
     padding: 2px 4px;
@@ -2151,7 +2154,7 @@
     border-radius: 2px;
 }
 
-.gantt-phase-block.editing {
+.gantt-chantiers-table .gantt-phase-block.editing {
     outline: 2px solid var(--mh-bleu-clair);
     outline-offset: 1px;
 }
