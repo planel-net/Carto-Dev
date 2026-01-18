@@ -2142,6 +2142,23 @@
     background: rgba(0, 0, 0, 0.25) !important;
 }
 
+/* Resize preview with dashed border */
+.gantt-chantiers-table .gantt-resize-preview {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    border: 2px dashed var(--mh-bleu-clair);
+    border-radius: 4px;
+    background: rgba(0, 102, 204, 0.1);
+    pointer-events: none;
+    z-index: 20;
+    box-sizing: border-box;
+}
+
+.gantt-chantiers-table .gantt-phase-block.resizing {
+    opacity: 0.7;
+}
+
 /* Inline edit - roadmap-chantiers */
 .gantt-chantiers-table .inline-edit-input {
     border: none;

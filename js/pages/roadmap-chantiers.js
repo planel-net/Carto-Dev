@@ -1932,6 +1932,7 @@ class RoadmapChantiersPage {
     }
 
     startResize(e, block, direction) {
+        e.preventDefault();
         const phaseIndex = parseInt(block.dataset.phaseIndex);
         const phase = this.phases[phaseIndex];
 
@@ -1939,11 +1940,42 @@ class RoadmapChantiersPage {
         this._boundResizeMove = this.handleResizeMove.bind(this);
         this._boundResizeEnd = this.handleResizeEnd.bind(this);
 
+        // Obtenir la largeur réelle d'une cellule sprint
+        const sprintCell = document.querySelector('.gantt-chantiers-table .gantt-data-cell');
+        const cellWidth = sprintCell ? sprintCell.getBoundingClientRect().width : 100;
+
+        // Obtenir les indices de sprint actuels
+        const startIdx = this.getSprintIndex(phase['Sprint début']);
+        const endIdx = this.getSprintIndex(phase['Sprint fin'] || phase['Sprint début']);
+        const currentColspan = endIdx - startIdx + 1;
+
+        // Obtenir la position et dimensions du bloc
+        const blockRect = block.getBoundingClientRect();
+        const parentRect = block.parentElement.getBoundingClientRect();
+
+        // Créer l'élément de preview en pointillés
+        const preview = document.createElement('div');
+        preview.className = 'gantt-resize-preview';
+        preview.style.left = '0';
+        preview.style.width = blockRect.width + 'px';
+        block.parentElement.appendChild(preview);
+
+        // Ajouter la classe de resize au bloc
+        block.classList.add('resizing');
+
         this.resizingPhase = {
             index: phaseIndex,
-            phase: { ...phase }, // Copie pour éviter les mutations
+            phase: { ...phase },
             direction: direction,
-            startX: e.clientX
+            startX: e.clientX,
+            block: block,
+            preview: preview,
+            cellWidth: cellWidth,
+            startIdx: startIdx,
+            endIdx: endIdx,
+            currentColspan: currentColspan,
+            initialLeft: 0,
+            initialWidth: blockRect.width
         };
 
         document.addEventListener('mousemove', this._boundResizeMove);
@@ -1952,7 +1984,49 @@ class RoadmapChantiersPage {
 
     handleResizeMove(e) {
         if (!this.resizingPhase) return;
-        // Visual feedback pendant le resize - optionnel
+
+        const { direction, startX, preview, cellWidth, startIdx, endIdx, initialWidth, initialLeft } = this.resizingPhase;
+        const deltaX = e.clientX - startX;
+
+        // Calculer le nombre de sprints de décalage (arrondi à l'entier le plus proche)
+        const sprintDelta = Math.round(deltaX / cellWidth);
+
+        // Calculer les nouveaux indices
+        let newStartIdx = startIdx;
+        let newEndIdx = endIdx;
+
+        if (direction === 'left') {
+            // Ancrage gauche: modifier le début
+            newStartIdx = startIdx + sprintDelta;
+            // Limites: ne pas dépasser le début des sprints, et garder au moins 1 sprint
+            newStartIdx = Math.max(0, Math.min(newStartIdx, endIdx));
+        } else {
+            // Ancrage droit: modifier la fin
+            newEndIdx = endIdx + sprintDelta;
+            // Limites: ne pas dépasser la fin des sprints, et garder au moins 1 sprint
+            newEndIdx = Math.min(this.sprints.length - 1, Math.max(newEndIdx, startIdx));
+        }
+
+        const newColspan = newEndIdx - newStartIdx + 1;
+        const PHASE_MARGIN = 4;
+
+        // Calculer la nouvelle largeur et position de la preview
+        const newWidth = (newColspan * cellWidth) - (PHASE_MARGIN * 2);
+
+        if (direction === 'left') {
+            // Pour l'ancrage gauche, on décale aussi la position left
+            const leftOffset = (newStartIdx - startIdx) * cellWidth;
+            preview.style.left = leftOffset + 'px';
+        } else {
+            preview.style.left = '0';
+        }
+
+        preview.style.width = newWidth + 'px';
+
+        // Stocker les valeurs calculées pour handleResizeEnd
+        this.resizingPhase.newStartIdx = newStartIdx;
+        this.resizingPhase.newEndIdx = newEndIdx;
+        this.resizingPhase.sprintDelta = sprintDelta;
     }
 
     async handleResizeEnd(e) {
@@ -1962,8 +2036,24 @@ class RoadmapChantiersPage {
         document.removeEventListener('mousemove', this._boundResizeMove);
         document.removeEventListener('mouseup', this._boundResizeEnd);
 
-        const { phase, direction, startX } = this.resizingPhase;
-        const deltaX = e.clientX - startX;
+        const { phase, direction, block, preview, newStartIdx, newEndIdx, startIdx, endIdx } = this.resizingPhase;
+
+        // Supprimer la preview et la classe resizing
+        if (preview && preview.parentNode) {
+            preview.parentNode.removeChild(preview);
+        }
+        if (block) {
+            block.classList.remove('resizing');
+        }
+
+        // Vérifier si il y a eu un changement
+        const hasChanged = (direction === 'left' && newStartIdx !== startIdx) ||
+                          (direction === 'right' && newEndIdx !== endIdx);
+
+        if (!hasChanged || newStartIdx === undefined || newEndIdx === undefined) {
+            this.resizingPhase = null;
+            return;
+        }
 
         // Vérifier que _rowIndex existe
         const rowIndex = phase._rowIndex;
@@ -1974,29 +2064,13 @@ class RoadmapChantiersPage {
             return;
         }
 
-        // Calculer le nombre de sprints à ajouter/retirer basé sur le déplacement
-        const sprintWidth = 100; // Largeur approximative d'une colonne sprint
-        const sprintDelta = Math.round(deltaX / sprintWidth);
-
-        if (sprintDelta === 0) {
-            this.resizingPhase = null;
-            return;
-        }
-
         try {
-            const startIdx = this.getSprintIndex(phase['Sprint début']);
-            const endIdx = this.getSprintIndex(phase['Sprint fin'] || phase['Sprint début']);
-
             if (direction === 'left') {
-                const newStartIdx = Math.max(0, startIdx + sprintDelta);
-                if (newStartIdx <= endIdx) {
-                    phase['Sprint début'] = this.sprints[newStartIdx]['Sprint'];
-                }
+                // Ancrage gauche: modifier Sprint début
+                phase['Sprint début'] = this.sprints[newStartIdx]['Sprint'];
             } else {
-                const newEndIdx = Math.min(this.sprints.length - 1, endIdx + sprintDelta);
-                if (newEndIdx >= startIdx) {
-                    phase['Sprint fin'] = this.sprints[newEndIdx]['Sprint'];
-                }
+                // Ancrage droit: modifier Sprint fin
+                phase['Sprint fin'] = this.sprints[newEndIdx]['Sprint'];
             }
 
             await updateTableRow('tPhases', rowIndex, phase);
