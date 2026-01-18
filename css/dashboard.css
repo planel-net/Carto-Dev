@@ -2041,9 +2041,22 @@
 .gantt-empty-cell {
     cursor: pointer;
     transition: background var(--transition-fast);
+    /* pointer-events: none permet aux phases étendues de recevoir les événements hover */
+    pointer-events: none;
 }
 
-.gantt-empty-cell:hover {
+/* Zone cliquable dans les cellules vides */
+.gantt-empty-cell .empty-cell-clickzone {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: auto;
+    z-index: 1;
+}
+
+.gantt-empty-cell .empty-cell-clickzone:hover {
     background: rgba(0, 102, 204, 0.05);
 }
 
@@ -2058,7 +2071,8 @@
     right: 0;
     bottom: 2px;
     align-items: flex-start;
-    z-index: 5;
+    /* z-index élevé pour que les phases étendues apparaissent au-dessus des cellules vides */
+    z-index: 15;
 }
 
 /* ===========================================

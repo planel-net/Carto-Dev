@@ -592,9 +592,10 @@ class RoadmapChantiersPage {
                 <td class="gantt-data-cell ${cellClass}"
                     data-chantier="${escapeHtml(chantierName)}"
                     data-sprint="${escapeHtml(sprintName)}"
-                    data-total-lanes="${totalLanes}"
-                    ${!hasPhases ? `onclick="roadmapChantiersPageInstance.showAddPhaseModal('${escapeHtml(chantierName)}', '${escapeHtml(sprintName)}')"` : ''}>
-                    ${hasPhases ? `<div class="gantt-phases-container" data-total-lanes="${totalLanes}">${phasesHtml}</div>` : ''}
+                    data-total-lanes="${totalLanes}">
+                    ${hasPhases
+                        ? `<div class="gantt-phases-container" data-total-lanes="${totalLanes}">${phasesHtml}</div>`
+                        : `<div class="empty-cell-clickzone" onclick="roadmapChantiersPageInstance.showAddPhaseModal('${escapeHtml(chantierName)}', '${escapeHtml(sprintName)}')"></div>`}
                 </td>
             `);
         });
