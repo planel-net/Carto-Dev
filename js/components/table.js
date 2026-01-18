@@ -498,12 +498,15 @@ class DataTable {
         if (this.onEdit) {
             this.onEdit(row, index);
         } else {
+            // Utiliser _rowIndex de la row (index Excel réel) plutôt que l'index du tableau affiché
+            const rowIndex = row._rowIndex;
+
             showFormModal(
                 `Modifier - ${this.tableConfig?.displayName || this.tableName}`,
                 this.columns,
                 async (formData) => {
                     try {
-                        await updateTableRow(this.tableName, index, formData);
+                        await updateTableRow(this.tableConfig.name, rowIndex, formData);
                         showSuccess('Élément modifié avec succès');
                         await this.refresh();
                         return true;
@@ -527,13 +530,15 @@ class DataTable {
             // Récupérer un identifiant pour l'affichage
             const firstCol = this.columns[0]?.field;
             const identifier = firstCol ? row[firstCol] : 'cet élément';
+            // Utiliser _rowIndex de la row (index Excel réel) plutôt que l'index du tableau affiché
+            const rowIndex = row._rowIndex;
 
             showConfirmModal(
                 'Confirmer la suppression',
                 `Êtes-vous sûr de vouloir supprimer "${identifier}" ?`,
                 async () => {
                     try {
-                        await deleteTableRow(this.tableConfig.name, index);
+                        await deleteTableRow(this.tableConfig.name, rowIndex);
                         showSuccess('Élément supprimé avec succès');
                         await this.refresh();
                         return true;

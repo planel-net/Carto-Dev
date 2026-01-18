@@ -88,12 +88,15 @@ class ParamsPage {
      * Affiche le formulaire de modification
      */
     showEditForm(row, index) {
+        // Utiliser _rowIndex de la row (index Excel réel) plutôt que l'index du tableau affiché
+        const rowIndex = row._rowIndex;
+
         showFormModal(
             `Modifier - ${this.tableConfig.displayName}`,
             this.tableConfig.columns,
             async (formData) => {
                 try {
-                    await updateTableRow(this.tableConfig.name, index, formData);
+                    await updateTableRow(this.tableConfig.name, rowIndex, formData);
                     showSuccess('Élément modifié avec succès');
                     await this.refresh();
                     return true;
@@ -112,13 +115,15 @@ class ParamsPage {
      */
     confirmDelete(row, index) {
         const identifiant = row[this.tableConfig.columns[0]?.field] || `Ligne ${index + 1}`;
+        // Utiliser _rowIndex de la row (index Excel réel) plutôt que l'index du tableau affiché
+        const rowIndex = row._rowIndex;
 
         showConfirmModal(
             'Confirmer la suppression',
             `Êtes-vous sûr de vouloir supprimer "${identifiant}" ?`,
             async () => {
                 try {
-                    await deleteTableRow(this.tableConfig.name, index);
+                    await deleteTableRow(this.tableConfig.name, rowIndex);
                     showSuccess('Élément supprimé avec succès');
                     await this.refresh();
                     return true;
