@@ -124,7 +124,7 @@ class RoadmapChantiersPage {
             });
 
             // Initialiser les filtres avec toutes les valeurs (pour afficher tout par défaut)
-            this.filters.perimetres = this.perimetres.map(p => p['Périmetre']).filter(Boolean);
+            this.filters.perimetres = this.getAllPerimetres();
             this.filters.responsables = [...new Set(this.chantiers.map(c => c['Responsable']).filter(Boolean))];
 
         } catch (error) {
@@ -139,6 +139,16 @@ class RoadmapChantiersPage {
     isArchived(chantier) {
         const archived = chantier['Archivé'];
         return archived === true || archived === 'TRUE' || archived === 'Vrai' || archived === 'VRAI' || archived === 1;
+    }
+
+    /**
+     * Retourne l'union des périmètres (table de référence + ceux utilisés dans les chantiers)
+     * Garantit que tous les chantiers sont affichables même si leur périmètre n'est pas dans tPerimetres
+     */
+    getAllPerimetres() {
+        const perimetresFromTable = this.perimetres.map(p => p['Périmetre']).filter(Boolean);
+        const perimetresFromChantiers = this.chantiers.map(c => c['Perimetre']).filter(Boolean);
+        return [...new Set([...perimetresFromTable, ...perimetresFromChantiers])].sort();
     }
 
     /**
@@ -203,7 +213,7 @@ class RoadmapChantiersPage {
         };
 
         // Liste unique des périmètres et responsables
-        const perimetresList = this.perimetres.map(p => p['Périmetre']).filter(Boolean);
+        const perimetresList = this.getAllPerimetres();
         const responsablesList = [...new Set(this.chantiers.map(c => c['Responsable']).filter(Boolean))];
 
         // Calcul des labels
@@ -809,10 +819,9 @@ class RoadmapChantiersPage {
 
     selectAllPerimetres() {
         // "Tous" = cocher toutes les cases = afficher tous les chantiers
-        const allPerimetres = this.perimetres.map(p => p['Périmetre']).filter(Boolean);
         const checkboxes = document.querySelectorAll('#perimetreDropdown input[type="checkbox"]');
         checkboxes.forEach(cb => cb.checked = true);
-        this.filters.perimetres = [...allPerimetres];
+        this.filters.perimetres = this.getAllPerimetres();
         this.updatePerimetreLabel();
         this.applyFiltersWithoutRenderingFilters();
     }
@@ -838,7 +847,7 @@ class RoadmapChantiersPage {
     updatePerimetreLabel() {
         const label = document.querySelector('#perimetreFilterWrapper .multi-select-label');
         if (label) {
-            const allPerimetres = this.perimetres.map(p => p['Périmetre']).filter(Boolean);
+            const allPerimetres = this.getAllPerimetres();
             const allSelected = this.filters.perimetres.length === allPerimetres.length;
             label.textContent = allSelected ? 'Tous' :
                 (this.filters.perimetres.length === 0 ? 'Aucun' : this.filters.perimetres.length + ' sélectionné(s)');
@@ -901,7 +910,7 @@ class RoadmapChantiersPage {
         this.filters = {
             dateDebut: new Date(),
             dateFin: new Date(new Date().setMonth(new Date().getMonth() + 6)),
-            perimetres: this.perimetres.map(p => p['Périmetre']).filter(Boolean),
+            perimetres: this.getAllPerimetres(),
             responsables: [...new Set(this.chantiers.map(c => c['Responsable']).filter(Boolean))]
         };
         this.applyFilters();
