@@ -656,8 +656,7 @@ class RoadmapChantiersPage {
                  data-phase-name="${escapeHtml(phaseName)}"
                  data-chantier="${escapeHtml(phase['Chantier'])}"
                  data-colspan="${phaseColspan}"
-                 data-lane="${lane}"
-                 draggable="true">
+                 data-lane="${lane}">
                 <div class="gantt-resize-handle gantt-resize-handle-left" data-direction="left"></div>
                 <span class="phase-name">${escapeHtml(phaseName)}</span>
                 <div class="gantt-resize-handle gantt-resize-handle-right" data-direction="right"></div>
@@ -740,12 +739,65 @@ class RoadmapChantiersPage {
      * Attache les événements des cellules du Gantt
      */
     attachCellEvents() {
+        const DRAG_THRESHOLD = 5; // Pixels de mouvement avant de considérer un drag
+
         // Événements des blocs de phase
         document.querySelectorAll('.gantt-phase-block').forEach(block => {
-            // Clic simple - édition inline
             let clickTimeout = null;
+            let mouseDownPos = null;
+            let isDragging = false;
+            let justDragged = false; // Flag pour ignorer le click après un drag
+
+            // Mousedown - début potentiel de drag
+            block.addEventListener('mousedown', (e) => {
+                if (e.target.classList.contains('gantt-resize-handle')) return;
+                if (e.button !== 0) return; // Seulement clic gauche
+
+                mouseDownPos = { x: e.clientX, y: e.clientY };
+                isDragging = false;
+                justDragged = false;
+
+                const onMouseMove = (moveEvent) => {
+                    if (!mouseDownPos) return;
+
+                    const dx = Math.abs(moveEvent.clientX - mouseDownPos.x);
+                    const dy = Math.abs(moveEvent.clientY - mouseDownPos.y);
+
+                    if (!isDragging && (dx > DRAG_THRESHOLD || dy > DRAG_THRESHOLD)) {
+                        // Commencer le drag
+                        isDragging = true;
+                        justDragged = true;
+                        clearTimeout(clickTimeout);
+                        this.startCustomDrag(block, moveEvent);
+                    }
+
+                    if (isDragging) {
+                        this.handleCustomDragMove(moveEvent);
+                    }
+                };
+
+                const onMouseUp = (upEvent) => {
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
+
+                    if (isDragging) {
+                        this.handleCustomDragEnd(upEvent);
+                    }
+
+                    mouseDownPos = null;
+                    isDragging = false;
+                    // Reset justDragged après un court délai pour ignorer le click suivant
+                    setTimeout(() => { justDragged = false; }, 50);
+                };
+
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+            });
+
+            // Clic simple - édition inline (ne se déclenche que si pas de drag)
             block.addEventListener('click', (e) => {
                 if (e.target.classList.contains('gantt-resize-handle')) return;
+                if (justDragged) return; // Ignorer le click après un drag
 
                 clearTimeout(clickTimeout);
                 clickTimeout = setTimeout(() => {
@@ -767,15 +819,6 @@ class RoadmapChantiersPage {
                 this.showContextMenu(e.clientX, e.clientY, phaseIndex);
             });
 
-            // Drag start
-            block.addEventListener('dragstart', (e) => {
-                this.handleDragStart(e, block);
-            });
-
-            block.addEventListener('dragend', (e) => {
-                this.handleDragEnd(e);
-            });
-
             // Resize handles
             block.querySelectorAll('.gantt-resize-handle').forEach(handle => {
                 handle.addEventListener('mousedown', (e) => {
@@ -784,32 +827,78 @@ class RoadmapChantiersPage {
                 });
             });
         });
+    }
 
-        // Drop zones (cellules vides)
-        document.querySelectorAll('.gantt-data-cell').forEach(cell => {
-            cell.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                if (this.draggedPhase) {
-                    const targetChantier = cell.dataset.chantier;
-                    const sourceChantier = this.draggedPhase.chantier;
-                    if (targetChantier === sourceChantier) {
-                        cell.classList.add('drag-over');
-                    } else {
-                        cell.classList.add('drag-invalid');
-                    }
-                }
-            });
+    /**
+     * Démarre le drag personnalisé d'une phase
+     */
+    startCustomDrag(block, e) {
+        const phaseIndex = parseInt(block.dataset.phaseIndex);
+        const phase = this.phases[phaseIndex];
 
-            cell.addEventListener('dragleave', (e) => {
-                cell.classList.remove('drag-over', 'drag-invalid');
-            });
+        this.draggedPhase = {
+            index: phaseIndex,
+            phase: phase,
+            chantier: phase['Chantier'],
+            block: block
+        };
 
-            cell.addEventListener('drop', (e) => {
-                e.preventDefault();
-                cell.classList.remove('drag-over', 'drag-invalid');
-                this.handleDrop(e, cell);
-            });
+        block.classList.add('dragging');
+    }
+
+    /**
+     * Gère le mouvement pendant le drag personnalisé
+     */
+    handleCustomDragMove(e) {
+        if (!this.draggedPhase) return;
+
+        // Trouver la cellule sous le curseur
+        const elementsUnder = document.elementsFromPoint(e.clientX, e.clientY);
+        const cell = elementsUnder.find(el => el.classList.contains('gantt-data-cell'));
+
+        // Nettoyer les anciennes classes
+        document.querySelectorAll('.gantt-data-cell').forEach(c => {
+            c.classList.remove('drag-over', 'drag-invalid');
         });
+
+        if (cell) {
+            const targetChantier = cell.dataset.chantier;
+            const sourceChantier = this.draggedPhase.chantier;
+            if (targetChantier === sourceChantier) {
+                cell.classList.add('drag-over');
+            } else {
+                cell.classList.add('drag-invalid');
+            }
+        }
+    }
+
+    /**
+     * Termine le drag personnalisé
+     */
+    handleCustomDragEnd(e) {
+        if (!this.draggedPhase) return;
+
+        // Trouver la cellule sous le curseur
+        const elementsUnder = document.elementsFromPoint(e.clientX, e.clientY);
+        const cell = elementsUnder.find(el => el.classList.contains('gantt-data-cell'));
+
+        // Nettoyer les classes
+        document.querySelectorAll('.gantt-phase-block').forEach(b => {
+            b.classList.remove('dragging');
+        });
+        document.querySelectorAll('.gantt-data-cell').forEach(c => {
+            c.classList.remove('drag-over', 'drag-invalid');
+        });
+
+        if (cell) {
+            const targetChantier = cell.dataset.chantier;
+            const sourceChantier = this.draggedPhase.chantier;
+            if (targetChantier === sourceChantier) {
+                this.handleDrop(e, cell);
+            }
+        }
+
+        this.draggedPhase = null;
     }
 
     // ==========================================
@@ -1881,31 +1970,6 @@ class RoadmapChantiersPage {
             this.contextMenu.remove();
             this.contextMenu = null;
         }
-    }
-
-    handleDragStart(e, block) {
-        const phaseIndex = parseInt(block.dataset.phaseIndex);
-        const phase = this.phases[phaseIndex];
-
-        this.draggedPhase = {
-            index: phaseIndex,
-            phase: phase,
-            chantier: phase['Chantier']
-        };
-
-        block.classList.add('dragging');
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/plain', phaseIndex.toString());
-    }
-
-    handleDragEnd(e) {
-        document.querySelectorAll('.gantt-phase-block').forEach(b => {
-            b.classList.remove('dragging');
-        });
-        document.querySelectorAll('.gantt-data-cell').forEach(c => {
-            c.classList.remove('drag-over', 'drag-invalid');
-        });
-        this.draggedPhase = null;
     }
 
     async handleDrop(e, cell) {
