@@ -524,11 +524,16 @@ class DataTable {
         if (this.onDelete) {
             this.onDelete(row, index);
         } else {
+            // Récupérer un identifiant pour l'affichage
+            const firstCol = this.columns[0]?.field;
+            const identifier = firstCol ? row[firstCol] : 'cet élément';
+
             showConfirmModal(
-                'Êtes-vous sûr de vouloir supprimer cet élément ?',
+                'Confirmer la suppression',
+                `Êtes-vous sûr de vouloir supprimer "${identifier}" ?`,
                 async () => {
                     try {
-                        await deleteTableRow(this.tableName, index);
+                        await deleteTableRow(this.tableConfig.name, index);
                         showSuccess('Élément supprimé avec succès');
                         await this.refresh();
                         return true;
@@ -537,7 +542,7 @@ class DataTable {
                         return false;
                     }
                 },
-                { title: 'Confirmer la suppression', confirmText: 'Supprimer' }
+                { confirmText: 'Supprimer' }
             );
         }
     }

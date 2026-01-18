@@ -1122,18 +1122,19 @@ class ParcPage {
      */
     confirmDeleteProduct(produit, index) {
         showConfirmModal(
-            `Etes-vous sur de vouloir supprimer le produit "${produit.Nom}" ? Cette action est irreversible.`,
+            'Supprimer le produit',
+            `Êtes-vous sûr de vouloir supprimer le produit "${produit.Nom}" ? Cette action est irréversible.`,
             async () => {
                 try {
                     // index est déjà l'index 0-based dans le body de la table
                     await deleteTableRow('tProduits', index);
-                    showSuccess('Produit supprime avec succes');
+                    showSuccess('Produit supprimé avec succès');
                     await this.refresh();
                 } catch (error) {
                     showError('Erreur lors de la suppression: ' + error.message);
                 }
             },
-            { title: 'Supprimer le produit', confirmText: 'Supprimer' }
+            { confirmText: 'Supprimer' }
         );
     }
 

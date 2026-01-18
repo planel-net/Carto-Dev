@@ -114,6 +114,7 @@ class ParamsPage {
         const identifiant = row[this.tableConfig.columns[0]?.field] || `Ligne ${index + 1}`;
 
         showConfirmModal(
+            'Confirmer la suppression',
             `Êtes-vous sûr de vouloir supprimer "${identifiant}" ?`,
             async () => {
                 try {
@@ -126,10 +127,7 @@ class ParamsPage {
                     return false;
                 }
             },
-            {
-                title: 'Confirmer la suppression',
-                confirmText: 'Supprimer'
-            }
+            { confirmText: 'Supprimer' }
         );
     }
 

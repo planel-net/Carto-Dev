@@ -144,11 +144,23 @@ class RoadmapChantiersPage {
     /**
      * Retourne l'union des périmètres (table de référence + ceux utilisés dans les chantiers)
      * Garantit que tous les chantiers sont affichables même si leur périmètre n'est pas dans tPerimetres
+     * Utilise une comparaison insensible à la casse pour dédupliquer (VdC == VDC)
      */
     getAllPerimetres() {
         const perimetresFromTable = this.perimetres.map(p => p['Périmetre']).filter(Boolean);
         const perimetresFromChantiers = this.chantiers.map(c => c['Perimetre']).filter(Boolean);
-        return [...new Set([...perimetresFromTable, ...perimetresFromChantiers])].sort();
+        const allPerimetres = [...perimetresFromTable, ...perimetresFromChantiers];
+
+        // Dédupliquer en ignorant la casse (garder la première occurrence)
+        const seen = new Map();
+        allPerimetres.forEach(p => {
+            const lower = p.toLowerCase();
+            if (!seen.has(lower)) {
+                seen.set(lower, p);
+            }
+        });
+
+        return [...seen.values()].sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
     }
 
     /**
@@ -332,12 +344,16 @@ class RoadmapChantiersPage {
      * Pour tout afficher, toutes les valeurs doivent être dans le tableau
      */
     getFilteredChantiers() {
+        // Préparer les filtres en lowercase pour comparaison insensible à la casse
+        const perimetresLower = this.filters.perimetres.map(p => (p || '').toLowerCase());
+
         return this.chantiers.filter(chantier => {
-            // Filtre par périmètre (vide = afficher aucun)
+            // Filtre par périmètre (vide = afficher aucun) - comparaison insensible à la casse
             if (this.filters.perimetres.length === 0) {
                 return false;
             }
-            if (!this.filters.perimetres.includes(chantier['Perimetre'])) {
+            const chantierPerimetre = (chantier['Perimetre'] || '').toLowerCase();
+            if (!perimetresLower.includes(chantierPerimetre)) {
                 return false;
             }
             // Filtre par responsable (vide = afficher aucun)
