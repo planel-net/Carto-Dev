@@ -6,7 +6,7 @@
 const CONFIG = {
     // Nom de l'application
     APP_NAME: 'Carto',
-    APP_VERSION: '1.0.50',
+    APP_VERSION: '1.0.65',
 
     // Noms des feuilles spéciales
     SHEETS: {
@@ -308,7 +308,9 @@ const CONFIG = {
             { id: 'processus', label: 'Processus', icon: '&#128736;', table: 'PROCESSUS' },
             { id: 'perimetres', label: 'Périmètres', icon: '&#127758;', table: 'PERIMETRES' },
             { id: 'sprints', label: 'Sprints', icon: '&#128197;', table: 'SPRINTS' },
-            { id: 'capacite', label: 'Capacité', icon: '&#128200;', table: 'CAPACITE' }
+            { id: 'capacite', label: 'Capacité', icon: '&#128200;', table: 'CAPACITE' },
+            { id: 'chantiers', label: 'Chantiers', icon: '&#128736;', table: 'CHANTIER' },
+            { id: 'phases', label: 'Phases', icon: '&#128197;', table: 'PHASES' }
         ]
     },
 
