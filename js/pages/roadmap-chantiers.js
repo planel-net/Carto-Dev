@@ -24,10 +24,10 @@ class RoadmapChantiersPage {
         this.perimetres = [];
         this.produits = [];
 
-        // Filtres
+        // Filtres (période par défaut: 1 mois avant à 3 mois après)
         this.filters = {
-            dateDebut: new Date(),
-            dateFin: new Date(new Date().setMonth(new Date().getMonth() + 6)),
+            dateDebut: new Date(new Date().setMonth(new Date().getMonth() - 1)),
+            dateFin: new Date(new Date().setMonth(new Date().getMonth() + 3)),
             perimetres: [],
             responsables: []
         };
@@ -921,11 +921,11 @@ class RoadmapChantiersPage {
     }
 
     resetFilters() {
-        // Réinitialiser avec les dates par défaut (aujourd'hui + 6 mois)
+        // Réinitialiser avec les dates par défaut (1 mois avant à 3 mois après)
         // et tous les périmètres/responsables sélectionnés
         this.filters = {
-            dateDebut: new Date(),
-            dateFin: new Date(new Date().setMonth(new Date().getMonth() + 6)),
+            dateDebut: new Date(new Date().setMonth(new Date().getMonth() - 1)),
+            dateFin: new Date(new Date().setMonth(new Date().getMonth() + 3)),
             perimetres: this.getAllPerimetres(),
             responsables: [...new Set(this.chantiers.map(c => c['Responsable']).filter(Boolean))]
         };
