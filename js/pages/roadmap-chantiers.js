@@ -12,6 +12,10 @@ let roadmapChantiersPageInstance = null;
  * Classe RoadmapChantiersPage pour gérer la page Roadmap Chantiers
  */
 class RoadmapChantiersPage {
+    // Constantes de dimensionnement (en pixels)
+    static SPRINT_COL_WIDTH = 90;
+    static PHASE_MARGIN = 4;
+
     constructor() {
         // Données
         this.chantiers = [];
@@ -450,7 +454,7 @@ class RoadmapChantiersPage {
         }
 
         // Largeur fixe pour chaque colonne sprint (en pixels)
-        const SPRINT_COL_WIDTH = 90;
+        const SPRINT_COL_WIDTH = RoadmapChantiersPage.SPRINT_COL_WIDTH;
 
         // Construire les lignes de chantiers
         const rowsHtml = filteredChantiers.map((chantier, chantierIndex) => {
@@ -690,7 +694,7 @@ class RoadmapChantiersPage {
         const phaseIndex = this.phases.findIndex(p => p['Phase'] === phaseName && p['Chantier'] === phase['Chantier']);
 
         // Marge à gauche de la phase (pour ne pas coller aux bords)
-        const PHASE_MARGIN = 4;
+        const PHASE_MARGIN = RoadmapChantiersPage.PHASE_MARGIN;
 
         // Calculer la hauteur et la position verticale en fonction des lanes
         const heightPercent = 100 / totalLanes;
@@ -718,14 +722,9 @@ class RoadmapChantiersPage {
      * Calcule la largeur réelle des colonnes depuis le DOM
      */
     updatePhaseWidths() {
-        const PHASE_MARGIN = 4;
-
-        // Trouver une cellule de sprint pour mesurer sa largeur réelle
-        const sprintCell = document.querySelector('.gantt-chantiers-table .gantt-data-cell');
-        if (!sprintCell) return;
-
-        // Obtenir la largeur réelle de la cellule (sans bordures)
-        const cellWidth = sprintCell.getBoundingClientRect().width;
+        // Utiliser les constantes de classe pour garantir l'alignement exact avec les colonnes
+        const cellWidth = RoadmapChantiersPage.SPRINT_COL_WIDTH;
+        const PHASE_MARGIN = RoadmapChantiersPage.PHASE_MARGIN;
 
         // Mettre à jour chaque bloc de phase
         const phaseBlocks = document.querySelectorAll('.gantt-chantiers-table .gantt-phase-block');
@@ -2633,9 +2632,8 @@ class RoadmapChantiersPage {
         this._boundResizeMove = this.handleResizeMove.bind(this);
         this._boundResizeEnd = this.handleResizeEnd.bind(this);
 
-        // Obtenir la largeur réelle d'une cellule sprint
-        const sprintCell = document.querySelector('.gantt-chantiers-table .gantt-data-cell');
-        const cellWidth = sprintCell ? sprintCell.getBoundingClientRect().width : 100;
+        // Utiliser la constante de classe pour la largeur des cellules sprint
+        const cellWidth = RoadmapChantiersPage.SPRINT_COL_WIDTH;
 
         // Obtenir les indices de sprint actuels
         const startIdx = this.getSprintIndex(phase['Sprint début']);
@@ -2701,7 +2699,7 @@ class RoadmapChantiersPage {
         }
 
         const newColspan = newEndIdx - newStartIdx + 1;
-        const PHASE_MARGIN = 4;
+        const PHASE_MARGIN = RoadmapChantiersPage.PHASE_MARGIN;
 
         // Calculer la nouvelle largeur et position de la preview
         const newWidth = (newColspan * cellWidth) - (PHASE_MARGIN * 2);
