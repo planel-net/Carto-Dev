@@ -521,7 +521,7 @@ class DataTable {
                 e.stopPropagation();
                 const action = btn.dataset.action;
                 const index = parseInt(btn.dataset.index);
-                const row = this.data.find(r => (r._rowIndex - 2) === index) || this.data[index];
+                const row = this.data.find(r => r._rowIndex === index);
 
                 switch (action) {
                     case 'view':
@@ -542,7 +542,7 @@ class DataTable {
             this.container.querySelectorAll('tbody tr').forEach(tr => {
                 tr.addEventListener('click', () => {
                     const index = parseInt(tr.dataset.index);
-                    const row = this.data.find(r => (r._rowIndex - 2) === index) || this.data[index];
+                    const row = this.data.find(r => r._rowIndex === index);
                     this.onRowClick(row, index);
                 });
             });

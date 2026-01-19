@@ -737,7 +737,7 @@ class RoadmapGanttPage {
 
         try {
             const updatedItem = { ...item, Phase: newPhase };
-            await updateTableRow('tBacklog', index + 2, updatedItem);
+            await updateTableRow('tBacklog', item._rowIndex, updatedItem);
             showSuccess('Phase mise à jour');
             await this.loadData();
         } catch (error) {
@@ -884,7 +884,7 @@ class RoadmapGanttPage {
                 updatedItem['Sprint fin'] = targetSprint.Sprint;
             }
 
-            await updateTableRow('tBacklog', actualIndex + 2, updatedItem);
+            await updateTableRow('tBacklog', item._rowIndex, updatedItem);
             showSuccess('Projet déplacé');
             await this.loadData();
         } catch (error) {
@@ -944,7 +944,7 @@ class RoadmapGanttPage {
                     updatedItem['Sprint fin'] = sortedSprints[newEndIndex].Sprint;
                 }
 
-                await updateTableRow('tBacklog', backlogIndex + 2, updatedItem);
+                await updateTableRow('tBacklog', item._rowIndex, updatedItem);
                 showSuccess('Durée mise à jour');
                 await this.loadData();
             } catch (error) {
@@ -1087,6 +1087,9 @@ class RoadmapGanttPage {
         const form = document.getElementById('formEditBacklog');
         if (!form) return;
 
+        const item = this.backlog[index];
+        if (!item) return;
+
         const formData = new FormData(form);
         const updatedItem = {};
 
@@ -1095,7 +1098,7 @@ class RoadmapGanttPage {
         }
 
         try {
-            await updateTableRow('tBacklog', index + 2, updatedItem);
+            await updateTableRow('tBacklog', item._rowIndex, updatedItem);
 
             showSuccess('Projet mis à jour avec succès');
             closeModal();
@@ -1116,7 +1119,7 @@ class RoadmapGanttPage {
         if (!item) return;
 
         try {
-            await deleteTableRow('tBacklog', index + 2);
+            await deleteTableRow('tBacklog', item._rowIndex);
 
             showSuccess('Projet supprimé avec succès');
             closeModal();
