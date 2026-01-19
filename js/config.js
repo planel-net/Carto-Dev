@@ -6,7 +6,7 @@
 const CONFIG = {
     // Nom de l'application
     APP_NAME: 'Carto',
-    APP_VERSION: '1.0.73',
+    APP_VERSION: '1.0.74',
 
     // Noms des feuilles spéciales
     SHEETS: {
@@ -262,6 +262,16 @@ const CONFIG = {
                 { field: 'État', label: 'État', type: 'text' },
                 { field: 'Personne assignée', label: 'Personne assignée', type: 'text' },
                 { field: 'Charge estimée', label: 'Charge estimée', type: 'number' }
+            ]
+        },
+        CHANTIER_DATAANA: {
+            name: 'tChantierDataAna',
+            sheet: 'ChantierDataAna',
+            displayName: 'Chantiers-DataAnas',
+            icon: '&#128279;',
+            columns: [
+                { field: 'Chantier', label: 'Chantier', type: 'select', source: 'CHANTIER', sourceField: 'Chantier' },
+                { field: 'DataAna', label: 'DataAna', type: 'select', source: 'DATAANA', sourceField: 'Clé' }
             ]
         }
     },

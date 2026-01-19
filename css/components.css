@@ -731,3 +731,197 @@ textarea.form-control {
     background-color: #dee2e6;
     margin: var(--spacing-xs) 0;
 }
+
+/* ===========================================
+   CHANTIER MODAL - Assigned Items
+   =========================================== */
+
+.assigned-section {
+    margin-bottom: var(--spacing-lg);
+    padding: var(--spacing-md);
+    background-color: var(--mh-gris-clair);
+    border-radius: var(--border-radius-md);
+}
+
+.assigned-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-md);
+}
+
+.assigned-section-header h4 {
+    margin: 0;
+    font-size: var(--font-size-base);
+    color: var(--mh-bleu-fonce);
+}
+
+.assigned-items-list {
+    max-height: 200px;
+    overflow-y: auto;
+    margin-bottom: var(--spacing-sm);
+}
+
+.assigned-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-sm) var(--spacing-md);
+    background-color: var(--mh-blanc);
+    border-radius: var(--border-radius-sm);
+    margin-bottom: var(--spacing-xs);
+    border: 1px solid #dee2e6;
+}
+
+.assigned-item:last-child {
+    margin-bottom: 0;
+}
+
+.assigned-item-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.assigned-item-name {
+    font-weight: 500;
+    color: var(--mh-gris-fonce);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.assigned-item-link {
+    color: var(--mh-bleu-clair);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.assigned-item-link:hover {
+    text-decoration: underline;
+}
+
+.assigned-item-detail {
+    font-size: var(--font-size-sm);
+    color: var(--mh-gris-moyen);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.assigned-item-actions {
+    display: flex;
+    gap: var(--spacing-xs);
+    flex-shrink: 0;
+    margin-left: var(--spacing-sm);
+}
+
+.assigned-item-actions .btn-icon {
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
+}
+
+.btn-xs {
+    padding: 2px 6px;
+    font-size: 12px;
+    width: auto;
+    height: auto;
+}
+
+.btn-icon.btn-xs {
+    width: 24px;
+    height: 24px;
+}
+
+.assigned-items-empty {
+    text-align: center;
+    padding: var(--spacing-md);
+    color: var(--mh-gris-moyen);
+    font-style: italic;
+}
+
+/* ===========================================
+   SELECTION MODAL
+   =========================================== */
+
+.selection-modal-content {
+    display: flex;
+    flex-direction: column;
+    height: 60vh;
+    max-height: 500px;
+}
+
+.selection-modal-search {
+    margin-bottom: var(--spacing-md);
+    flex-shrink: 0;
+}
+
+.selection-modal-list {
+    flex: 1;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    border-radius: var(--border-radius-sm);
+}
+
+.selection-item {
+    display: flex;
+    align-items: center;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
+    transition: background-color var(--transition-fast);
+}
+
+.selection-item:last-child {
+    border-bottom: none;
+}
+
+.selection-item:hover {
+    background-color: var(--mh-gris-clair);
+}
+
+.selection-item.selected {
+    background-color: rgba(0, 102, 204, 0.1);
+}
+
+.selection-item input[type="checkbox"] {
+    margin-right: var(--spacing-sm);
+    flex-shrink: 0;
+}
+
+.selection-item-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.selection-item-name {
+    font-weight: 500;
+    color: var(--mh-gris-fonce);
+}
+
+.selection-item-detail {
+    font-size: var(--font-size-sm);
+    color: var(--mh-gris-moyen);
+}
+
+.selection-separator {
+    padding: var(--spacing-xs) var(--spacing-md);
+    background-color: var(--mh-gris-clair);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--mh-gris-moyen);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+/* Selection count badge */
+.selection-count {
+    margin-left: var(--spacing-sm);
+    padding: 2px 8px;
+    background-color: var(--mh-bleu-clair);
+    color: white;
+    border-radius: 12px;
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+}

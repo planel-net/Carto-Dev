@@ -19,10 +19,12 @@ class RoadmapChantiersPage {
         this.phases = [];
         this.phasesLien = [];
         this.chantierProduit = [];
+        this.chantierDataAna = [];
         this.sprints = [];
         this.acteurs = [];
         this.perimetres = [];
         this.produits = [];
+        this.dataAnas = [];
 
         // Filtres (période par défaut: 1 mois avant à 3 mois après)
         this.filters = {
@@ -88,19 +90,23 @@ class RoadmapChantiersPage {
                 phasesData,
                 phasesLienData,
                 chantierProduitData,
+                chantierDataAnaData,
                 sprintsData,
                 acteursData,
                 perimetresData,
-                produitsData
+                produitsData,
+                dataAnasData
             ] = await Promise.all([
                 readTable('tChantiers'),
                 readTable('tPhases'),
                 readTable('tPhasesLien'),
                 readTable('tChantierProduit'),
+                readTable('tChantierDataAna'),
                 readTable('tSprints'),
                 readTable('tActeurs'),
                 readTable('tPerimetres'),
-                readTable('tProduits')
+                readTable('tProduits'),
+                readTable('tDataAnas')
             ]);
 
             // Séparer chantiers actifs et archivés
@@ -111,10 +117,12 @@ class RoadmapChantiersPage {
             this.phases = phasesData.data || [];
             this.phasesLien = phasesLienData.data || [];
             this.chantierProduit = chantierProduitData.data || [];
+            this.chantierDataAna = chantierDataAnaData.data || [];
             this.sprints = sprintsData.data || [];
             this.acteurs = acteursData.data || [];
             this.perimetres = perimetresData.data || [];
             this.produits = produitsData.data || [];
+            this.dataAnas = dataAnasData.data || [];
 
             // Trier les sprints par date de début
             this.sprints.sort((a, b) => {
@@ -1029,6 +1037,69 @@ class RoadmapChantiersPage {
         // Filtrer les acteurs (exclure équipe RPP)
         const acteursFiltered = this.acteurs.filter(a => a['Equipe'] !== 'RPP');
 
+        // Listes temporaires pour les produits et DataAnas sélectionnés
+        let selectedProduits = [];
+        let selectedDataAnas = [];
+
+        const renderAssignedProduits = () => {
+            const container = document.getElementById('assignedProduitsAdd');
+            if (!container) return;
+
+            if (selectedProduits.length === 0) {
+                container.innerHTML = '<div class="assigned-items-empty">Aucun produit assigné</div>';
+                return;
+            }
+
+            container.innerHTML = selectedProduits.map(produitName => {
+                const produit = this.produits.find(p => p['Nom'] === produitName);
+                return `
+                    <div class="assigned-item" data-produit="${escapeHtml(produitName)}">
+                        <div class="assigned-item-info">
+                            <div class="assigned-item-name">${escapeHtml(produitName)}</div>
+                            ${produit && produit['Responsable'] ? `<div class="assigned-item-detail">${escapeHtml(produit['Responsable'])}</div>` : ''}
+                        </div>
+                        <div class="assigned-item-actions">
+                            <button type="button" class="btn btn-icon btn-xs btn-secondary" title="Modifier" onclick="roadmapChantiersPageInstance.editProduit('${escapeHtml(produitName)}')">&#9998;</button>
+                            <button type="button" class="btn btn-icon btn-xs btn-danger" title="Enlever" onclick="roadmapChantiersPageInstance.removeAssignedProduitAdd('${escapeHtml(produitName)}')">&#10005;</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        };
+
+        const renderAssignedDataAnas = () => {
+            const container = document.getElementById('assignedDataAnasAdd');
+            if (!container) return;
+
+            if (selectedDataAnas.length === 0) {
+                container.innerHTML = '<div class="assigned-items-empty">Aucun DataAna assigné</div>';
+                return;
+            }
+
+            container.innerHTML = selectedDataAnas.map(dataAnaKey => {
+                const dataAna = this.dataAnas.find(d => d['Clé'] === dataAnaKey);
+                const jiraUrl = `https://malakoffhumanis.atlassian.net/browse/${dataAnaKey}`;
+                return `
+                    <div class="assigned-item" data-dataana="${escapeHtml(dataAnaKey)}">
+                        <div class="assigned-item-info">
+                            <a href="${escapeHtml(jiraUrl)}" target="_blank" rel="noopener noreferrer" class="assigned-item-link">${escapeHtml(dataAnaKey)}</a>
+                            ${dataAna && dataAna['Résumé'] ? `<div class="assigned-item-detail">${escapeHtml(dataAna['Résumé'])}</div>` : ''}
+                        </div>
+                        <div class="assigned-item-actions">
+                            <button type="button" class="btn btn-icon btn-xs btn-secondary" title="Modifier" onclick="roadmapChantiersPageInstance.editDataAna('${escapeHtml(dataAnaKey)}')">&#9998;</button>
+                            <button type="button" class="btn btn-icon btn-xs btn-danger" title="Enlever" onclick="roadmapChantiersPageInstance.removeAssignedDataAnaAdd('${escapeHtml(dataAnaKey)}')">&#10005;</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        };
+
+        // Stocker les fonctions de mise à jour pour les appels externes
+        this._addModalSelectedProduits = selectedProduits;
+        this._addModalSelectedDataAnas = selectedDataAnas;
+        this._addModalRenderProduits = renderAssignedProduits;
+        this._addModalRenderDataAnas = renderAssignedDataAnas;
+
         const content = `
             <form id="formAddChantier" class="form">
                 <div class="form-group">
@@ -1053,18 +1124,33 @@ class RoadmapChantiersPage {
                         `).join('')}
                     </select>
                 </div>
-                <div class="form-group">
-                    <label class="form-label">Produits associés</label>
-                    <input type="text" class="form-control" id="searchProduitsAdd" placeholder="Rechercher un produit..." style="margin-bottom: 8px;">
-                    <div class="checkbox-group produits-list" id="produitsListAdd">
-                        ${this.produits.map(p => `
-                            <label class="checkbox-label" data-produit="${escapeHtml(p['Nom']).toLowerCase()}">
-                                <input type="checkbox" name="Produits" value="${escapeHtml(p['Nom'])}">
-                                <span>${escapeHtml(p['Nom'])}</span>
-                            </label>
-                        `).join('')}
+
+                <!-- Section Produits -->
+                <div class="assigned-section">
+                    <div class="assigned-section-header">
+                        <h4>&#128202; Produits associés</h4>
+                        <button type="button" class="btn btn-sm btn-primary" onclick="roadmapChantiersPageInstance.showSelectProduitsModal('add')">
+                            Assigner produit
+                        </button>
+                    </div>
+                    <div class="assigned-items-list" id="assignedProduitsAdd">
+                        <div class="assigned-items-empty">Aucun produit assigné</div>
                     </div>
                 </div>
+
+                <!-- Section DataAnas -->
+                <div class="assigned-section">
+                    <div class="assigned-section-header">
+                        <h4>&#128202; DataAnas associés</h4>
+                        <button type="button" class="btn btn-sm btn-primary" onclick="roadmapChantiersPageInstance.showSelectDataAnasModal('add')">
+                            Assigner DataAna
+                        </button>
+                    </div>
+                    <div class="assigned-items-list" id="assignedDataAnasAdd">
+                        <div class="assigned-items-empty">Aucun DataAna assigné</div>
+                    </div>
+                </div>
+
                 <div class="form-group">
                     <label class="checkbox-label">
                         <input type="checkbox" name="Archivé">
@@ -1077,7 +1163,7 @@ class RoadmapChantiersPage {
         showModal({
             title: 'Ajouter un chantier',
             content: content,
-            size: 'md',
+            size: 'lg',
             buttons: [
                 { label: 'Annuler', class: 'btn-secondary', action: 'close' },
                 {
@@ -1098,10 +1184,6 @@ class RoadmapChantiersPage {
                             'Archivé': form.querySelector('input[name="Archivé"]').checked ? 'TRUE' : 'FALSE'
                         };
 
-                        // Obtenir les produits sélectionnés
-                        const produitsSelected = Array.from(form.querySelectorAll('input[name="Produits"]:checked'))
-                            .map(cb => cb.value);
-
                         try {
                             // Ajouter le chantier
                             console.log('Ajout chantier:', chantierData);
@@ -1110,13 +1192,22 @@ class RoadmapChantiersPage {
                             console.log('Chantier ajouté avec succès');
 
                             // Ajouter les liens chantier-produit
-                            for (const produit of produitsSelected) {
+                            for (const produit of this._addModalSelectedProduits) {
                                 await addTableRow('tChantierProduit', {
                                     'Chantier': chantierData['Chantier'],
                                     'Produit': produit
                                 });
                             }
                             invalidateCache('tChantierProduit');
+
+                            // Ajouter les liens chantier-dataana
+                            for (const dataAna of this._addModalSelectedDataAnas) {
+                                await addTableRow('tChantierDataAna', {
+                                    'Chantier': chantierData['Chantier'],
+                                    'DataAna': dataAna
+                                });
+                            }
+                            invalidateCache('tChantierDataAna');
 
                             showSuccess('Chantier ajouté avec succès');
                             await this.refresh();
@@ -1131,20 +1222,23 @@ class RoadmapChantiersPage {
                 }
             ]
         });
+    }
 
-        // Attacher l'événement de recherche après le rendu de la modale
-        setTimeout(() => {
-            const searchInput = document.getElementById('searchProduitsAdd');
-            if (searchInput) {
-                searchInput.addEventListener('input', (e) => {
-                    const term = e.target.value.toLowerCase();
-                    document.querySelectorAll('#produitsListAdd .checkbox-label').forEach(label => {
-                        const produitName = label.dataset.produit || '';
-                        label.style.display = produitName.includes(term) ? '' : 'none';
-                    });
-                });
-            }
-        }, 100);
+    // Méthodes pour gérer les produits/DataAnas dans la modal d'ajout
+    removeAssignedProduitAdd(produitName) {
+        const idx = this._addModalSelectedProduits.indexOf(produitName);
+        if (idx > -1) {
+            this._addModalSelectedProduits.splice(idx, 1);
+            this._addModalRenderProduits();
+        }
+    }
+
+    removeAssignedDataAnaAdd(dataAnaKey) {
+        const idx = this._addModalSelectedDataAnas.indexOf(dataAnaKey);
+        if (idx > -1) {
+            this._addModalSelectedDataAnas.splice(idx, 1);
+            this._addModalRenderDataAnas();
+        }
     }
 
     async showEditChantierModal(chantierName) {
@@ -1165,8 +1259,77 @@ class RoadmapChantiersPage {
             .filter(cp => cp['Chantier'] === chantierName)
             .map(cp => cp['Produit']);
 
+        // DataAnas associés
+        const dataAnasAssocies = this.chantierDataAna
+            .filter(cd => cd['Chantier'] === chantierName)
+            .map(cd => cd['DataAna']);
+
         // Filtrer les acteurs (exclure équipe RPP)
         const acteursFiltered = this.acteurs.filter(a => a['Equipe'] !== 'RPP');
+
+        // Listes temporaires pour les produits et DataAnas sélectionnés
+        let selectedProduits = [...produitsAssocies];
+        let selectedDataAnas = [...dataAnasAssocies];
+
+        const renderAssignedProduits = () => {
+            const container = document.getElementById('assignedProduitsEdit');
+            if (!container) return;
+
+            if (selectedProduits.length === 0) {
+                container.innerHTML = '<div class="assigned-items-empty">Aucun produit assigné</div>';
+                return;
+            }
+
+            container.innerHTML = selectedProduits.map(produitName => {
+                const produit = this.produits.find(p => p['Nom'] === produitName);
+                return `
+                    <div class="assigned-item" data-produit="${escapeHtml(produitName)}">
+                        <div class="assigned-item-info">
+                            <div class="assigned-item-name">${escapeHtml(produitName)}</div>
+                            ${produit && produit['Responsable'] ? `<div class="assigned-item-detail">${escapeHtml(produit['Responsable'])}</div>` : ''}
+                        </div>
+                        <div class="assigned-item-actions">
+                            <button type="button" class="btn btn-icon btn-xs btn-secondary" title="Modifier" onclick="roadmapChantiersPageInstance.editProduit('${escapeHtml(produitName)}')">&#9998;</button>
+                            <button type="button" class="btn btn-icon btn-xs btn-danger" title="Enlever" onclick="roadmapChantiersPageInstance.removeAssignedProduitEdit('${escapeHtml(produitName)}')">&#10005;</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        };
+
+        const renderAssignedDataAnas = () => {
+            const container = document.getElementById('assignedDataAnasEdit');
+            if (!container) return;
+
+            if (selectedDataAnas.length === 0) {
+                container.innerHTML = '<div class="assigned-items-empty">Aucun DataAna assigné</div>';
+                return;
+            }
+
+            container.innerHTML = selectedDataAnas.map(dataAnaKey => {
+                const dataAna = this.dataAnas.find(d => d['Clé'] === dataAnaKey);
+                const jiraUrl = `https://malakoffhumanis.atlassian.net/browse/${dataAnaKey}`;
+                return `
+                    <div class="assigned-item" data-dataana="${escapeHtml(dataAnaKey)}">
+                        <div class="assigned-item-info">
+                            <a href="${escapeHtml(jiraUrl)}" target="_blank" rel="noopener noreferrer" class="assigned-item-link">${escapeHtml(dataAnaKey)}</a>
+                            ${dataAna && dataAna['Résumé'] ? `<div class="assigned-item-detail">${escapeHtml(dataAna['Résumé'])}</div>` : ''}
+                        </div>
+                        <div class="assigned-item-actions">
+                            <button type="button" class="btn btn-icon btn-xs btn-secondary" title="Modifier" onclick="roadmapChantiersPageInstance.editDataAna('${escapeHtml(dataAnaKey)}')">&#9998;</button>
+                            <button type="button" class="btn btn-icon btn-xs btn-danger" title="Enlever" onclick="roadmapChantiersPageInstance.removeAssignedDataAnaEdit('${escapeHtml(dataAnaKey)}')">&#10005;</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        };
+
+        // Stocker les fonctions de mise à jour pour les appels externes
+        this._editModalChantierName = chantierName;
+        this._editModalSelectedProduits = selectedProduits;
+        this._editModalSelectedDataAnas = selectedDataAnas;
+        this._editModalRenderProduits = renderAssignedProduits;
+        this._editModalRenderDataAnas = renderAssignedDataAnas;
 
         const content = `
             <form id="formEditChantier" class="form">
@@ -1196,19 +1359,33 @@ class RoadmapChantiersPage {
                         `).join('')}
                     </select>
                 </div>
-                <div class="form-group">
-                    <label class="form-label">Produits associés</label>
-                    <input type="text" class="form-control" id="searchProduitsEdit" placeholder="Rechercher un produit..." style="margin-bottom: 8px;">
-                    <div class="checkbox-group produits-list" id="produitsListEdit">
-                        ${this.produits.map(p => `
-                            <label class="checkbox-label" data-produit="${escapeHtml(p['Nom']).toLowerCase()}">
-                                <input type="checkbox" name="Produits" value="${escapeHtml(p['Nom'])}"
-                                    ${produitsAssocies.includes(p['Nom']) ? 'checked' : ''}>
-                                <span>${escapeHtml(p['Nom'])}</span>
-                            </label>
-                        `).join('')}
+
+                <!-- Section Produits -->
+                <div class="assigned-section">
+                    <div class="assigned-section-header">
+                        <h4>&#128202; Produits associés</h4>
+                        <button type="button" class="btn btn-sm btn-primary" onclick="roadmapChantiersPageInstance.showSelectProduitsModal('edit')">
+                            Assigner produit
+                        </button>
+                    </div>
+                    <div class="assigned-items-list" id="assignedProduitsEdit">
+                        <div class="assigned-items-empty">Aucun produit assigné</div>
                     </div>
                 </div>
+
+                <!-- Section DataAnas -->
+                <div class="assigned-section">
+                    <div class="assigned-section-header">
+                        <h4>&#128202; DataAnas associés</h4>
+                        <button type="button" class="btn btn-sm btn-primary" onclick="roadmapChantiersPageInstance.showSelectDataAnasModal('edit')">
+                            Assigner DataAna
+                        </button>
+                    </div>
+                    <div class="assigned-items-list" id="assignedDataAnasEdit">
+                        <div class="assigned-items-empty">Aucun DataAna assigné</div>
+                    </div>
+                </div>
+
                 <div class="form-group">
                     <label class="checkbox-label">
                         <input type="checkbox" name="Archivé" ${this.isArchived(chantier) ? 'checked' : ''}>
@@ -1221,7 +1398,7 @@ class RoadmapChantiersPage {
         showModal({
             title: 'Modifier le chantier',
             content: content,
-            size: 'md',
+            size: 'lg',
             buttons: [
                 { label: 'Annuler', class: 'btn-secondary', action: 'close' },
                 {
@@ -1242,9 +1419,6 @@ class RoadmapChantiersPage {
                             'Archivé': form.querySelector('input[name="Archivé"]').checked ? 'TRUE' : 'FALSE'
                         };
 
-                        const nouveauxProduits = Array.from(form.querySelectorAll('input[name="Produits"]:checked'))
-                            .map(cb => cb.value);
-
                         try {
                             // Mettre à jour le chantier
                             await updateTableRow('tChantiers', rowIndex, updatedChantier);
@@ -1252,23 +1426,43 @@ class RoadmapChantiersPage {
 
                             // Mettre à jour les liens produits
                             // Supprimer les anciens liens (en ordre inverse pour éviter les décalages)
-                            const liensToDelete = this.chantierProduit
+                            const liensProduitsToDelete = this.chantierProduit
                                 .filter(cp => cp['Chantier'] === chantierName)
                                 .sort((a, b) => (b._rowIndex ?? 0) - (a._rowIndex ?? 0));
 
-                            for (const cp of liensToDelete) {
+                            for (const cp of liensProduitsToDelete) {
                                 if (cp._rowIndex) {
                                     await deleteTableRow('tChantierProduit', cp._rowIndex);
                                 }
                             }
-                            // Ajouter les nouveaux liens
-                            for (const produit of nouveauxProduits) {
+                            // Ajouter les nouveaux liens produits
+                            for (const produit of this._editModalSelectedProduits) {
                                 await addTableRow('tChantierProduit', {
                                     'Chantier': updatedChantier['Chantier'],
                                     'Produit': produit
                                 });
                             }
                             invalidateCache('tChantierProduit');
+
+                            // Mettre à jour les liens DataAnas
+                            // Supprimer les anciens liens (en ordre inverse pour éviter les décalages)
+                            const liensDataAnasToDelete = this.chantierDataAna
+                                .filter(cd => cd['Chantier'] === chantierName)
+                                .sort((a, b) => (b._rowIndex ?? 0) - (a._rowIndex ?? 0));
+
+                            for (const cd of liensDataAnasToDelete) {
+                                if (cd._rowIndex) {
+                                    await deleteTableRow('tChantierDataAna', cd._rowIndex);
+                                }
+                            }
+                            // Ajouter les nouveaux liens DataAnas
+                            for (const dataAna of this._editModalSelectedDataAnas) {
+                                await addTableRow('tChantierDataAna', {
+                                    'Chantier': updatedChantier['Chantier'],
+                                    'DataAna': dataAna
+                                });
+                            }
+                            invalidateCache('tChantierDataAna');
 
                             showSuccess('Chantier modifié avec succès');
                             await this.refresh();
@@ -1283,19 +1477,319 @@ class RoadmapChantiersPage {
             ]
         });
 
-        // Attacher l'événement de recherche après le rendu de la modale
+        // Rendre les listes initiales après le rendu de la modale
         setTimeout(() => {
-            const searchInput = document.getElementById('searchProduitsEdit');
+            renderAssignedProduits();
+            renderAssignedDataAnas();
+        }, 100);
+    }
+
+    // Méthodes pour gérer les produits/DataAnas dans la modal d'édition
+    removeAssignedProduitEdit(produitName) {
+        const idx = this._editModalSelectedProduits.indexOf(produitName);
+        if (idx > -1) {
+            this._editModalSelectedProduits.splice(idx, 1);
+            this._editModalRenderProduits();
+        }
+    }
+
+    removeAssignedDataAnaEdit(dataAnaKey) {
+        const idx = this._editModalSelectedDataAnas.indexOf(dataAnaKey);
+        if (idx > -1) {
+            this._editModalSelectedDataAnas.splice(idx, 1);
+            this._editModalRenderDataAnas();
+        }
+    }
+
+    // ===========================================
+    // MODALES DE SÉLECTION (Produits / DataAnas)
+    // ===========================================
+
+    showSelectProduitsModal(mode) {
+        const isAddMode = mode === 'add';
+        const selectedProduits = isAddMode ? this._addModalSelectedProduits : this._editModalSelectedProduits;
+        const renderCallback = isAddMode ? this._addModalRenderProduits : this._editModalRenderProduits;
+
+        // Séparer les produits sélectionnés et non sélectionnés
+        const selectedProduitsData = this.produits.filter(p => selectedProduits.includes(p['Nom']));
+        const unselectedProduitsData = this.produits.filter(p => !selectedProduits.includes(p['Nom']));
+
+        // Trier alphabétiquement
+        selectedProduitsData.sort((a, b) => (a['Nom'] || '').localeCompare(b['Nom'] || ''));
+        unselectedProduitsData.sort((a, b) => (a['Nom'] || '').localeCompare(b['Nom'] || ''));
+
+        const renderList = (searchTerm = '') => {
+            const list = document.getElementById('selectionProduitsList');
+            if (!list) return;
+
+            const term = searchTerm.toLowerCase();
+            const filteredSelected = selectedProduitsData.filter(p => (p['Nom'] || '').toLowerCase().includes(term));
+            const filteredUnselected = unselectedProduitsData.filter(p => (p['Nom'] || '').toLowerCase().includes(term));
+
+            let html = '';
+
+            // Produits sélectionnés en premier
+            if (filteredSelected.length > 0) {
+                html += '<div class="selection-separator">Sélectionnés</div>';
+                html += filteredSelected.map(p => `
+                    <label class="selection-item selected">
+                        <input type="checkbox" value="${escapeHtml(p['Nom'])}" checked>
+                        <div class="selection-item-info">
+                            <div class="selection-item-name">${escapeHtml(p['Nom'])}</div>
+                            ${p['Responsable'] ? `<div class="selection-item-detail">${escapeHtml(p['Responsable'])}</div>` : ''}
+                        </div>
+                    </label>
+                `).join('');
+            }
+
+            // Produits non sélectionnés
+            if (filteredUnselected.length > 0) {
+                if (filteredSelected.length > 0) {
+                    html += '<div class="selection-separator">Autres produits</div>';
+                }
+                html += filteredUnselected.map(p => `
+                    <label class="selection-item">
+                        <input type="checkbox" value="${escapeHtml(p['Nom'])}">
+                        <div class="selection-item-info">
+                            <div class="selection-item-name">${escapeHtml(p['Nom'])}</div>
+                            ${p['Responsable'] ? `<div class="selection-item-detail">${escapeHtml(p['Responsable'])}</div>` : ''}
+                        </div>
+                    </label>
+                `).join('');
+            }
+
+            if (html === '') {
+                html = '<div class="assigned-items-empty">Aucun produit trouvé</div>';
+            }
+
+            list.innerHTML = html;
+        };
+
+        const content = `
+            <div class="selection-modal-content">
+                <div class="selection-modal-search">
+                    <input type="text" class="form-control" id="searchProduitsSelection" placeholder="Rechercher un produit...">
+                </div>
+                <div class="selection-modal-list" id="selectionProduitsList"></div>
+            </div>
+        `;
+
+        showModal({
+            title: 'Sélectionner des produits',
+            content: content,
+            size: 'lg',
+            buttons: [
+                { label: 'Annuler', class: 'btn-secondary', action: 'close' },
+                {
+                    label: 'Valider',
+                    class: 'btn-primary',
+                    action: (modal) => {
+                        const list = document.getElementById('selectionProduitsList');
+                        const checkedBoxes = list.querySelectorAll('input[type="checkbox"]:checked');
+                        const newSelection = Array.from(checkedBoxes).map(cb => cb.value);
+
+                        // Mettre à jour la sélection
+                        selectedProduits.length = 0;
+                        newSelection.forEach(p => selectedProduits.push(p));
+
+                        // Mettre à jour l'affichage
+                        renderCallback();
+                        return true;
+                    }
+                }
+            ]
+        });
+
+        // Initialiser la liste et le champ de recherche
+        setTimeout(() => {
+            renderList();
+            const searchInput = document.getElementById('searchProduitsSelection');
             if (searchInput) {
-                searchInput.addEventListener('input', (e) => {
-                    const term = e.target.value.toLowerCase();
-                    document.querySelectorAll('#produitsListEdit .checkbox-label').forEach(label => {
-                        const produitName = label.dataset.produit || '';
-                        label.style.display = produitName.includes(term) ? '' : 'none';
-                    });
-                });
+                searchInput.addEventListener('input', (e) => renderList(e.target.value));
             }
         }, 100);
+    }
+
+    showSelectDataAnasModal(mode) {
+        const isAddMode = mode === 'add';
+        const selectedDataAnas = isAddMode ? this._addModalSelectedDataAnas : this._editModalSelectedDataAnas;
+        const renderCallback = isAddMode ? this._addModalRenderDataAnas : this._editModalRenderDataAnas;
+
+        // Séparer les DataAnas sélectionnés et non sélectionnés
+        const selectedDataAnasData = this.dataAnas.filter(d => selectedDataAnas.includes(d['Clé']));
+        const unselectedDataAnasData = this.dataAnas.filter(d => !selectedDataAnas.includes(d['Clé']));
+
+        // Trier alphabétiquement
+        selectedDataAnasData.sort((a, b) => (a['Clé'] || '').localeCompare(b['Clé'] || ''));
+        unselectedDataAnasData.sort((a, b) => (a['Clé'] || '').localeCompare(b['Clé'] || ''));
+
+        const renderList = (searchTerm = '') => {
+            const list = document.getElementById('selectionDataAnasList');
+            if (!list) return;
+
+            const term = searchTerm.toLowerCase();
+            const filteredSelected = selectedDataAnasData.filter(d =>
+                (d['Clé'] || '').toLowerCase().includes(term) ||
+                (d['Résumé'] || '').toLowerCase().includes(term)
+            );
+            const filteredUnselected = unselectedDataAnasData.filter(d =>
+                (d['Clé'] || '').toLowerCase().includes(term) ||
+                (d['Résumé'] || '').toLowerCase().includes(term)
+            );
+
+            let html = '';
+
+            // DataAnas sélectionnés en premier
+            if (filteredSelected.length > 0) {
+                html += '<div class="selection-separator">Sélectionnés</div>';
+                html += filteredSelected.map(d => `
+                    <label class="selection-item selected">
+                        <input type="checkbox" value="${escapeHtml(d['Clé'])}" checked>
+                        <div class="selection-item-info">
+                            <div class="selection-item-name">${escapeHtml(d['Clé'])}</div>
+                            ${d['Résumé'] ? `<div class="selection-item-detail">${escapeHtml(d['Résumé'])}</div>` : ''}
+                        </div>
+                    </label>
+                `).join('');
+            }
+
+            // DataAnas non sélectionnés
+            if (filteredUnselected.length > 0) {
+                if (filteredSelected.length > 0) {
+                    html += '<div class="selection-separator">Autres DataAnas</div>';
+                }
+                html += filteredUnselected.map(d => `
+                    <label class="selection-item">
+                        <input type="checkbox" value="${escapeHtml(d['Clé'])}">
+                        <div class="selection-item-info">
+                            <div class="selection-item-name">${escapeHtml(d['Clé'])}</div>
+                            ${d['Résumé'] ? `<div class="selection-item-detail">${escapeHtml(d['Résumé'])}</div>` : ''}
+                        </div>
+                    </label>
+                `).join('');
+            }
+
+            if (html === '') {
+                html = '<div class="assigned-items-empty">Aucun DataAna trouvé</div>';
+            }
+
+            list.innerHTML = html;
+        };
+
+        const content = `
+            <div class="selection-modal-content">
+                <div class="selection-modal-search">
+                    <input type="text" class="form-control" id="searchDataAnasSelection" placeholder="Rechercher un DataAna (clé ou résumé)...">
+                </div>
+                <div class="selection-modal-list" id="selectionDataAnasList"></div>
+            </div>
+        `;
+
+        showModal({
+            title: 'Sélectionner des DataAnas',
+            content: content,
+            size: 'lg',
+            buttons: [
+                { label: 'Annuler', class: 'btn-secondary', action: 'close' },
+                {
+                    label: 'Valider',
+                    class: 'btn-primary',
+                    action: (modal) => {
+                        const list = document.getElementById('selectionDataAnasList');
+                        const checkedBoxes = list.querySelectorAll('input[type="checkbox"]:checked');
+                        const newSelection = Array.from(checkedBoxes).map(cb => cb.value);
+
+                        // Mettre à jour la sélection
+                        selectedDataAnas.length = 0;
+                        newSelection.forEach(d => selectedDataAnas.push(d));
+
+                        // Mettre à jour l'affichage
+                        renderCallback();
+                        return true;
+                    }
+                }
+            ]
+        });
+
+        // Initialiser la liste et le champ de recherche
+        setTimeout(() => {
+            renderList();
+            const searchInput = document.getElementById('searchDataAnasSelection');
+            if (searchInput) {
+                searchInput.addEventListener('input', (e) => renderList(e.target.value));
+            }
+        }, 100);
+    }
+
+    // Fonctions pour éditer un produit ou un DataAna
+    async editProduit(produitName) {
+        const produit = this.produits.find(p => p['Nom'] === produitName);
+        if (!produit) {
+            showError('Produit non trouvé');
+            return;
+        }
+
+        const rowIndex = produit._rowIndex;
+        if (rowIndex === undefined || rowIndex === null) {
+            showError('Index de ligne non trouvé');
+            return;
+        }
+
+        const tableConfig = CONFIG.TABLES.PRODUITS;
+        showFormModal(
+            `Modifier - ${produitName}`,
+            tableConfig.columns,
+            async (formData) => {
+                try {
+                    await updateTableRow(tableConfig.name, rowIndex, formData);
+                    invalidateCache(tableConfig.name);
+                    showSuccess('Produit modifié avec succès');
+                    // Recharger les données pour mettre à jour l'affichage
+                    const produitsData = await readTable(tableConfig.name);
+                    this.produits = produitsData.data || [];
+                    return true;
+                } catch (error) {
+                    showError('Erreur lors de la modification: ' + error.message);
+                    return false;
+                }
+            },
+            produit
+        );
+    }
+
+    async editDataAna(dataAnaKey) {
+        const dataAna = this.dataAnas.find(d => d['Clé'] === dataAnaKey);
+        if (!dataAna) {
+            showError('DataAna non trouvé');
+            return;
+        }
+
+        const rowIndex = dataAna._rowIndex;
+        if (rowIndex === undefined || rowIndex === null) {
+            showError('Index de ligne non trouvé');
+            return;
+        }
+
+        const tableConfig = CONFIG.TABLES.DATAANA;
+        showFormModal(
+            `Modifier - ${dataAnaKey}`,
+            tableConfig.columns,
+            async (formData) => {
+                try {
+                    await updateTableRow(tableConfig.name, rowIndex, formData);
+                    invalidateCache(tableConfig.name);
+                    showSuccess('DataAna modifié avec succès');
+                    // Recharger les données pour mettre à jour l'affichage
+                    const dataAnasData = await readTable(tableConfig.name);
+                    this.dataAnas = dataAnasData.data || [];
+                    return true;
+                } catch (error) {
+                    showError('Erreur lors de la modification: ' + error.message);
+                    return false;
+                }
+            },
+            dataAna
+        );
     }
 
     async showArchiveConfirmation(chantierName) {
