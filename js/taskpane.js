@@ -146,6 +146,12 @@ async function handleDialogMessage(arg) {
                         );
                         break;
 
+                    case 'INVALIDATE_CACHE':
+                        // Invalider le cache mémoire et localStorage
+                        invalidateCache(message.params.tableName);
+                        result = { success: true };
+                        break;
+
                     default:
                         error = `Unknown request type: ${message.type}`;
                 }

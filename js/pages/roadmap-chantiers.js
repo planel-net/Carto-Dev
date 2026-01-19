@@ -1868,11 +1868,8 @@ class RoadmapChantiersPage {
 
                     await updateTableRow('tChantiers', rowIndex, updatedChantier);
 
-                    // Invalider les caches (mémoire et localStorage)
-                    invalidateCache('tChantiers');
-                    if (typeof PersistentCache !== 'undefined') {
-                        PersistentCache.invalidate('tChantiers');
-                    }
+                    // Invalider les caches (taskpane + dialog)
+                    await invalidateCache('tChantiers');
 
                     showSuccess('Chantier archivé');
                     await this.refresh();
@@ -2048,11 +2045,8 @@ class RoadmapChantiersPage {
 
             await updateTableRow('tChantiers', rowIndex, updatedChantier);
 
-            // Invalider les caches (mémoire et localStorage)
-            invalidateCache('tChantiers');
-            if (typeof PersistentCache !== 'undefined') {
-                PersistentCache.invalidate('tChantiers');
-            }
+            // Invalider les caches (taskpane + dialog)
+            await invalidateCache('tChantiers');
 
             showSuccess('Chantier réaffiché');
 
@@ -2795,21 +2789,14 @@ class RoadmapChantiersPage {
     }
 
     async refresh() {
-        // Invalider les caches mémoire
-        invalidateCache('tChantiers');
-        invalidateCache('tPhases');
-        invalidateCache('tPhasesLien');
-        invalidateCache('tChantierProduit');
-        invalidateCache('tChantierDataAna');
-
-        // Invalider aussi le cache localStorage pour forcer le rechargement depuis Excel
-        if (typeof PersistentCache !== 'undefined') {
-            PersistentCache.invalidate('tChantiers');
-            PersistentCache.invalidate('tPhases');
-            PersistentCache.invalidate('tPhasesLien');
-            PersistentCache.invalidate('tChantierProduit');
-            PersistentCache.invalidate('tChantierDataAna');
-        }
+        // Invalider les caches (taskpane + dialog) pour forcer le rechargement depuis Excel
+        await Promise.all([
+            invalidateCache('tChantiers'),
+            invalidateCache('tPhases'),
+            invalidateCache('tPhasesLien'),
+            invalidateCache('tChantierProduit'),
+            invalidateCache('tChantierDataAna')
+        ]);
 
         await this.loadData();
         this.renderFilters();

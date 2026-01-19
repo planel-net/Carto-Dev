@@ -109,11 +109,24 @@ async function searchTable(tableName, searchTerm, searchFields) {
     return await ExcelBridge.searchTable(tableName, searchTerm, searchFields);
 }
 
-// Invalider le cache (envoie commande au taskpane)
-function invalidateCache(tableName = null) {
-    console.log('[App] invalidateCache - sending to taskpane');
+// Invalider le cache (envoie commande au taskpane et attend la réponse)
+async function invalidateCache(tableName = null) {
+    console.log('[App] invalidateCache - sending to taskpane:', tableName);
     if (AppState.bridgeReady) {
-        ExcelBridge.sendCommand('INVALIDATE_CACHE', { tableName });
+        try {
+            await ExcelBridge.request('INVALIDATE_CACHE', { tableName });
+            // Aussi invalider le cache local du dialog
+            if (typeof PersistentCache !== 'undefined') {
+                if (tableName) {
+                    PersistentCache.invalidate(tableName);
+                } else {
+                    PersistentCache.clearAll();
+                }
+            }
+            console.log('[App] Cache invalidated:', tableName || 'all');
+        } catch (error) {
+            console.error('[App] Error invalidating cache:', error);
+        }
     }
 }
 
