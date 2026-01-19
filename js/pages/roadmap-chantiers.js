@@ -1441,7 +1441,7 @@ class RoadmapChantiersPage {
                                 .sort((a, b) => (b._rowIndex ?? 0) - (a._rowIndex ?? 0));
 
                             for (const cp of liensProduitsToDelete) {
-                                if (cp._rowIndex) {
+                                if (cp._rowIndex !== undefined && cp._rowIndex !== null) {
                                     await deleteTableRow('tChantierProduit', cp._rowIndex);
                                 }
                             }
@@ -1461,7 +1461,7 @@ class RoadmapChantiersPage {
                                 .sort((a, b) => (b._rowIndex ?? 0) - (a._rowIndex ?? 0));
 
                             for (const cd of liensDataAnasToDelete) {
-                                if (cd._rowIndex) {
+                                if (cd._rowIndex !== undefined && cd._rowIndex !== null) {
                                     await deleteTableRow('tChantierDataAna', cd._rowIndex);
                                 }
                             }
