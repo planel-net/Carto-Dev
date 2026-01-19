@@ -47,13 +47,6 @@ class RoadmapChantiersPage {
     async render(container) {
         container.innerHTML = `
             <div class="roadmap-chantiers-page">
-                <!-- Header -->
-                <div class="page-header roadmap-chantiers-header">
-                    <div class="page-header-left">
-                        <h1>Roadmap - Visualisation projets</h1>
-                    </div>
-                </div>
-
                 <!-- Légende -->
                 <div class="legend-container" id="legendContainer"></div>
 

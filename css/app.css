@@ -233,27 +233,6 @@
     visibility: visible;
 }
 
-/* Icône hamburger pour toggle */
-.sidebar-toggle button {
-    width: 40px;
-    height: 40px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-    background: rgba(255, 255, 255, 0.1);
-    border: none;
-    border-radius: var(--border-radius-sm);
-    cursor: pointer;
-    transition: all var(--transition-fast);
-    padding: 8px;
-}
-
-.sidebar-toggle button:hover {
-    background: rgba(255, 255, 255, 0.2);
-}
-
 .hamburger-line {
     display: block;
     width: 20px;
@@ -302,32 +281,6 @@
 
 .nav-subitem.active {
     color: var(--mh-orange);
-}
-
-/* Toggle sidebar */
-.sidebar-toggle {
-    padding: var(--spacing-md);
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-    display: flex;
-    justify-content: center;
-}
-
-.sidebar-toggle button {
-    width: 36px;
-    height: 36px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(255, 255, 255, 0.1);
-    border: none;
-    border-radius: var(--border-radius-sm);
-    color: var(--mh-blanc);
-    cursor: pointer;
-    transition: all var(--transition-fast);
-}
-
-.sidebar-toggle button:hover {
-    background: rgba(255, 255, 255, 0.2);
 }
 
 /* ===========================================
