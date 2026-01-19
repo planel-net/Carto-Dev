@@ -1879,9 +1879,25 @@
    ROADMAP CHANTIERS - Table avec colonnes fixes
    =========================================== */
 
-/* Body wrapper avec scroll horizontal */
+/* Body wrapper avec scroll horizontal ET vertical */
 .gantt-body-wrapper {
-    overflow-x: auto;
+    overflow: auto;
+    max-height: calc(100vh - 350px);
+}
+
+/* Header sticky pour gantt-chantiers-table */
+.gantt-chantiers-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+}
+
+.gantt-chantiers-table thead th {
+    background: var(--mh-bleu-clair);
+}
+
+.gantt-chantiers-table .gantt-chantier-header {
+    background: var(--mh-bleu-fonce) !important;
 }
 
 /* Table avec colonnes fixes */
