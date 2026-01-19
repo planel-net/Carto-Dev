@@ -421,11 +421,10 @@ async function safeExcelOperation(operation) {
 /**
  * Lit toutes les données d'une feuille Excel (usedRange)
  * @param {string} sheetName - Nom de la feuille Excel
- * @param {string} linkColumn - Nom de la colonne contenant des liens hypertextes (optionnel)
  * @returns {Promise<Object>} { headers: [], rows: [], data: [] }
  */
-async function readSheet(sheetName, linkColumn = null) {
-    console.log(`[readSheet] Reading sheet: ${sheetName}, linkColumn: ${linkColumn}`);
+async function readSheet(sheetName) {
+    console.log(`[readSheet] Reading sheet: ${sheetName}`);
 
     try {
         if (typeof Excel === 'undefined') {
@@ -436,7 +435,7 @@ async function readSheet(sheetName, linkColumn = null) {
         return await Excel.run(async (context) => {
             const sheet = context.workbook.worksheets.getItem(sheetName);
             const usedRange = sheet.getUsedRange();
-            usedRange.load('values, rowCount, columnCount, address');
+            usedRange.load('values');
 
             await context.sync();
 
@@ -448,49 +447,12 @@ async function readSheet(sheetName, linkColumn = null) {
             const headers = values[0];
             const rows = values.slice(1);
 
-            // Trouver l'index de la colonne avec les liens
-            let linkColIndex = -1;
-            if (linkColumn) {
-                linkColIndex = headers.indexOf(linkColumn);
-            }
-
-            // Extraire les hyperlinks si une colonne de lien est spécifiée
-            const hyperlinks = {};
-            if (linkColIndex >= 0 && rows.length > 0) {
-                console.log(`[readSheet] Extracting hyperlinks from column ${linkColumn} (index ${linkColIndex})`);
-
-                // Extraire la lettre de colonne depuis l'adresse
-                const startAddress = usedRange.address.split('!')[1].split(':')[0];
-                const colLetter = getColumnLetter(linkColIndex);
-
-                // Lire les hyperlinks pour chaque cellule de la colonne
-                for (let rowIdx = 0; rowIdx < rows.length; rowIdx++) {
-                    try {
-                        const cellAddress = `${colLetter}${rowIdx + 2}`; // +2 car row 1 = headers
-                        const cell = sheet.getRange(cellAddress);
-                        cell.load('hyperlink');
-                        await context.sync();
-
-                        if (cell.hyperlink && cell.hyperlink.address) {
-                            hyperlinks[rowIdx] = cell.hyperlink.address;
-                        }
-                    } catch (e) {
-                        // Pas de lien sur cette cellule, continuer
-                    }
-                }
-                console.log(`[readSheet] Found ${Object.keys(hyperlinks).length} hyperlinks`);
-            }
-
             // Convertir en tableau d'objets
             const data = rows.map((row, index) => {
                 const obj = { _rowIndex: index };
                 headers.forEach((header, colIndex) => {
                     obj[header] = row[colIndex];
                 });
-                // Ajouter le lien hypertexte si disponible
-                if (hyperlinks[index]) {
-                    obj['_lien'] = hyperlinks[index];
-                }
                 return obj;
             });
 
@@ -504,35 +466,21 @@ async function readSheet(sheetName, linkColumn = null) {
 }
 
 /**
- * Convertit un index de colonne (0-based) en lettre Excel (A, B, C, ..., Z, AA, AB, ...)
- */
-function getColumnLetter(colIndex) {
-    let letter = '';
-    let temp = colIndex;
-    while (temp >= 0) {
-        letter = String.fromCharCode((temp % 26) + 65) + letter;
-        temp = Math.floor(temp / 26) - 1;
-    }
-    return letter;
-}
-
-/**
  * Copie les données d'une feuille Jira vers une table, en vérifiant les doublons par clé
  * @param {string} jiraSheetName - Nom de la feuille source (Jira)
  * @param {string} tableName - Nom de la table destination
  * @param {string} keyField - Nom du champ clé pour vérifier les doublons
- * @param {string} linkField - Nom du champ destination pour le lien (optionnel)
  * @returns {Promise<Object>} Résultat { success, added, skipped, error }
  */
-async function copyFromJira(jiraSheetName, tableName, keyField = 'Clé', linkField = 'Lien Jira') {
+async function copyFromJira(jiraSheetName, tableName, keyField = 'Clé') {
     console.log(`[copyFromJira] Copying from ${jiraSheetName} to ${tableName}`);
 
     try {
         // Invalider le cache de la table destination
         tableCache.delete(tableName);
 
-        // Lire les données source (feuille Jira) avec extraction des liens de la colonne Clé
-        const jiraData = await readSheet(jiraSheetName, keyField);
+        // Lire les données source (feuille Jira)
+        const jiraData = await readSheet(jiraSheetName);
         if (jiraData.data.length === 0) {
             return { success: true, added: 0, skipped: 0, message: 'Aucune donnée dans la feuille source' };
         }
@@ -556,16 +504,8 @@ async function copyFromJira(jiraSheetName, tableName, keyField = 'Clé', linkFie
         // Ajouter les nouvelles lignes
         let added = 0;
         for (const row of rowsToAdd) {
-            // Supprimer _rowIndex et transférer _lien vers linkField
             const rowData = { ...row };
             delete rowData._rowIndex;
-
-            // Transférer le lien hypertexte vers le champ dédié
-            if (rowData._lien && linkField) {
-                rowData[linkField] = rowData._lien;
-                delete rowData._lien;
-            }
-
             await addTableRow(tableName, rowData);
             added++;
         }

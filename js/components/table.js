@@ -293,7 +293,7 @@ class DataTable {
      * Formate la valeur d'une cellule
      * @param {Object} col - Configuration de la colonne
      * @param {*} value - Valeur de la cellule
-     * @param {Object} row - Ligne complète (pour accéder au linkField si nécessaire)
+     * @param {Object} row - Ligne complète (pour accéder aux autres champs si nécessaire)
      */
     formatCellValue(col, value, row = null) {
         if (value === null || value === undefined || value === '') {
@@ -306,10 +306,10 @@ class DataTable {
             return `<span title="${escapeHtml(String(value))}">${escapeHtml(formattedName)}</span>`;
         }
 
-        // Si la colonne a un linkField, afficher comme lien cliquable
-        if (col.linkField && row && row[col.linkField]) {
-            const url = row[col.linkField];
+        // Si la colonne a un linkPattern, générer l'URL dynamiquement
+        if (col.linkPattern && value) {
             const text = String(value);
+            const url = col.linkPattern.replace('{value}', text);
             return `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" class="table-link" title="Ouvrir dans Jira">${escapeHtml(text)}</a>`;
         }
 
