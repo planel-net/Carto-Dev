@@ -1052,11 +1052,16 @@ class RoadmapChantiersPage {
 
             container.innerHTML = selectedProduits.map(produitName => {
                 const produit = this.produits.find(p => p['Nom'] === produitName);
+                let responsableDisplay = '';
+                if (produit && produit['Responsable']) {
+                    const acteur = this.acteurs.find(a => a['Mail'] === produit['Responsable']);
+                    responsableDisplay = acteur ? `${acteur['Prénom'] || ''} ${acteur['Nom'] || ''}`.trim() : produit['Responsable'];
+                }
                 return `
                     <div class="assigned-item" data-produit="${escapeHtml(produitName)}">
                         <div class="assigned-item-info">
                             <div class="assigned-item-name">${escapeHtml(produitName)}</div>
-                            ${produit && produit['Responsable'] ? `<div class="assigned-item-detail">${escapeHtml(produit['Responsable'])}</div>` : ''}
+                            ${responsableDisplay ? `<div class="assigned-item-detail">${escapeHtml(responsableDisplay)}</div>` : ''}
                         </div>
                         <div class="assigned-item-actions">
                             <button type="button" class="btn btn-icon btn-xs btn-secondary" title="Modifier" onclick="roadmapChantiersPageInstance.editProduit('${escapeHtml(produitName)}')">&#9998;</button>
@@ -1282,11 +1287,16 @@ class RoadmapChantiersPage {
 
             container.innerHTML = selectedProduits.map(produitName => {
                 const produit = this.produits.find(p => p['Nom'] === produitName);
+                let responsableDisplay = '';
+                if (produit && produit['Responsable']) {
+                    const acteur = this.acteurs.find(a => a['Mail'] === produit['Responsable']);
+                    responsableDisplay = acteur ? `${acteur['Prénom'] || ''} ${acteur['Nom'] || ''}`.trim() : produit['Responsable'];
+                }
                 return `
                     <div class="assigned-item" data-produit="${escapeHtml(produitName)}">
                         <div class="assigned-item-info">
                             <div class="assigned-item-name">${escapeHtml(produitName)}</div>
-                            ${produit && produit['Responsable'] ? `<div class="assigned-item-detail">${escapeHtml(produit['Responsable'])}</div>` : ''}
+                            ${responsableDisplay ? `<div class="assigned-item-detail">${escapeHtml(responsableDisplay)}</div>` : ''}
                         </div>
                         <div class="assigned-item-actions">
                             <button type="button" class="btn btn-icon btn-xs btn-secondary" title="Modifier" onclick="roadmapChantiersPageInstance.editProduit('${escapeHtml(produitName)}')">&#9998;</button>
