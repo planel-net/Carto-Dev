@@ -335,11 +335,12 @@ function showViewModal(title, content) {
     }).show();
 }
 
-// Instance de la modale active (pour showModal/closeModal)
-let _activeModal = null;
+// Pile de modales actives (pour showModal/closeModal avec modales imbriquées)
+let _modalStack = [];
 
 /**
  * Affiche une modale générique avec des options flexibles
+ * Supporte les modales imbriquées (la nouvelle modale s'affiche au-dessus)
  * @param {Object} options - Options de la modale
  * @param {string} options.title - Titre de la modale
  * @param {string} options.content - Contenu HTML
@@ -349,24 +350,27 @@ let _activeModal = null;
 function showModal(options) {
     const { title, content, size = 'md', buttons = [] } = options;
 
-    // Fermer toute modale existante avant d'en ouvrir une nouvelle
-    if (_activeModal) {
-        closeModal();
-    }
-
     // Créer la modale
     const modalId = 'modal_' + generateId();
     const container = document.getElementById('modalContainer') || document.body;
+
+    // Calculer le z-index basé sur la profondeur de la pile
+    const stackDepth = _modalStack.length;
+    const baseZIndex = 1000;
+    const backdropZIndex = baseZIndex + (stackDepth * 10);
+    const modalZIndex = baseZIndex + (stackDepth * 10) + 1;
 
     // Créer le backdrop
     const backdrop = document.createElement('div');
     backdrop.className = 'modal-backdrop';
     backdrop.id = modalId + '_backdrop';
+    backdrop.style.zIndex = backdropZIndex;
 
     // Créer la modale
     const modal = document.createElement('div');
     modal.className = `modal modal-${size}`;
     modal.id = modalId;
+    modal.style.zIndex = modalZIndex;
 
     // Générer le footer avec les boutons
     let footerHtml = '';
@@ -407,8 +411,9 @@ function showModal(options) {
     };
     document.addEventListener('keydown', escapeHandler);
 
-    // Stocker la référence (incluant le handler pour pouvoir le supprimer)
-    _activeModal = { modal, backdrop, buttons, escapeHandler };
+    // Ajouter à la pile de modales (incluant le handler pour pouvoir le supprimer)
+    const modalRef = { modal, backdrop, buttons, escapeHandler };
+    _modalStack.push(modalRef);
 
     // Attacher les événements
     backdrop.addEventListener('click', () => closeModal());
@@ -444,12 +449,14 @@ function showModal(options) {
 }
 
 /**
- * Ferme la modale active
+ * Ferme la modale la plus récente (au sommet de la pile)
  */
 function closeModal() {
-    if (!_activeModal) return;
+    if (_modalStack.length === 0) return;
 
-    const { modal, backdrop, escapeHandler } = _activeModal;
+    // Retirer la modale du sommet de la pile
+    const modalRef = _modalStack.pop();
+    const { modal, backdrop, escapeHandler } = modalRef;
 
     // Supprimer le handler d'échappement
     if (escapeHandler) {
@@ -460,9 +467,6 @@ function closeModal() {
     if (backdrop) backdrop.classList.remove('show');
     if (modal) modal.classList.remove('show');
 
-    // Capturer la référence du modal actuel pour vérification dans le timeout
-    const currentModal = _activeModal;
-
     // Supprimer du DOM après animation
     setTimeout(() => {
         if (backdrop && backdrop.parentNode) {
@@ -470,11 +474,6 @@ function closeModal() {
         }
         if (modal && modal.parentNode) {
             modal.parentNode.removeChild(modal);
-        }
-        // Seulement mettre à null si c'est toujours le même modal
-        // (évite d'écraser la référence d'un nouveau modal ouvert entre temps)
-        if (_activeModal === currentModal) {
-            _activeModal = null;
         }
     }, 300);
 }
