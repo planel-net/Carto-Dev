@@ -552,3 +552,23 @@
         border: 1px solid #000;
     }
 }
+
+/* ===========================================
+   TABLE LINKS
+   =========================================== */
+
+.table-link {
+    color: var(--mh-bleu-clair);
+    text-decoration: none;
+    font-weight: 500;
+    transition: color var(--transition-fast);
+}
+
+.table-link:hover {
+    color: var(--mh-bleu-fonce);
+    text-decoration: underline;
+}
+
+.table-link:visited {
+    color: #6c63ff;
+}

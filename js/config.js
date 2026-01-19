@@ -6,7 +6,7 @@
 const CONFIG = {
     // Nom de l'application
     APP_NAME: 'Carto',
-    APP_VERSION: '1.0.70',
+    APP_VERSION: '1.0.71',
 
     // Noms des feuilles spéciales
     SHEETS: {
@@ -256,13 +256,14 @@ const CONFIG = {
             icon: '&#128202;',
             jiraSheet: 'DataAnaJira',
             columns: [
-                { field: 'Clé', label: 'Clé', type: 'text', required: true },
+                { field: 'Clé', label: 'Clé', type: 'text', required: true, linkField: 'Lien Jira' },
                 { field: 'Résumé', label: 'Résumé', type: 'text' },
                 { field: 'Priorité', label: 'Priorité', type: 'text' },
                 { field: 'État', label: 'État', type: 'text' },
                 { field: 'Personne assignée', label: 'Personne assignée', type: 'text' },
                 { field: 'Charge estimée', label: 'Charge estimée', type: 'number' },
-                { field: 'Estimation originale', label: 'Estimation originale', type: 'number' }
+                { field: 'Estimation originale', label: 'Estimation originale', type: 'number' },
+                { field: 'Lien Jira', label: 'Lien Jira', type: 'url', hidden: true }
             ]
         }
     },

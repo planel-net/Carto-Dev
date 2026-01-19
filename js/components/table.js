@@ -192,15 +192,23 @@ class DataTable {
     /**
      * Rendu du tableau avec les données
      */
+    /**
+     * Retourne les colonnes visibles (exclut les colonnes hidden)
+     */
+    getVisibleColumns() {
+        return this.columns.filter(col => !col.hidden);
+    }
+
     renderTable() {
         const thead = this.container.querySelector('thead');
         const tbody = this.container.querySelector('tbody');
+        const visibleColumns = this.getVisibleColumns();
 
         // Header
         thead.innerHTML = `
             <tr>
                 ${this.showCheckboxes ? '<th class="col-checkbox"><input type="checkbox" id="selectAll"></th>' : ''}
-                ${this.columns.map(col => `
+                ${visibleColumns.map(col => `
                     <th class="sortable" data-field="${col.field}">
                         ${escapeHtml(col.label)}
                         <span class="sort-icon">${this.getSortIcon(col.field)}</span>
@@ -219,7 +227,7 @@ class DataTable {
         if (pageData.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="${this.columns.length + (this.showCheckboxes ? 1 : 0) + (this.showActions ? 1 : 0)}">
+                    <td colspan="${visibleColumns.length + (this.showCheckboxes ? 1 : 0) + (this.showActions ? 1 : 0)}">
                         <div class="table-empty">
                             <div class="table-empty-icon">&#128194;</div>
                             <div class="table-empty-title">Aucune donnée</div>
@@ -245,7 +253,8 @@ class DataTable {
      * Rendu d'une ligne
      */
     renderRow(row, index) {
-        const rowIndex = row._rowIndex !== undefined ? row._rowIndex - 2 : index;
+        const rowIndex = row._rowIndex !== undefined ? row._rowIndex : index;
+        const visibleColumns = this.getVisibleColumns();
 
         return `
             <tr data-index="${rowIndex}">
@@ -254,9 +263,9 @@ class DataTable {
                         <input type="checkbox" class="row-checkbox" data-index="${rowIndex}">
                     </td>
                 ` : ''}
-                ${this.columns.map(col => `
+                ${visibleColumns.map(col => `
                     <td class="${col.type === 'number' ? 'col-number' : ''} ${this.getCellClass(col, row[col.field])}">
-                        ${this.formatCellValue(col, row[col.field])}
+                        ${this.formatCellValue(col, row[col.field], row)}
                     </td>
                 `).join('')}
                 ${this.showActions ? `
@@ -282,8 +291,11 @@ class DataTable {
 
     /**
      * Formate la valeur d'une cellule
+     * @param {Object} col - Configuration de la colonne
+     * @param {*} value - Valeur de la cellule
+     * @param {Object} row - Ligne complète (pour accéder au linkField si nécessaire)
      */
-    formatCellValue(col, value) {
+    formatCellValue(col, value, row = null) {
         if (value === null || value === undefined || value === '') {
             return '<span class="text-muted">-</span>';
         }
@@ -294,11 +306,25 @@ class DataTable {
             return `<span title="${escapeHtml(String(value))}">${escapeHtml(formattedName)}</span>`;
         }
 
+        // Si la colonne a un linkField, afficher comme lien cliquable
+        if (col.linkField && row && row[col.linkField]) {
+            const url = row[col.linkField];
+            const text = String(value);
+            return `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" class="table-link" title="Ouvrir dans Jira">${escapeHtml(text)}</a>`;
+        }
+
         switch (col.type) {
             case 'date':
                 return formatDate(value);
             case 'number':
                 return formatNumber(value);
+            case 'url':
+                // Afficher les URLs comme liens cliquables
+                const urlText = String(value);
+                if (urlText.startsWith('http')) {
+                    return `<a href="${escapeHtml(urlText)}" target="_blank" rel="noopener noreferrer" class="table-link">&#128279; Lien</a>`;
+                }
+                return escapeHtml(urlText);
             case 'select':
                 if (col.field.toLowerCase().includes('statut') || col.field.toLowerCase().includes('migr')) {
                     return `<span class="badge ${getMigrationStatusClass(value)}">${escapeHtml(String(value))}</span>`;
