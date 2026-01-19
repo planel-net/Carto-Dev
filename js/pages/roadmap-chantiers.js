@@ -2772,6 +2772,13 @@ class RoadmapChantiersPage {
     }
 
     async refresh() {
+        // Invalider les caches pour forcer le rechargement depuis Excel
+        invalidateCache('tChantiers');
+        invalidateCache('tPhases');
+        invalidateCache('tPhasesLien');
+        invalidateCache('tChantierProduit');
+        invalidateCache('tChantierDataAna');
+
         await this.loadData();
         this.renderFilters();
         this.attachFilterEvents();

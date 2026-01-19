@@ -1301,6 +1301,7 @@ class RoadmapGanttPage {
         invalidateCache('tSprints');
         invalidateCache('tProcessus');
         invalidateCache('tPerimetres');
+        invalidateCache('tProduits');
         await this.loadData();
     }
 }
