@@ -1007,14 +1007,14 @@ class RoadmapChantiersPage {
 
     applyFiltersWithoutRenderingFilters() {
         this.renderGantt();
-        this.attachCellEvents();
+        // attachCellEvents est appelé dans renderGantt, pas besoin de l'appeler ici
     }
 
     applyFilters() {
         this.renderFilters();
         this.attachFilterEvents();
         this.renderGantt();
-        this.attachCellEvents();
+        // attachCellEvents est appelé dans renderGantt, pas besoin de l'appeler ici
     }
 
     resetFilters() {
@@ -2086,21 +2086,36 @@ class RoadmapChantiersPage {
                     class: 'btn-primary',
                     action: async (modal) => {
                         const form = document.getElementById('formAddPhase');
-                        if (!form.checkValidity()) {
-                            form.reportValidity();
+                        const formData = new FormData(form);
+
+                        // Validation manuelle pour éviter les problèmes de timing avec la validation native
+                        const phaseName = (formData.get('Phase') || '').trim();
+                        const typePhase = formData.get('Type phase');
+                        const sprintDebut = formData.get('Sprint début');
+                        const sprintFin = formData.get('Sprint fin');
+
+                        if (!phaseName) {
+                            showError('Veuillez saisir le nom de la phase');
+                            return false;
+                        }
+                        if (!typePhase) {
+                            showError('Veuillez sélectionner un type de phase');
+                            return false;
+                        }
+                        if (!sprintDebut || !sprintFin) {
+                            showError('Veuillez sélectionner les sprints de début et de fin');
                             return false;
                         }
 
-                        const formData = new FormData(form);
                         const phaseData = {
-                            'Phase': formData.get('Phase'),
-                            'Type phase': formData.get('Type phase'),
+                            'Phase': phaseName,
+                            'Type phase': typePhase,
                             'Description': formData.get('Description'),
                             'Chantier': chantierName,
-                            'Sprint début': formData.get('Sprint début'),
-                            'Sprint fin': formData.get('Sprint fin'),
+                            'Sprint début': sprintDebut,
+                            'Sprint fin': sprintFin,
                             'Lien Teams': formData.get('Lien Teams'),
-                            'Couleur': CONFIG.PHASE_COLORS[formData.get('Type phase')] || ''
+                            'Couleur': CONFIG.PHASE_COLORS[typePhase] || ''
                         };
 
                         try {
@@ -2167,7 +2182,7 @@ class RoadmapChantiersPage {
                     <select class="form-control" name="Type phase" required>
                         <option value="">-- Sélectionner --</option>
                         ${['EB', 'Cadrage', 'Dev', 'Recette', 'MEP'].map(t => `
-                            <option value="${t}" ${phase['Type phase'] === t ? 'selected' : ''}>${t}</option>
+                            <option value="${t}" ${(phase['Type phase'] || '').trim() === t ? 'selected' : ''}>${t}</option>
                         `).join('')}
                     </select>
                 </div>
@@ -2234,21 +2249,36 @@ class RoadmapChantiersPage {
                     class: 'btn-primary',
                     action: async (modal) => {
                         const form = document.getElementById('formEditPhase');
-                        if (!form.checkValidity()) {
-                            form.reportValidity();
+                        const formData = new FormData(form);
+
+                        // Validation manuelle pour éviter les problèmes de timing avec la validation native
+                        const phaseName = (formData.get('Phase') || '').trim();
+                        const typePhase = formData.get('Type phase');
+                        const sprintDebut = formData.get('Sprint début');
+                        const sprintFin = formData.get('Sprint fin');
+
+                        if (!phaseName) {
+                            showError('Veuillez saisir le nom de la phase');
+                            return false;
+                        }
+                        if (!typePhase) {
+                            showError('Veuillez sélectionner un type de phase');
+                            return false;
+                        }
+                        if (!sprintDebut || !sprintFin) {
+                            showError('Veuillez sélectionner les sprints de début et de fin');
                             return false;
                         }
 
-                        const formData = new FormData(form);
                         const updatedPhase = {
-                            'Phase': formData.get('Phase'),
-                            'Type phase': formData.get('Type phase'),
+                            'Phase': phaseName,
+                            'Type phase': typePhase,
                             'Description': formData.get('Description'),
                             'Chantier': phase['Chantier'],
-                            'Sprint début': formData.get('Sprint début'),
-                            'Sprint fin': formData.get('Sprint fin'),
+                            'Sprint début': sprintDebut,
+                            'Sprint fin': sprintFin,
                             'Lien Teams': formData.get('Lien Teams'),
-                            'Couleur': CONFIG.PHASE_COLORS[formData.get('Type phase')] || ''
+                            'Couleur': CONFIG.PHASE_COLORS[typePhase] || ''
                         };
 
                         try {
@@ -2688,7 +2718,7 @@ class RoadmapChantiersPage {
         this.renderFilters();
         this.attachFilterEvents();
         this.renderGantt();
-        this.attachCellEvents();
+        // attachCellEvents est appelé dans renderGantt, pas besoin de l'appeler ici
     }
 }
 
