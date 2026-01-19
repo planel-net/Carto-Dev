@@ -460,13 +460,13 @@ class RoadmapChantiersPage {
                         <div class="chantier-info">
                             <span class="chantier-name" title="${escapeHtml(chantierName)}">${escapeHtml(chantierName)}</span>
                             <div class="chantier-actions">
-                                <button class="btn btn-icon btn-xs" title="Modifier" onclick="roadmapChantiersPageInstance.showEditChantierModal('${escapeHtml(chantierName)}')">
+                                <button class="btn btn-icon btn-xs" title="Modifier" onclick="roadmapChantiersPageInstance.showEditChantierModal('${escapeJsString(chantierName)}')">
                                     &#9998;
                                 </button>
-                                <button class="btn btn-icon btn-xs" title="Archiver" onclick="roadmapChantiersPageInstance.showArchiveConfirmation('${escapeHtml(chantierName)}')">
+                                <button class="btn btn-icon btn-xs" title="Archiver" onclick="roadmapChantiersPageInstance.showArchiveConfirmation('${escapeJsString(chantierName)}')">
                                     &#128451;
                                 </button>
-                                <button class="btn btn-icon btn-xs btn-danger-icon" title="Supprimer" onclick="roadmapChantiersPageInstance.showDeleteChantierConfirmation('${escapeHtml(chantierName)}')">
+                                <button class="btn btn-icon btn-xs btn-danger-icon" title="Supprimer" onclick="roadmapChantiersPageInstance.showDeleteChantierConfirmation('${escapeJsString(chantierName)}')">
                                     &#128465;
                                 </button>
                             </div>
@@ -664,7 +664,7 @@ class RoadmapChantiersPage {
                     data-total-lanes="${totalLanes}">
                     ${hasPhases
                         ? `<div class="gantt-phases-container" data-total-lanes="${totalLanes}">${phasesHtml}</div>`
-                        : `<div class="empty-cell-clickzone" onclick="roadmapChantiersPageInstance.showAddPhaseModal('${escapeHtml(chantierName)}', '${escapeHtml(sprintName)}')"></div>`}
+                        : `<div class="empty-cell-clickzone" onclick="roadmapChantiersPageInstance.showAddPhaseModal('${escapeJsString(chantierName)}', '${escapeJsString(sprintName)}')"></div>`}
                 </td>
             `);
         });
@@ -1102,8 +1102,8 @@ class RoadmapChantiersPage {
                             ${responsableDisplay ? `<div class="assigned-item-detail">${escapeHtml(responsableDisplay)}</div>` : ''}
                         </div>
                         <div class="assigned-item-actions">
-                            <button type="button" class="btn btn-icon btn-xs btn-secondary" title="Modifier" onclick="roadmapChantiersPageInstance.editProduit('${escapeHtml(produitName)}')">&#9998;</button>
-                            <button type="button" class="btn btn-icon btn-xs btn-danger" title="Enlever" onclick="roadmapChantiersPageInstance.removeAssignedProduitAdd('${escapeHtml(produitName)}')">&#10005;</button>
+                            <button type="button" class="btn btn-icon btn-xs btn-secondary" title="Modifier" onclick="roadmapChantiersPageInstance.editProduit('${escapeJsString(produitName)}')">&#9998;</button>
+                            <button type="button" class="btn btn-icon btn-xs btn-danger" title="Enlever" onclick="roadmapChantiersPageInstance.removeAssignedProduitAdd('${escapeJsString(produitName)}')">&#10005;</button>
                         </div>
                     </div>
                 `;
@@ -1129,8 +1129,8 @@ class RoadmapChantiersPage {
                             ${dataAna && dataAna['Résumé'] ? `<div class="assigned-item-detail">${escapeHtml(dataAna['Résumé'])}</div>` : ''}
                         </div>
                         <div class="assigned-item-actions">
-                            <button type="button" class="btn btn-icon btn-xs btn-secondary" title="Modifier" onclick="roadmapChantiersPageInstance.editDataAna('${escapeHtml(dataAnaKey)}')">&#9998;</button>
-                            <button type="button" class="btn btn-icon btn-xs btn-danger" title="Enlever" onclick="roadmapChantiersPageInstance.removeAssignedDataAnaAdd('${escapeHtml(dataAnaKey)}')">&#10005;</button>
+                            <button type="button" class="btn btn-icon btn-xs btn-secondary" title="Modifier" onclick="roadmapChantiersPageInstance.editDataAna('${escapeJsString(dataAnaKey)}')">&#9998;</button>
+                            <button type="button" class="btn btn-icon btn-xs btn-danger" title="Enlever" onclick="roadmapChantiersPageInstance.removeAssignedDataAnaAdd('${escapeJsString(dataAnaKey)}')">&#10005;</button>
                         </div>
                     </div>
                 `;
@@ -1337,8 +1337,8 @@ class RoadmapChantiersPage {
                             ${responsableDisplay ? `<div class="assigned-item-detail">${escapeHtml(responsableDisplay)}</div>` : ''}
                         </div>
                         <div class="assigned-item-actions">
-                            <button type="button" class="btn btn-icon btn-xs btn-secondary" title="Modifier" onclick="roadmapChantiersPageInstance.editProduit('${escapeHtml(produitName)}')">&#9998;</button>
-                            <button type="button" class="btn btn-icon btn-xs btn-danger" title="Enlever" onclick="roadmapChantiersPageInstance.removeAssignedProduitEdit('${escapeHtml(produitName)}')">&#10005;</button>
+                            <button type="button" class="btn btn-icon btn-xs btn-secondary" title="Modifier" onclick="roadmapChantiersPageInstance.editProduit('${escapeJsString(produitName)}')">&#9998;</button>
+                            <button type="button" class="btn btn-icon btn-xs btn-danger" title="Enlever" onclick="roadmapChantiersPageInstance.removeAssignedProduitEdit('${escapeJsString(produitName)}')">&#10005;</button>
                         </div>
                     </div>
                 `;
@@ -1364,8 +1364,8 @@ class RoadmapChantiersPage {
                             ${dataAna && dataAna['Résumé'] ? `<div class="assigned-item-detail">${escapeHtml(dataAna['Résumé'])}</div>` : ''}
                         </div>
                         <div class="assigned-item-actions">
-                            <button type="button" class="btn btn-icon btn-xs btn-secondary" title="Modifier" onclick="roadmapChantiersPageInstance.editDataAna('${escapeHtml(dataAnaKey)}')">&#9998;</button>
-                            <button type="button" class="btn btn-icon btn-xs btn-danger" title="Enlever" onclick="roadmapChantiersPageInstance.removeAssignedDataAnaEdit('${escapeHtml(dataAnaKey)}')">&#10005;</button>
+                            <button type="button" class="btn btn-icon btn-xs btn-secondary" title="Modifier" onclick="roadmapChantiersPageInstance.editDataAna('${escapeJsString(dataAnaKey)}')">&#9998;</button>
+                            <button type="button" class="btn btn-icon btn-xs btn-danger" title="Enlever" onclick="roadmapChantiersPageInstance.removeAssignedDataAnaEdit('${escapeJsString(dataAnaKey)}')">&#10005;</button>
                         </div>
                     </div>
                 `;
@@ -1960,7 +1960,7 @@ class RoadmapChantiersPage {
                             <strong>${escapeHtml(c['Chantier'])}</strong>
                             <span class="text-muted">${this.formatActorName(c['Responsable'])}</span>
                         </div>
-                        <button class="btn btn-sm btn-success" onclick="roadmapChantiersPageInstance.unarchiveChantier('${escapeHtml(c['Chantier'])}')">
+                        <button class="btn btn-sm btn-success" onclick="roadmapChantiersPageInstance.unarchiveChantier('${escapeJsString(c['Chantier'])}')">
                             Réafficher
                         </button>
                     </div>
@@ -2514,7 +2514,7 @@ class RoadmapChantiersPage {
             <div class="context-menu-item" onclick="roadmapChantiersPageInstance.showEditPhaseModal(${phaseIndex})">
                 <span>&#9998;</span> Modifier
             </div>
-            <div class="context-menu-item" onclick="roadmapChantiersPageInstance.hideContextMenu(); roadmapChantiersPageInstance.showAddPhaseModalForChantier('${escapeHtml(chantierName)}')">
+            <div class="context-menu-item" onclick="roadmapChantiersPageInstance.hideContextMenu(); roadmapChantiersPageInstance.showAddPhaseModalForChantier('${escapeJsString(chantierName)}')">
                 <span>&#10133;</span> Ajouter une phase
             </div>
             <div class="context-menu-item danger" onclick="roadmapChantiersPageInstance.showDeletePhaseConfirmation(${phaseIndex})">

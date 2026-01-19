@@ -619,15 +619,15 @@ class ParcPage {
 
         popup.innerHTML = `
             <div class="matrix-status-popup-title">Ajouter un lien avec statut</div>
-            <div class="matrix-status-option" onclick="parcPageInstance.addLinkWithStatus('${escapeHtml(cellId)}', 'Run')">
+            <div class="matrix-status-option" onclick="parcPageInstance.addLinkWithStatus('${escapeJsString(cellId)}', 'Run')">
                 <span class="status-color run"></span>
                 <span>Run</span>
             </div>
-            <div class="matrix-status-option" onclick="parcPageInstance.addLinkWithStatus('${escapeHtml(cellId)}', 'Evolution')">
+            <div class="matrix-status-option" onclick="parcPageInstance.addLinkWithStatus('${escapeJsString(cellId)}', 'Evolution')">
                 <span class="status-color evolution"></span>
                 <span>Evolution</span>
             </div>
-            <div class="matrix-status-option" onclick="parcPageInstance.addLinkWithStatus('${escapeHtml(cellId)}', 'Backlog')">
+            <div class="matrix-status-option" onclick="parcPageInstance.addLinkWithStatus('${escapeJsString(cellId)}', 'Backlog')">
                 <span class="status-color backlog"></span>
                 <span>Backlog</span>
             </div>

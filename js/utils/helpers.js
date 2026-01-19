@@ -371,6 +371,23 @@ function escapeHtml(text) {
 }
 
 /**
+ * Échappe une chaîne pour utilisation dans un attribut onclick JavaScript
+ * Gère les guillemets simples, doubles, backslashes et les entités HTML
+ * @param {string} text - Texte à échapper
+ * @returns {string} Texte échappé pour JavaScript dans HTML
+ */
+function escapeJsString(text) {
+    if (!text) return '';
+    return String(text)
+        .replace(/\\/g, '\\\\')     // Backslash d'abord
+        .replace(/'/g, "\\'")       // Guillemets simples
+        .replace(/"/g, '&quot;')    // Guillemets doubles (pour HTML)
+        .replace(/</g, '\\u003c')   // < pour éviter injection
+        .replace(/>/g, '\\u003e')   // > pour éviter injection
+        .replace(/&/g, '\\u0026');  // & pour éviter les entités HTML
+}
+
+/**
  * Parse un nombre depuis une chaîne
  * @param {string} value - Valeur à parser
  * @returns {number|null} Nombre ou null
