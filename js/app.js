@@ -230,6 +230,10 @@ async function navigateTo(page, table = null) {
                 await renderRoadmapPage(container);
                 break;
 
+            case 'backlog':
+                await renderBacklogPage(container);
+                break;
+
             case 'params':
                 if (table) {
                     await renderParamsPage(container, table);
@@ -271,7 +275,9 @@ function updatePageTitle(page, table) {
         migration: 'Cartographie',
         parc: 'Parc Applicatif',
         'roadmap-gantt': 'Roadmap',
-        roadmap: 'Backlog'
+        'roadmap-chantiers': 'Roadmap',
+        roadmap: 'Ancienne Roadmap',
+        backlog: 'Backlog'
     };
 
     if (page === 'params' && table) {
@@ -329,6 +335,9 @@ async function refreshCurrentPage() {
                 break;
             case 'roadmap':
                 await refreshRoadmapPage();
+                break;
+            case 'backlog':
+                await refreshBacklogPage();
                 break;
             case 'params':
                 await refreshParamsPage();
