@@ -11,6 +11,125 @@ const CACHE_DURATION = 30000; // 30 secondes
 const EXCEL_TIMEOUT = 30000; // 30 secondes (augmenté pour les réseaux lents)
 
 /**
+ * File d'attente pour sérialiser les opérations d'écriture Excel
+ * Évite les conflits de contexte quand plusieurs modifications arrivent rapidement
+ * Gère aussi les conflits multi-utilisateurs avec des messages explicites
+ */
+const ExcelWriteQueue = {
+    _queue: [],
+    _isProcessing: false,
+    _retryCount: 3,
+    _retryDelay: 1500, // 1.5 seconde entre les retries (augmenté pour multi-utilisateurs)
+
+    /**
+     * Ajoute une opération à la file d'attente
+     * @param {Function} operation - Fonction async à exécuter
+     * @returns {Promise} Résultat de l'opération
+     */
+    async enqueue(operation) {
+        return new Promise((resolve, reject) => {
+            this._queue.push({ operation, resolve, reject });
+            this._processNext();
+        });
+    },
+
+    /**
+     * Traite la prochaine opération dans la file
+     */
+    async _processNext() {
+        if (this._isProcessing || this._queue.length === 0) {
+            return;
+        }
+
+        this._isProcessing = true;
+        const { operation, resolve, reject } = this._queue.shift();
+
+        try {
+            const result = await this._executeWithRetry(operation);
+            resolve(result);
+        } catch (error) {
+            // Transformer l'erreur en message explicite
+            reject(this._formatError(error));
+        } finally {
+            this._isProcessing = false;
+            // Petit délai entre les opérations pour laisser Excel respirer
+            setTimeout(() => this._processNext(), 150);
+        }
+    },
+
+    /**
+     * Exécute une opération avec retry automatique
+     */
+    async _executeWithRetry(operation, attempt = 1) {
+        try {
+            return await operation();
+        } catch (error) {
+            console.warn(`[ExcelWriteQueue] Attempt ${attempt}/${this._retryCount} failed:`, error.message);
+
+            // Vérifier si c'est une erreur récupérable
+            if (attempt < this._retryCount && this._isRetryableError(error)) {
+                // Attendre avant de réessayer (délai exponentiel)
+                const delay = this._retryDelay * attempt;
+                console.log(`[ExcelWriteQueue] Retrying in ${delay}ms...`);
+                await new Promise(r => setTimeout(r, delay));
+                return this._executeWithRetry(operation, attempt + 1);
+            }
+
+            // Toutes les tentatives ont échoué ou erreur non récupérable
+            console.error(`[ExcelWriteQueue] Operation failed after ${attempt} attempt(s)`);
+            throw error;
+        }
+    },
+
+    /**
+     * Vérifie si l'erreur peut être récupérée par un retry
+     */
+    _isRetryableError(error) {
+        const retryableCodes = [
+            'InvalidOperationInCellEditMode', // Cellule en cours d'édition
+            'GeneralException', // Erreur générique souvent temporaire
+            'Conflict', // Conflit de modification
+            'ServiceNotAvailable', // Service temporairement indisponible
+            'Timeout' // Timeout
+        ];
+        return retryableCodes.includes(error.code) ||
+               error.message?.includes('context') ||
+               error.message?.includes('sync');
+    },
+
+    /**
+     * Formate l'erreur avec un message explicite pour l'utilisateur
+     */
+    _formatError(error) {
+        let userMessage = 'Erreur lors de la modification.';
+
+        // Analyser le type d'erreur pour donner un message clair
+        if (error.code === 'InvalidOperationInCellEditMode') {
+            userMessage = 'Une cellule est en cours d\'édition. Appuyez sur Entrée ou Échap dans Excel, puis réessayez.';
+        } else if (error.code === 'Conflict' || error.message?.includes('conflict')) {
+            userMessage = 'Conflit de modification : un autre utilisateur modifie le fichier. Veuillez réessayer dans quelques secondes.';
+        } else if (error.code === 'ItemNotFound') {
+            userMessage = 'L\'élément n\'existe plus. Il a peut-être été supprimé par un autre utilisateur. Actualisez la page.';
+        } else if (error.code === 'ServiceNotAvailable' || error.message?.includes('unavailable')) {
+            userMessage = 'Excel est temporairement indisponible. Veuillez réessayer dans quelques instants.';
+        } else if (error.message?.includes('timeout') || error.message?.includes('Timeout')) {
+            userMessage = 'La connexion avec Excel a expiré. Vérifiez votre connexion et réessayez.';
+        } else if (error.message?.includes('context')) {
+            userMessage = 'Opération interrompue. Veuillez réessayer.';
+        }
+
+        // Créer une nouvelle erreur avec le message formaté
+        const formattedError = new Error(userMessage);
+        formattedError.originalError = error;
+        formattedError.code = error.code;
+
+        console.error('[ExcelWriteQueue] Formatted error:', userMessage, '| Original:', error.message);
+
+        return formattedError;
+    }
+};
+
+/**
  * Gestionnaire de statut de connexion Excel
  */
 const ConnectionStatus = {
@@ -218,6 +337,7 @@ async function writeCell(sheetName, cellAddress, value) {
 
 /**
  * Ajoute une ligne à une table Excel
+ * Utilise ExcelWriteQueue pour éviter les conflits de contexte
  * @param {string} tableName - Nom de la table
  * @param {Object} rowData - Données de la ligne (objet clé-valeur)
  * @returns {Promise<Object>} Ligne ajoutée avec son index
@@ -226,32 +346,36 @@ async function addTableRow(tableName, rowData) {
     // Invalider le cache
     tableCache.delete(tableName);
 
-    return await Excel.run(async (context) => {
-        const table = context.workbook.tables.getItem(tableName);
-        const headerRange = table.getHeaderRowRange();
-        headerRange.load('values');
+    // Utiliser la file d'attente pour sérialiser les opérations
+    return await ExcelWriteQueue.enqueue(async () => {
+        return await Excel.run(async (context) => {
+            const table = context.workbook.tables.getItem(tableName);
+            const headerRange = table.getHeaderRowRange();
+            headerRange.load('values');
 
-        await context.sync();
+            await context.sync();
 
-        const headers = headerRange.values[0];
+            const headers = headerRange.values[0];
 
-        // Convertir l'objet en tableau dans l'ordre des colonnes
-        const rowValues = headers.map(header => {
-            const value = rowData[header];
-            return value !== undefined ? value : '';
+            // Convertir l'objet en tableau dans l'ordre des colonnes
+            const rowValues = headers.map(header => {
+                const value = rowData[header];
+                return value !== undefined ? value : '';
+            });
+
+            // Ajouter la ligne
+            table.rows.add(null, [rowValues]);
+
+            await context.sync();
+
+            return { success: true, data: rowData };
         });
-
-        // Ajouter la ligne
-        table.rows.add(null, [rowValues]);
-
-        await context.sync();
-
-        return { success: true, data: rowData };
     });
 }
 
 /**
  * Met à jour une ligne d'une table Excel
+ * Utilise ExcelWriteQueue pour éviter les conflits de contexte
  * @param {string} tableName - Nom de la table
  * @param {number} rowIndex - Index de la ligne (0-based dans le corps de la table)
  * @param {Object} rowData - Nouvelles données
@@ -261,35 +385,39 @@ async function updateTableRow(tableName, rowIndex, rowData) {
     // Invalider le cache
     tableCache.delete(tableName);
 
-    return await Excel.run(async (context) => {
-        const table = context.workbook.tables.getItem(tableName);
-        const headerRange = table.getHeaderRowRange();
-        const bodyRange = table.getDataBodyRange();
+    // Utiliser la file d'attente pour sérialiser les opérations
+    return await ExcelWriteQueue.enqueue(async () => {
+        return await Excel.run(async (context) => {
+            const table = context.workbook.tables.getItem(tableName);
+            const headerRange = table.getHeaderRowRange();
+            const bodyRange = table.getDataBodyRange();
 
-        headerRange.load('values');
+            headerRange.load('values');
 
-        await context.sync();
+            await context.sync();
 
-        const headers = headerRange.values[0];
+            const headers = headerRange.values[0];
 
-        // Convertir l'objet en tableau dans l'ordre des colonnes
-        const rowValues = headers.map(header => {
-            const value = rowData[header];
-            return value !== undefined ? value : '';
+            // Convertir l'objet en tableau dans l'ordre des colonnes
+            const rowValues = headers.map(header => {
+                const value = rowData[header];
+                return value !== undefined ? value : '';
+            });
+
+            // Obtenir la ligne spécifique
+            const row = bodyRange.getRow(rowIndex);
+            row.values = [rowValues];
+
+            await context.sync();
+
+            return { success: true, data: rowData };
         });
-
-        // Obtenir la ligne spécifique
-        const row = bodyRange.getRow(rowIndex);
-        row.values = [rowValues];
-
-        await context.sync();
-
-        return { success: true, data: rowData };
     });
 }
 
 /**
  * Supprime une ligne d'une table Excel
+ * Utilise ExcelWriteQueue pour éviter les conflits de contexte
  * @param {string} tableName - Nom de la table
  * @param {number} rowIndex - Index de la ligne (0-based dans le corps de la table)
  * @returns {Promise<Object>} Résultat de la suppression
@@ -298,19 +426,23 @@ async function deleteTableRow(tableName, rowIndex) {
     // Invalider le cache
     tableCache.delete(tableName);
 
-    return await Excel.run(async (context) => {
-        const table = context.workbook.tables.getItem(tableName);
-        const row = table.rows.getItemAt(rowIndex);
-        row.delete();
+    // Utiliser la file d'attente pour sérialiser les opérations
+    return await ExcelWriteQueue.enqueue(async () => {
+        return await Excel.run(async (context) => {
+            const table = context.workbook.tables.getItem(tableName);
+            const row = table.rows.getItemAt(rowIndex);
+            row.delete();
 
-        await context.sync();
+            await context.sync();
 
-        return { success: true };
+            return { success: true };
+        });
     });
 }
 
 /**
  * Supprime plusieurs lignes d'une table (en partant de la fin)
+ * Utilise ExcelWriteQueue pour éviter les conflits de contexte
  * @param {string} tableName - Nom de la table
  * @param {Array<number>} rowIndexes - Indexes des lignes à supprimer
  * @returns {Promise<Object>} Résultat
@@ -322,17 +454,20 @@ async function deleteTableRows(tableName, rowIndexes) {
     // Trier en ordre décroissant pour supprimer de la fin vers le début
     const sortedIndexes = [...rowIndexes].sort((a, b) => b - a);
 
-    return await Excel.run(async (context) => {
-        const table = context.workbook.tables.getItem(tableName);
+    // Utiliser la file d'attente pour sérialiser les opérations
+    return await ExcelWriteQueue.enqueue(async () => {
+        return await Excel.run(async (context) => {
+            const table = context.workbook.tables.getItem(tableName);
 
-        for (const index of sortedIndexes) {
-            const row = table.rows.getItemAt(index);
-            row.delete();
-        }
+            for (const index of sortedIndexes) {
+                const row = table.rows.getItemAt(index);
+                row.delete();
+            }
 
-        await context.sync();
+            await context.sync();
 
-        return { success: true, deletedCount: rowIndexes.length };
+            return { success: true, deletedCount: rowIndexes.length };
+        });
     });
 }
 
