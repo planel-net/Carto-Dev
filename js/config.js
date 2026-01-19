@@ -6,7 +6,7 @@
 const CONFIG = {
     // Nom de l'application
     APP_NAME: 'Carto',
-    APP_VERSION: '1.0.72',
+    APP_VERSION: '1.0.73',
 
     // Noms des feuilles spéciales
     SHEETS: {
@@ -261,8 +261,7 @@ const CONFIG = {
                 { field: 'Priorité', label: 'Priorité', type: 'text' },
                 { field: 'État', label: 'État', type: 'text' },
                 { field: 'Personne assignée', label: 'Personne assignée', type: 'text' },
-                { field: 'Charge estimée', label: 'Charge estimée', type: 'number' },
-                { field: 'Estimation originale', label: 'Estimation originale', type: 'number' }
+                { field: 'Charge estimée', label: 'Charge estimée', type: 'number' }
             ]
         }
     },
