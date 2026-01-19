@@ -719,21 +719,42 @@ class RoadmapChantiersPage {
 
     /**
      * Met à jour les largeurs des blocs de phase après le rendu
-     * Calcule la largeur réelle des colonnes depuis le DOM
+     * Calcule la largeur basée sur les positions réelles des cellules cibles
      */
     updatePhaseWidths() {
-        // Utiliser les constantes de classe pour garantir l'alignement exact avec les colonnes
-        const cellWidth = RoadmapChantiersPage.SPRINT_COL_WIDTH;
         const PHASE_MARGIN = RoadmapChantiersPage.PHASE_MARGIN;
 
         // Mettre à jour chaque bloc de phase
         const phaseBlocks = document.querySelectorAll('.gantt-chantiers-table .gantt-phase-block');
         phaseBlocks.forEach(block => {
             const colspan = parseInt(block.dataset.colspan) || 1;
-            // Formule: (largeur_cellule × nombre_sprints) - (marge × 2)
-            const widthPx = (colspan * cellWidth) - (PHASE_MARGIN * 2);
-            block.style.width = `${widthPx}px`;
-            block.style.minWidth = `${widthPx}px`;
+
+            // Trouver la cellule parente (première cellule où commence la phase)
+            const parentCell = block.closest('.gantt-data-cell');
+            if (!parentCell) return;
+
+            // Trouver la ligne du chantier
+            const row = parentCell.closest('tr');
+            if (!row) return;
+
+            // Obtenir toutes les cellules de données de cette ligne
+            const dataCells = Array.from(row.querySelectorAll('.gantt-data-cell'));
+            const startCellIndex = dataCells.indexOf(parentCell);
+            const endCellIndex = Math.min(startCellIndex + colspan - 1, dataCells.length - 1);
+
+            // Calculer la largeur totale des cellules couvertes
+            const startCell = dataCells[startCellIndex];
+            const endCell = dataCells[endCellIndex];
+
+            if (startCell && endCell) {
+                const startRect = startCell.getBoundingClientRect();
+                const endRect = endCell.getBoundingClientRect();
+
+                // Largeur = de gauche de la première cellule à droite de la dernière, moins les marges
+                const totalWidth = (endRect.right - startRect.left) - (PHASE_MARGIN * 2);
+                block.style.width = `${totalWidth}px`;
+                block.style.minWidth = `${totalWidth}px`;
+            }
         });
     }
 
@@ -784,6 +805,15 @@ class RoadmapChantiersPage {
             if (!e.target.closest('.gantt-context-menu')) {
                 this.hideContextMenu();
             }
+        });
+
+        // Recalculer les largeurs des phases lors du redimensionnement de la fenêtre
+        let resizeTimeout = null;
+        window.addEventListener('resize', () => {
+            if (resizeTimeout) clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                this.updatePhaseWidths();
+            }, 100);
         });
     }
 
