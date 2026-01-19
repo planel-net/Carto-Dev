@@ -1230,7 +1230,7 @@ class RoadmapChantiersPage {
                             'Chantier': formData.get('Chantier'),
                             'Responsable': formData.get('Responsable'),
                             'Perimetre': formData.get('Perimetre'),
-                            'Archivé': form.querySelector('input[name="Archivé"]').checked ? 'VRAI' : 'FAUX'
+                            'Archivé': form.querySelector('input[name="Archivé"]').checked ? true : false
                         };
 
                         try {
@@ -1470,7 +1470,7 @@ class RoadmapChantiersPage {
                             'Chantier': formData.get('Chantier'),
                             'Responsable': formData.get('Responsable'),
                             'Perimetre': formData.get('Perimetre'),
-                            'Archivé': form.querySelector('input[name="Archivé"]').checked ? 'VRAI' : 'FAUX'
+                            'Archivé': form.querySelector('input[name="Archivé"]').checked ? true : false
                         };
 
                         try {
@@ -1864,7 +1864,7 @@ class RoadmapChantiersPage {
                     }
 
                     const updatedChantier = { ...chantier };
-                    updatedChantier['Archivé'] = 'VRAI';
+                    updatedChantier['Archivé'] = true;
 
                     await updateTableRow('tChantiers', rowIndex, updatedChantier);
                     invalidateCache('tChantiers');
@@ -2039,7 +2039,7 @@ class RoadmapChantiersPage {
             }
 
             const updatedChantier = { ...chantier };
-            updatedChantier['Archivé'] = 'FAUX';
+            updatedChantier['Archivé'] = false;
 
             await updateTableRow('tChantiers', rowIndex, updatedChantier);
 
