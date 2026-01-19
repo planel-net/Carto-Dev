@@ -515,6 +515,11 @@ thead tr:nth-child(2) .matrix-col-fixed {
     white-space: nowrap;
 }
 
+.multi-select-option.empty-option span {
+    font-style: italic;
+    color: var(--mh-gris-moyen);
+}
+
 .multi-select-empty {
     padding: var(--spacing-md);
     text-align: center;

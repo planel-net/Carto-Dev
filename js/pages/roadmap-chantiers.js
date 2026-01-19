@@ -124,9 +124,9 @@ class RoadmapChantiersPage {
                 return dateA - dateB;
             });
 
-            // Initialiser les filtres avec toutes les valeurs (pour afficher tout par défaut)
+            // Initialiser les filtres avec toutes les valeurs (pour afficher tout par défaut, y compris "Non rempli")
             this.filters.perimetres = this.getAllPerimetres();
-            this.filters.responsables = [...new Set(this.chantiers.map(c => c['Responsable']).filter(Boolean))];
+            this.filters.responsables = this.getAllResponsables();
 
         } catch (error) {
             console.error('Erreur chargement données roadmap chantiers:', error);
@@ -146,6 +146,7 @@ class RoadmapChantiersPage {
      * Retourne l'union des périmètres (table de référence + ceux utilisés dans les chantiers)
      * Garantit que tous les chantiers sont affichables même si leur périmètre n'est pas dans tPerimetres
      * Utilise une comparaison insensible à la casse pour dédupliquer (VdC == VDC)
+     * Inclut l'option "(Non rempli)" si des chantiers n'ont pas de périmètre
      */
     getAllPerimetres() {
         const perimetresFromTable = this.perimetres.map(p => p['Périmetre']).filter(Boolean);
@@ -161,7 +162,31 @@ class RoadmapChantiersPage {
             }
         });
 
-        return [...seen.values()].sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+        const result = [...seen.values()].sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+
+        // Ajouter l'option "(Non rempli)" si des chantiers n'ont pas de périmètre
+        const hasEmptyPerimetre = this.chantiers.some(c => !c['Perimetre']);
+        if (hasEmptyPerimetre) {
+            result.push(CONFIG.EMPTY_FILTER_VALUE);
+        }
+
+        return result;
+    }
+
+    /**
+     * Retourne la liste des responsables incluant l'option "(Non rempli)" si nécessaire
+     */
+    getAllResponsables() {
+        const responsables = [...new Set(this.chantiers.map(c => c['Responsable']).filter(Boolean))];
+        const result = responsables.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+
+        // Ajouter l'option "(Non rempli)" si des chantiers n'ont pas de responsable
+        const hasEmptyResponsable = this.chantiers.some(c => !c['Responsable']);
+        if (hasEmptyResponsable) {
+            result.push(CONFIG.EMPTY_FILTER_VALUE);
+        }
+
+        return result;
     }
 
     /**
@@ -225,9 +250,9 @@ class RoadmapChantiersPage {
             return d.toISOString().split('T')[0];
         };
 
-        // Liste unique des périmètres et responsables
+        // Liste unique des périmètres et responsables (incluant l'option "Non rempli" si nécessaire)
         const perimetresList = this.getAllPerimetres();
-        const responsablesList = [...new Set(this.chantiers.map(c => c['Responsable']).filter(Boolean))];
+        const responsablesList = this.getAllResponsables();
 
         // Calcul des labels
         const perimetreAllSelected = this.filters.perimetres.length === perimetresList.length;
@@ -259,7 +284,7 @@ class RoadmapChantiersPage {
                         </div>
                         <div class="multi-select-options">
                             ${perimetresList.map(p => `
-                                <label class="multi-select-option">
+                                <label class="multi-select-option${p === CONFIG.EMPTY_FILTER_VALUE ? ' empty-option' : ''}">
                                     <input type="checkbox" value="${escapeHtml(p)}"
                                         ${this.filters.perimetres.includes(p) ? 'checked' : ''}
                                         onchange="roadmapChantiersPageInstance.onPerimetreCheckChange()">
@@ -284,11 +309,11 @@ class RoadmapChantiersPage {
                         </div>
                         <div class="multi-select-options">
                             ${responsablesList.map(r => `
-                                <label class="multi-select-option">
+                                <label class="multi-select-option${r === CONFIG.EMPTY_FILTER_VALUE ? ' empty-option' : ''}">
                                     <input type="checkbox" value="${escapeHtml(r)}"
                                         ${this.filters.responsables.includes(r) ? 'checked' : ''}
                                         onchange="roadmapChantiersPageInstance.onResponsableCheckChange()">
-                                    <span>${this.formatActorName(r)}</span>
+                                    <span>${r === CONFIG.EMPTY_FILTER_VALUE ? r : this.formatActorName(r)}</span>
                                 </label>
                             `).join('')}
                         </div>
@@ -346,10 +371,15 @@ class RoadmapChantiersPage {
      * Obtient les chantiers filtrés
      * Note: perimetres/responsables vides = aucun filtre sélectionné = ne rien afficher
      * Pour tout afficher, toutes les valeurs doivent être dans le tableau
+     * Gère l'option "(Non rempli)" pour afficher les chantiers sans périmètre/responsable
      */
     getFilteredChantiers() {
         // Préparer les filtres en lowercase pour comparaison insensible à la casse
-        const perimetresLower = this.filters.perimetres.map(p => (p || '').toLowerCase());
+        const perimetresLower = this.filters.perimetres
+            .filter(p => p !== CONFIG.EMPTY_FILTER_VALUE)
+            .map(p => (p || '').toLowerCase());
+        const includeEmptyPerimetre = this.filters.perimetres.includes(CONFIG.EMPTY_FILTER_VALUE);
+        const includeEmptyResponsable = this.filters.responsables.includes(CONFIG.EMPTY_FILTER_VALUE);
 
         return this.chantiers.filter(chantier => {
             // Filtre par périmètre (vide = afficher aucun) - comparaison insensible à la casse
@@ -357,16 +387,25 @@ class RoadmapChantiersPage {
                 return false;
             }
             const chantierPerimetre = (chantier['Perimetre'] || '').toLowerCase();
-            if (!perimetresLower.includes(chantierPerimetre)) {
+            const perimetreMatch = chantierPerimetre === ''
+                ? includeEmptyPerimetre
+                : perimetresLower.includes(chantierPerimetre);
+            if (!perimetreMatch) {
                 return false;
             }
+
             // Filtre par responsable (vide = afficher aucun)
             if (this.filters.responsables.length === 0) {
                 return false;
             }
-            if (!this.filters.responsables.includes(chantier['Responsable'])) {
+            const chantierResponsable = chantier['Responsable'];
+            const responsableMatch = !chantierResponsable
+                ? includeEmptyResponsable
+                : this.filters.responsables.includes(chantierResponsable);
+            if (!responsableMatch) {
                 return false;
             }
+
             return true;
         });
     }
@@ -968,11 +1007,10 @@ class RoadmapChantiersPage {
     }
 
     selectAllResponsables() {
-        // "Tous" = cocher toutes les cases = afficher tous les chantiers
-        const allResponsables = [...new Set(this.chantiers.map(c => c['Responsable']).filter(Boolean))];
+        // "Tous" = cocher toutes les cases = afficher tous les chantiers (y compris sans responsable)
         const checkboxes = document.querySelectorAll('#responsableDropdown input[type="checkbox"]');
         checkboxes.forEach(cb => cb.checked = true);
-        this.filters.responsables = [...allResponsables];
+        this.filters.responsables = this.getAllResponsables();
         this.updateResponsableLabel();
         this.applyFiltersWithoutRenderingFilters();
     }
@@ -998,7 +1036,7 @@ class RoadmapChantiersPage {
     updateResponsableLabel() {
         const label = document.querySelector('#responsableFilterWrapper .multi-select-label');
         if (label) {
-            const allResponsables = [...new Set(this.chantiers.map(c => c['Responsable']).filter(Boolean))];
+            const allResponsables = this.getAllResponsables();
             const allSelected = this.filters.responsables.length === allResponsables.length;
             label.textContent = allSelected ? 'Tous' :
                 (this.filters.responsables.length === 0 ? 'Aucun' : this.filters.responsables.length + ' sélectionné(s)');
@@ -1019,12 +1057,12 @@ class RoadmapChantiersPage {
 
     resetFilters() {
         // Réinitialiser avec les dates par défaut (1 mois avant à 3 mois après)
-        // et tous les périmètres/responsables sélectionnés
+        // et tous les périmètres/responsables sélectionnés (y compris "Non rempli")
         this.filters = {
             dateDebut: new Date(new Date().setMonth(new Date().getMonth() - 1)),
             dateFin: new Date(new Date().setMonth(new Date().getMonth() + 3)),
             perimetres: this.getAllPerimetres(),
-            responsables: [...new Set(this.chantiers.map(c => c['Responsable']).filter(Boolean))]
+            responsables: this.getAllResponsables()
         };
         this.applyFilters();
     }
