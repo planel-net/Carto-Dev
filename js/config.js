@@ -6,7 +6,7 @@
 const CONFIG = {
     // Nom de l'application
     APP_NAME: 'Carto',
-    APP_VERSION: '1.0.65',
+    APP_VERSION: '1.0.70',
 
     // Noms des feuilles spéciales
     SHEETS: {
@@ -248,6 +248,22 @@ const CONFIG = {
                 { field: 'Chantier', label: 'Chantier', type: 'select', source: 'CHANTIER', sourceField: 'Chantier' },
                 { field: 'Produit', label: 'Produit', type: 'select', source: 'PRODUITS', sourceField: 'Nom' }
             ]
+        },
+        DATAANA: {
+            name: 'tDataAnas',
+            sheet: 'DataAna',
+            displayName: 'DataAna',
+            icon: '&#128202;',
+            jiraSheet: 'DataAnaJira',
+            columns: [
+                { field: 'Clé', label: 'Clé', type: 'text', required: true },
+                { field: 'Résumé', label: 'Résumé', type: 'text' },
+                { field: 'Priorité', label: 'Priorité', type: 'text' },
+                { field: 'État', label: 'État', type: 'text' },
+                { field: 'Personne assignée', label: 'Personne assignée', type: 'text' },
+                { field: 'Charge estimée', label: 'Charge estimée', type: 'number' },
+                { field: 'Estimation originale', label: 'Estimation originale', type: 'number' }
+            ]
         }
     },
 
@@ -310,7 +326,8 @@ const CONFIG = {
             { id: 'sprints', label: 'Sprints', icon: '&#128197;', table: 'SPRINTS' },
             { id: 'capacite', label: 'Capacité', icon: '&#128200;', table: 'CAPACITE' },
             { id: 'chantiers', label: 'Chantiers', icon: '&#128736;', table: 'CHANTIER' },
-            { id: 'phases', label: 'Phases', icon: '&#128197;', table: 'PHASES' }
+            { id: 'phases', label: 'Phases', icon: '&#128197;', table: 'PHASES' },
+            { id: 'dataana', label: 'DataAna', icon: '&#128202;', table: 'DATAANA' }
         ]
     },
 

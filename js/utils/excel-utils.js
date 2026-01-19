@@ -417,3 +417,111 @@ async function safeExcelOperation(operation) {
         return { success: false, error: message };
     }
 }
+
+/**
+ * Lit toutes les données d'une feuille Excel (usedRange)
+ * @param {string} sheetName - Nom de la feuille Excel
+ * @returns {Promise<Object>} { headers: [], rows: [], data: [] }
+ */
+async function readSheet(sheetName) {
+    console.log(`[readSheet] Reading sheet: ${sheetName}`);
+
+    try {
+        if (typeof Excel === 'undefined') {
+            console.error('[readSheet] Excel API is not available');
+            return { headers: [], rows: [], data: [] };
+        }
+
+        return await Excel.run(async (context) => {
+            const sheet = context.workbook.worksheets.getItem(sheetName);
+            const usedRange = sheet.getUsedRange();
+            usedRange.load('values');
+
+            await context.sync();
+
+            const values = usedRange.values || [];
+            if (values.length === 0) {
+                return { headers: [], rows: [], data: [] };
+            }
+
+            const headers = values[0];
+            const rows = values.slice(1);
+
+            // Convertir en tableau d'objets
+            const data = rows.map((row, index) => {
+                const obj = { _rowIndex: index };
+                headers.forEach((header, colIndex) => {
+                    obj[header] = row[colIndex];
+                });
+                return obj;
+            });
+
+            console.log(`[readSheet] ${sheetName} has ${rows.length} rows`);
+            return { headers, rows, data };
+        });
+    } catch (error) {
+        console.error(`[readSheet] Error for ${sheetName}:`, error);
+        return { headers: [], rows: [], data: [] };
+    }
+}
+
+/**
+ * Copie les données d'une feuille Jira vers une table, en vérifiant les doublons par clé
+ * @param {string} jiraSheetName - Nom de la feuille source (Jira)
+ * @param {string} tableName - Nom de la table destination
+ * @param {string} keyField - Nom du champ clé pour vérifier les doublons
+ * @returns {Promise<Object>} Résultat { success, added, skipped, error }
+ */
+async function copyFromJira(jiraSheetName, tableName, keyField = 'Clé') {
+    console.log(`[copyFromJira] Copying from ${jiraSheetName} to ${tableName}`);
+
+    try {
+        // Invalider le cache de la table destination
+        tableCache.delete(tableName);
+
+        // Lire les données source (feuille Jira)
+        const jiraData = await readSheet(jiraSheetName);
+        if (jiraData.data.length === 0) {
+            return { success: true, added: 0, skipped: 0, message: 'Aucune donnée dans la feuille source' };
+        }
+
+        // Lire les données existantes dans la table destination
+        const existingData = await readTable(tableName, false);
+        const existingKeys = new Set(
+            existingData.data.map(row => String(row[keyField] || '').trim().toLowerCase())
+        );
+
+        console.log(`[copyFromJira] Existing keys: ${existingKeys.size}`);
+
+        // Filtrer les lignes à ajouter (celles dont la clé n'existe pas)
+        const rowsToAdd = jiraData.data.filter(row => {
+            const key = String(row[keyField] || '').trim().toLowerCase();
+            return key && !existingKeys.has(key);
+        });
+
+        console.log(`[copyFromJira] Rows to add: ${rowsToAdd.length}`);
+
+        // Ajouter les nouvelles lignes
+        let added = 0;
+        for (const row of rowsToAdd) {
+            // Supprimer _rowIndex avant l'ajout
+            const rowData = { ...row };
+            delete rowData._rowIndex;
+
+            await addTableRow(tableName, rowData);
+            added++;
+        }
+
+        const skipped = jiraData.data.length - added;
+
+        return {
+            success: true,
+            added,
+            skipped,
+            message: `${added} élément(s) ajouté(s), ${skipped} ignoré(s) (déjà existants)`
+        };
+    } catch (error) {
+        console.error(`[copyFromJira] Error:`, error);
+        return { success: false, added: 0, skipped: 0, error: error.message };
+    }
+}

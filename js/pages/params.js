@@ -26,11 +26,21 @@ class ParamsPage {
             return;
         }
 
+        // Afficher le bouton Copie Jira si la table a une source Jira
+        const jiraButtonHtml = this.tableConfig.jiraSheet ? `
+            <button id="btnCopyJira" class="btn btn-action">
+                <span>&#128230;</span> Copie Jira
+            </button>
+        ` : '';
+
         container.innerHTML = `
             <div class="page-header">
                 <div class="page-header-left">
                     <h1>${this.tableConfig.icon || ''} ${this.tableConfig.displayName}</h1>
                     <p>Gestion de la table ${this.tableConfig.name}</p>
+                </div>
+                <div class="page-header-right">
+                    ${jiraButtonHtml}
                 </div>
             </div>
 
@@ -39,7 +49,49 @@ class ParamsPage {
             </section>
         `;
 
+        // Attacher l'événement du bouton Copie Jira
+        if (this.tableConfig.jiraSheet) {
+            const btnCopyJira = document.getElementById('btnCopyJira');
+            if (btnCopyJira) {
+                btnCopyJira.addEventListener('click', () => this.handleCopyFromJira());
+            }
+        }
+
         await this.renderTable();
+    }
+
+    /**
+     * Gère la copie depuis Jira
+     */
+    async handleCopyFromJira() {
+        const jiraSheet = this.tableConfig.jiraSheet;
+        const tableName = this.tableConfig.name;
+        const keyField = 'Clé';
+
+        showConfirmModal(
+            'Copie depuis Jira',
+            `Voulez-vous copier les données depuis la feuille "${jiraSheet}" vers la table "${tableName}" ?\n\nLes clés existantes seront ignorées.`,
+            async () => {
+                try {
+                    showInfo('Copie en cours...');
+
+                    // Appeler la fonction de copie via ExcelBridge
+                    const result = await copyFromJira(jiraSheet, tableName, keyField);
+
+                    if (result.success) {
+                        showSuccess(result.message);
+                        await this.refresh();
+                    } else {
+                        showError('Erreur lors de la copie: ' + (result.error || 'Erreur inconnue'));
+                    }
+                    return true;
+                } catch (error) {
+                    showError('Erreur lors de la copie: ' + error.message);
+                    return false;
+                }
+            },
+            { confirmText: 'Copier' }
+        );
     }
 
     /**

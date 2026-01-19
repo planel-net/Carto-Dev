@@ -138,6 +138,14 @@ async function handleDialogMessage(arg) {
                         result = await listTables();
                         break;
 
+                    case 'COPY_FROM_JIRA':
+                        result = await copyFromJira(
+                            message.params.jiraSheetName,
+                            message.params.tableName,
+                            message.params.keyField
+                        );
+                        break;
+
                     default:
                         error = `Unknown request type: ${message.type}`;
                 }
