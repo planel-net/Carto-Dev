@@ -139,7 +139,13 @@ class RoadmapChantiersPage {
      */
     isArchived(chantier) {
         const archived = chantier['Archivé'];
-        return archived === true || archived === 'TRUE' || archived === 'Vrai' || archived === 'VRAI' || archived === 1;
+        // Gérer tous les formats possibles: booléen, chaîne, nombre
+        if (archived === true || archived === 1) return true;
+        if (typeof archived === 'string') {
+            const lower = archived.toLowerCase().trim();
+            return lower === 'true' || lower === 'vrai' || lower === 'oui' || lower === '1';
+        }
+        return false;
     }
 
     /**
@@ -1224,7 +1230,7 @@ class RoadmapChantiersPage {
                             'Chantier': formData.get('Chantier'),
                             'Responsable': formData.get('Responsable'),
                             'Perimetre': formData.get('Perimetre'),
-                            'Archivé': form.querySelector('input[name="Archivé"]').checked ? 'TRUE' : 'FALSE'
+                            'Archivé': form.querySelector('input[name="Archivé"]').checked
                         };
 
                         try {
@@ -1464,7 +1470,7 @@ class RoadmapChantiersPage {
                             'Chantier': formData.get('Chantier'),
                             'Responsable': formData.get('Responsable'),
                             'Perimetre': formData.get('Perimetre'),
-                            'Archivé': form.querySelector('input[name="Archivé"]').checked ? 'TRUE' : 'FALSE'
+                            'Archivé': form.querySelector('input[name="Archivé"]').checked
                         };
 
                         try {
@@ -1858,7 +1864,7 @@ class RoadmapChantiersPage {
                     }
 
                     const updatedChantier = { ...chantier };
-                    updatedChantier['Archivé'] = 'TRUE';
+                    updatedChantier['Archivé'] = true;
 
                     await updateTableRow('tChantiers', rowIndex, updatedChantier);
                     invalidateCache('tChantiers');
@@ -2018,7 +2024,11 @@ class RoadmapChantiersPage {
     async unarchiveChantier(chantierName) {
         try {
             const chantier = this.chantiersArchives.find(c => c['Chantier'] === chantierName);
-            if (!chantier) return;
+            if (!chantier) {
+                console.error('Chantier not found in archives:', chantierName);
+                showError('Erreur: chantier non trouvé');
+                return;
+            }
 
             // Utiliser _rowIndex stocké par readTable
             const rowIndex = chantier._rowIndex;
@@ -2029,18 +2039,20 @@ class RoadmapChantiersPage {
             }
 
             const updatedChantier = { ...chantier };
-            updatedChantier['Archivé'] = 'FALSE';
+            updatedChantier['Archivé'] = false;
 
             await updateTableRow('tChantiers', rowIndex, updatedChantier);
-            invalidateCache('tChantiers');
 
             showSuccess('Chantier réaffiché');
 
-            // Fermer la modale et rafraîchir
-            const modal = document.querySelector('.modal-backdrop');
-            if (modal) modal.remove();
+            // Fermer proprement la modale
+            closeModal();
 
-            await this.refresh();
+            // Attendre un peu que la modale se ferme puis rafraîchir
+            const self = this;
+            setTimeout(async () => {
+                await self.refresh();
+            }, 350);
         } catch (error) {
             console.error('Erreur réaffichage:', error);
             showError('Erreur lors du réaffichage');
