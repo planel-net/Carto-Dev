@@ -320,6 +320,9 @@ class RoadmapChantiersPage {
             <button class="btn btn-secondary" id="btnShowArchived">
                 Réafficher un chantier archivé
             </button>
+            <button class="btn btn-secondary" id="btnRefreshTable" title="Recharger les données du tableau">
+                &#8635; Actualiser tableau
+            </button>
         `;
     }
 
@@ -730,6 +733,10 @@ class RoadmapChantiersPage {
 
         document.getElementById('btnShowArchived')?.addEventListener('click', () => {
             this.showArchivedChantiersModal();
+        });
+
+        document.getElementById('btnRefreshTable')?.addEventListener('click', () => {
+            this.refreshTable();
         });
 
         // Fermer les dropdowns en cliquant ailleurs
@@ -2712,6 +2719,34 @@ class RoadmapChantiersPage {
     // ==========================================
     // REFRESH
     // ==========================================
+
+    /**
+     * Rafraîchit le tableau en forçant le rechargement des données depuis Excel
+     * Utilisé en cas de problème de chargement réseau
+     */
+    async refreshTable() {
+        try {
+            showInfo('Actualisation du tableau en cours...');
+
+            // Invalider tous les caches pertinents pour forcer le rechargement
+            invalidateCache('tChantiers');
+            invalidateCache('tPhases');
+            invalidateCache('tPhasesLien');
+            invalidateCache('tChantierProduit');
+            invalidateCache('tChantierDataAna');
+            invalidateCache('tSprints');
+            invalidateCache('tActeurs');
+            invalidateCache('tPerimetres');
+            invalidateCache('tProduits');
+            invalidateCache('tDataAnas');
+
+            await this.refresh();
+            showSuccess('Tableau actualisé');
+        } catch (error) {
+            console.error('Erreur actualisation:', error);
+            showError('Erreur lors de l\'actualisation. Réessayez.');
+        }
+    }
 
     async refresh() {
         await this.loadData();
