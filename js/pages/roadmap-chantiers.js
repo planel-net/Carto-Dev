@@ -1867,7 +1867,12 @@ class RoadmapChantiersPage {
                     updatedChantier['Archivé'] = true;
 
                     await updateTableRow('tChantiers', rowIndex, updatedChantier);
+
+                    // Invalider les caches (mémoire et localStorage)
                     invalidateCache('tChantiers');
+                    if (typeof PersistentCache !== 'undefined') {
+                        PersistentCache.invalidate('tChantiers');
+                    }
 
                     showSuccess('Chantier archivé');
                     await this.refresh();
@@ -2042,6 +2047,12 @@ class RoadmapChantiersPage {
             updatedChantier['Archivé'] = false;
 
             await updateTableRow('tChantiers', rowIndex, updatedChantier);
+
+            // Invalider les caches (mémoire et localStorage)
+            invalidateCache('tChantiers');
+            if (typeof PersistentCache !== 'undefined') {
+                PersistentCache.invalidate('tChantiers');
+            }
 
             showSuccess('Chantier réaffiché');
 
@@ -2784,12 +2795,21 @@ class RoadmapChantiersPage {
     }
 
     async refresh() {
-        // Invalider les caches pour forcer le rechargement depuis Excel
+        // Invalider les caches mémoire
         invalidateCache('tChantiers');
         invalidateCache('tPhases');
         invalidateCache('tPhasesLien');
         invalidateCache('tChantierProduit');
         invalidateCache('tChantierDataAna');
+
+        // Invalider aussi le cache localStorage pour forcer le rechargement depuis Excel
+        if (typeof PersistentCache !== 'undefined') {
+            PersistentCache.invalidate('tChantiers');
+            PersistentCache.invalidate('tPhases');
+            PersistentCache.invalidate('tPhasesLien');
+            PersistentCache.invalidate('tChantierProduit');
+            PersistentCache.invalidate('tChantierDataAna');
+        }
 
         await this.loadData();
         this.renderFilters();
