@@ -1852,8 +1852,10 @@ class RoadmapChantiersPage {
             `Êtes-vous sûr de vouloir archiver le chantier "${chantierName}" ?`,
             async () => {
                 try {
-                    const chantier = this.chantiers.find(c => c['Chantier'] === chantierName);
-                    if (!chantier) return;
+                    const chantierIndex = this.chantiers.findIndex(c => c['Chantier'] === chantierName);
+                    if (chantierIndex === -1) return;
+
+                    const chantier = this.chantiers[chantierIndex];
 
                     // Utiliser _rowIndex stocké par readTable
                     const rowIndex = chantier._rowIndex;
@@ -1863,16 +1865,26 @@ class RoadmapChantiersPage {
                         return;
                     }
 
-                    const updatedChantier = { ...chantier };
-                    updatedChantier['Archivé'] = true;
+                    // 1. Mise à jour optimiste IMMÉDIATE de l'interface
+                    const updatedChantier = { ...chantier, 'Archivé': true };
+                    this.chantiers.splice(chantierIndex, 1); // Retirer des actifs
+                    this.chantiersArchives.push(updatedChantier); // Ajouter aux archivés
 
-                    await updateTableRow('tChantiers', rowIndex, updatedChantier);
-
-                    // Invalider les caches (taskpane + dialog)
-                    await invalidateCache('tChantiers');
+                    // Re-rendre immédiatement
+                    this.renderFilters();
+                    this.attachFilterEvents();
+                    this.renderGantt();
 
                     showSuccess('Chantier archivé');
-                    await this.refresh();
+
+                    // 2. Synchroniser avec Excel en arrière-plan
+                    updateTableRow('tChantiers', rowIndex, updatedChantier)
+                        .then(() => invalidateCache('tChantiers'))
+                        .catch(error => {
+                            console.error('Erreur sync Excel:', error);
+                            // En cas d'erreur, restaurer l'état et recharger
+                            this.refresh();
+                        });
                 } catch (error) {
                     console.error('Erreur archivage:', error);
                     showError('Erreur lors de l\'archivage');
@@ -2025,12 +2037,14 @@ class RoadmapChantiersPage {
 
     async unarchiveChantier(chantierName) {
         try {
-            const chantier = this.chantiersArchives.find(c => c['Chantier'] === chantierName);
-            if (!chantier) {
+            const chantierIndex = this.chantiersArchives.findIndex(c => c['Chantier'] === chantierName);
+            if (chantierIndex === -1) {
                 console.error('Chantier not found in archives:', chantierName);
                 showError('Erreur: chantier non trouvé');
                 return;
             }
+
+            const chantier = this.chantiersArchives[chantierIndex];
 
             // Utiliser _rowIndex stocké par readTable
             const rowIndex = chantier._rowIndex;
@@ -2040,24 +2054,32 @@ class RoadmapChantiersPage {
                 return;
             }
 
-            const updatedChantier = { ...chantier };
-            updatedChantier['Archivé'] = false;
-
-            await updateTableRow('tChantiers', rowIndex, updatedChantier);
-
-            // Invalider les caches (taskpane + dialog)
-            await invalidateCache('tChantiers');
+            // 1. Mise à jour optimiste IMMÉDIATE
+            const updatedChantier = { ...chantier, 'Archivé': false };
+            this.chantiersArchives.splice(chantierIndex, 1); // Retirer des archivés
+            this.chantiers.push(updatedChantier); // Ajouter aux actifs
 
             showSuccess('Chantier réaffiché');
 
             // Fermer proprement la modale
             closeModal();
 
-            // Attendre un peu que la modale se ferme puis rafraîchir
+            // Re-rendre immédiatement après fermeture de la modale
             const self = this;
-            setTimeout(async () => {
-                await self.refresh();
+            setTimeout(() => {
+                self.renderFilters();
+                self.attachFilterEvents();
+                self.renderGantt();
             }, 350);
+
+            // 2. Synchroniser avec Excel en arrière-plan
+            updateTableRow('tChantiers', rowIndex, updatedChantier)
+                .then(() => invalidateCache('tChantiers'))
+                .catch(error => {
+                    console.error('Erreur sync Excel:', error);
+                    // En cas d'erreur, restaurer l'état et recharger
+                    self.refresh();
+                });
         } catch (error) {
             console.error('Erreur réaffichage:', error);
             showError('Erreur lors du réaffichage');
