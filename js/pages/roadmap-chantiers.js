@@ -2028,9 +2028,9 @@ class RoadmapChantiersPage {
                     <input type="text" class="form-control" name="Phase" required>
                 </div>
                 <div class="form-group">
-                    <label class="form-label required">Type de phase</label>
-                    <select class="form-control" name="Type phase" required>
-                        <option value="">-- Sélectionner --</option>
+                    <label class="form-label">Type de phase</label>
+                    <select class="form-control" name="Type phase">
+                        <option value="">-- Aucun --</option>
                         <option value="EB">EB</option>
                         <option value="Cadrage">Cadrage</option>
                         <option value="Dev">Dev</option>
@@ -2105,10 +2105,6 @@ class RoadmapChantiersPage {
                             showError('Veuillez saisir le nom de la phase');
                             return false;
                         }
-                        if (!typePhase) {
-                            showError('Veuillez sélectionner un type de phase');
-                            return false;
-                        }
                         if (!sprintDebut || !sprintFin) {
                             showError('Veuillez sélectionner les sprints de début et de fin');
                             return false;
@@ -2116,7 +2112,7 @@ class RoadmapChantiersPage {
 
                         const phaseData = {
                             'Phase': phaseName,
-                            'Type phase': typePhase,
+                            'Type phase': typePhase || '',
                             'Description': formData.get('Description'),
                             'Chantier': chantierName,
                             'Sprint début': sprintDebut,
@@ -2185,9 +2181,9 @@ class RoadmapChantiersPage {
                     <input type="text" class="form-control" name="Phase" value="${escapeHtml(phase['Phase'])}" required>
                 </div>
                 <div class="form-group">
-                    <label class="form-label required">Type de phase</label>
-                    <select class="form-control" name="Type phase" required>
-                        <option value="">-- Sélectionner --</option>
+                    <label class="form-label">Type de phase</label>
+                    <select class="form-control" name="Type phase">
+                        <option value="">-- Aucun --</option>
                         ${['EB', 'Cadrage', 'Dev', 'Recette', 'MEP'].map(t => `
                             <option value="${t}" ${(phase['Type phase'] || '').trim() === t ? 'selected' : ''}>${t}</option>
                         `).join('')}
@@ -2268,10 +2264,6 @@ class RoadmapChantiersPage {
                             showError('Veuillez saisir le nom de la phase');
                             return false;
                         }
-                        if (!typePhase) {
-                            showError('Veuillez sélectionner un type de phase');
-                            return false;
-                        }
                         if (!sprintDebut || !sprintFin) {
                             showError('Veuillez sélectionner les sprints de début et de fin');
                             return false;
@@ -2279,7 +2271,7 @@ class RoadmapChantiersPage {
 
                         const updatedPhase = {
                             'Phase': phaseName,
-                            'Type phase': typePhase,
+                            'Type phase': typePhase || '',
                             'Description': formData.get('Description'),
                             'Chantier': phase['Chantier'],
                             'Sprint début': sprintDebut,
