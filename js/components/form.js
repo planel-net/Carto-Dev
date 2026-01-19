@@ -311,13 +311,9 @@ function getFormData(form) {
         data[name] = value;
     }
 
-    // Gérer les checkboxes non cochés
+    // Gérer les checkboxes - utiliser des booléens pour Excel
     form.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
-        if (!formData.has(checkbox.name)) {
-            data[checkbox.name] = 'Non';
-        } else {
-            data[checkbox.name] = 'Oui';
-        }
+        data[checkbox.name] = checkbox.checked;
     });
 
     console.log('[getFormData] Data collected:', data);
