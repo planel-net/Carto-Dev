@@ -28,25 +28,18 @@ class ParamsPage {
 
         // Afficher le bouton Copie Jira si la table a une source Jira
         const jiraButtonHtml = this.tableConfig.jiraSheet ? `
-            <button id="btnCopyJira" class="btn btn-action">
+            <button id="btnCopyJira" class="btn btn-action btn-sm">
                 <span>&#128230;</span> Copie Jira
             </button>
         ` : '';
 
         container.innerHTML = `
-            <div class="page-header">
-                <div class="page-header-left">
-                    <h1>${this.tableConfig.icon || ''} ${this.tableConfig.displayName}</h1>
-                    <p>Gestion de la table ${this.tableConfig.name}</p>
-                </div>
-                <div class="page-header-right">
-                    ${jiraButtonHtml}
-                </div>
+            <div class="params-page">
+                ${jiraButtonHtml ? `<div class="params-toolbar">${jiraButtonHtml}</div>` : ''}
+                <section class="section">
+                    <div id="tableParams"></div>
+                </section>
             </div>
-
-            <section class="section">
-                <div id="tableParams"></div>
-            </section>
         `;
 
         // Attacher l'événement du bouton Copie Jira

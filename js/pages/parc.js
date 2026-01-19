@@ -26,12 +26,9 @@ class ParcPage {
      */
     async render(container) {
         container.innerHTML = `
-            <div class="page-header parc-header">
-                <div class="page-header-left">
-                    <h1>Parc Applicatif</h1>
-                    <p class="hide-mobile">Cartographie des rapports et applications</p>
-                </div>
-                <div class="page-header-right">
+            <div class="parc-page">
+                <!-- Toolbar avec tabs et bouton ajouter -->
+                <div class="parc-toolbar">
                     <div class="tabs tabs-compact">
                         <div class="tab active" data-view="process">Processus</div>
                         <div class="tab" data-view="list">Liste</div>
@@ -40,7 +37,6 @@ class ParcPage {
                         + Ajouter
                     </button>
                 </div>
-            </div>
 
             <!-- Vue Processus (Matrice) -->
             <section id="viewProcess" class="section parc-section">
@@ -64,6 +60,7 @@ class ParcPage {
 
             <!-- Popup de statut (cache par defaut) -->
             <div id="statusPopup" class="matrix-status-popup" style="display: none;"></div>
+            </div>
         `;
 
         await this.loadData();

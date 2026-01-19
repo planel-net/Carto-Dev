@@ -170,6 +170,54 @@
     color: var(--mh-bleu-clair);
 }
 
+/* ===========================================
+   FILTER ROW
+   =========================================== */
+
+.filter-row {
+    background-color: var(--mh-blanc);
+}
+
+.filter-row th {
+    position: sticky;
+    top: 38px; /* Juste sous la ligne d'en-tête */
+    z-index: 9;
+    background-color: var(--mh-blanc);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-bottom: 2px solid #dee2e6;
+}
+
+.filter-cell {
+    background-color: var(--mh-blanc) !important;
+}
+
+.filter-input,
+.filter-select {
+    width: 100%;
+    padding: 4px 8px;
+    font-size: var(--font-size-sm);
+    border: 1px solid #ced4da;
+    border-radius: var(--border-radius-sm);
+    background-color: var(--mh-blanc);
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.filter-input:focus,
+.filter-select:focus {
+    outline: none;
+    border-color: var(--mh-bleu-clair);
+    box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.1);
+}
+
+.filter-input::placeholder {
+    color: #adb5bd;
+    font-style: italic;
+}
+
+.filter-select {
+    cursor: pointer;
+}
+
 .data-table tbody tr {
     transition: background-color var(--transition-fast);
     cursor: pointer;

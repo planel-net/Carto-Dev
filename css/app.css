@@ -315,6 +315,13 @@
     flex: 1;
 }
 
+.page-title-container {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
 .page-title {
     font-size: var(--font-size-lg);
     font-weight: 600;
@@ -323,7 +330,15 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 300px;
+}
+
+.page-subtitle {
+    font-size: var(--font-size-sm);
+    color: var(--mh-gris-moyen);
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .breadcrumb {
@@ -675,3 +690,34 @@
 .sidebar-overlay.show {
     display: block;
 }
+
+/* ===========================================
+   PAGE WRAPPERS & TOOLBARS
+   =========================================== */
+
+/* Page wrappers communs */
+.migration-page,
+.parc-page,
+.backlog-page,
+.params-page {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+/* Toolbars de page */
+.parc-toolbar,
+.params-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+    flex-wrap: wrap;
+}
+
+.parc-toolbar {
+    justify-content: space-between;
+}
+
+/* Backlog toolbar - déjà stylé dans backlog styles */

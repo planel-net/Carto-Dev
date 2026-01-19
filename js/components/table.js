@@ -20,6 +20,8 @@ class DataTable {
         this.currentPage = 1;
         this.pageSize = options.pageSize || CONFIG.PAGINATION.DEFAULT_PAGE_SIZE;
         this.searchTerm = '';
+        this.columnFilters = {}; // Filtres par colonne
+        this.showColumnFilters = options.showColumnFilters !== false; // Afficher les filtres par défaut
 
         // Callbacks
         this.onRowClick = options.onRowClick || null;
@@ -176,16 +178,33 @@ class DataTable {
      * Applique les filtres et tri
      */
     applyFilters() {
-        // Filtrer par recherche
-        this.filteredData = this.searchTerm
-            ? searchFilter(this.data, this.searchTerm, this.columns.map(c => c.field))
-            : [...this.data];
+        // Commencer avec toutes les données
+        let filtered = [...this.data];
+
+        // Filtrer par recherche globale
+        if (this.searchTerm) {
+            filtered = searchFilter(filtered, this.searchTerm, this.columns.map(c => c.field));
+        }
+
+        // Filtrer par colonnes
+        for (const field of Object.keys(this.columnFilters)) {
+            const filterValue = this.columnFilters[field];
+            if (filterValue && filterValue !== '') {
+                filtered = filtered.filter(row => {
+                    const value = row[field];
+                    if (value === null || value === undefined) return filterValue === '(Vide)';
+                    if (filterValue === '(Vide)') return !value || value === '';
+                    return String(value).toLowerCase().includes(filterValue.toLowerCase());
+                });
+            }
+        }
 
         // Trier
         if (this.sortColumn) {
-            this.filteredData = sortBy(this.filteredData, this.sortColumn, this.sortDirection);
+            filtered = sortBy(filtered, this.sortColumn, this.sortDirection);
         }
 
+        this.filteredData = filtered;
         this.renderTable();
     }
 
@@ -216,6 +235,7 @@ class DataTable {
                 `).join('')}
                 ${this.showActions ? '<th class="col-actions">Actions</th>' : ''}
             </tr>
+            ${this.showColumnFilters ? this.renderFilterRow(visibleColumns) : ''}
         `;
 
         // Pagination
@@ -285,6 +305,43 @@ class DataTable {
                         </div>
                     </td>
                 ` : ''}
+            </tr>
+        `;
+    }
+
+    /**
+     * Rendu de la ligne de filtres par colonne
+     */
+    renderFilterRow(visibleColumns) {
+        return `
+            <tr class="filter-row">
+                ${this.showCheckboxes ? '<th class="filter-cell"></th>' : ''}
+                ${visibleColumns.map(col => {
+                    const currentValue = this.columnFilters[col.field] || '';
+
+                    // Si la colonne a des options prédéfinies ou est un select
+                    if (col.type === 'select' && col.options) {
+                        return `
+                            <th class="filter-cell">
+                                <select class="filter-select" data-field="${col.field}">
+                                    <option value="">Tous</option>
+                                    ${col.options.map(opt =>
+                                        `<option value="${escapeHtml(opt)}" ${currentValue === opt ? 'selected' : ''}>${escapeHtml(opt)}</option>`
+                                    ).join('')}
+                                </select>
+                            </th>
+                        `;
+                    }
+
+                    // Input texte par défaut
+                    return `
+                        <th class="filter-cell">
+                            <input type="text" class="filter-input" data-field="${col.field}"
+                                   placeholder="Filtrer..." value="${escapeHtml(currentValue)}" />
+                        </th>
+                    `;
+                }).join('')}
+                ${this.showActions ? '<th class="filter-cell"></th>' : ''}
             </tr>
         `;
     }
@@ -436,6 +493,24 @@ class DataTable {
                     this.sortColumn = field;
                     this.sortDirection = 'asc';
                 }
+                this.applyFilters();
+            });
+        });
+
+        // Filtres par colonne - inputs texte
+        this.container.querySelectorAll('.filter-input').forEach(input => {
+            input.addEventListener('input', debounce((e) => {
+                this.columnFilters[e.target.dataset.field] = e.target.value;
+                this.currentPage = 1;
+                this.applyFilters();
+            }, 300));
+        });
+
+        // Filtres par colonne - selects
+        this.container.querySelectorAll('.filter-select').forEach(select => {
+            select.addEventListener('change', (e) => {
+                this.columnFilters[e.target.dataset.field] = e.target.value;
+                this.currentPage = 1;
                 this.applyFilters();
             });
         });

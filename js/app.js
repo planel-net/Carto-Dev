@@ -265,26 +265,35 @@ async function navigateTo(page, table = null) {
 }
 
 /**
- * Met à jour le titre de la page
+ * Met à jour le titre et sous-titre de la page
  */
 function updatePageTitle(page, table) {
     const pageTitle = document.getElementById('pageTitle');
+    const pageSubtitle = document.getElementById('pageSubtitle');
     if (!pageTitle) return;
 
-    const titles = {
-        migration: 'Cartographie',
-        parc: 'Parc Applicatif',
-        'roadmap-gantt': 'Roadmap',
-        'roadmap-chantiers': 'Roadmap',
-        roadmap: 'Ancienne Roadmap',
-        backlog: 'Backlog'
+    const pageTitles = {
+        migration: { title: 'Cartographie', subtitle: 'Vue d\'ensemble de la migration du parc applicatif' },
+        parc: { title: 'Parc Applicatif', subtitle: 'Cartographie des rapports et applications' },
+        'roadmap-gantt': { title: 'Roadmap', subtitle: 'Visualisation des projets et phases' },
+        'roadmap-chantiers': { title: 'Roadmap', subtitle: 'Visualisation des projets et phases' },
+        roadmap: { title: 'Ancienne Roadmap', subtitle: '' },
+        backlog: { title: 'Backlog', subtitle: 'Gestion du backlog avec filtres et tri' }
     };
 
     if (page === 'params' && table) {
         const tableConfig = CONFIG.TABLES[table];
         pageTitle.textContent = tableConfig?.displayName || table;
+        if (pageSubtitle) {
+            pageSubtitle.textContent = `Gestion de la table ${tableConfig?.name || table}`;
+        }
     } else {
-        pageTitle.textContent = titles[page] || 'Carto';
+        const config = pageTitles[page] || { title: 'Carto', subtitle: '' };
+        pageTitle.textContent = config.title;
+        if (pageSubtitle) {
+            pageSubtitle.textContent = config.subtitle;
+            pageSubtitle.style.display = config.subtitle ? 'block' : 'none';
+        }
     }
 }
 

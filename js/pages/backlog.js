@@ -33,18 +33,7 @@ class BacklogPage {
      */
     async render(container) {
         container.innerHTML = `
-            <div class="page-header">
-                <div class="page-header-left">
-                    <h1>${this.tableConfig.icon || ''} ${this.tableConfig.displayName}</h1>
-                    <p>Gestion du backlog avec filtres et tri</p>
-                </div>
-                <div class="page-header-right">
-                    <button id="btnAddBacklog" class="btn btn-action">
-                        <span>&#43;</span> Ajouter
-                    </button>
-                </div>
-            </div>
-
+            <div class="backlog-page">
             <section class="section">
                 <!-- Barre de recherche globale -->
                 <div class="backlog-toolbar">
@@ -55,6 +44,9 @@ class BacklogPage {
                     <div class="toolbar-actions">
                         <button id="btnClearFilters" class="btn btn-secondary btn-sm">
                             <span>&#10005;</span> Effacer les filtres
+                        </button>
+                        <button id="btnAddBacklog" class="btn btn-action btn-sm">
+                            <span>&#43;</span> Ajouter
                         </button>
                     </div>
                 </div>
@@ -73,6 +65,7 @@ class BacklogPage {
                 <!-- Pagination -->
                 <div class="pagination-container" id="paginationContainer"></div>
             </section>
+            </div>
         `;
 
         // Charger les donnees de reference

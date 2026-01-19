@@ -146,13 +146,7 @@ class MigrationPage {
         console.log('[Migration] render() called');
 
         container.innerHTML = `
-            <div class="page-header">
-                <div class="page-header-left">
-                    <h1>Cartographie</h1>
-                    <p>Vue d'ensemble de l'avancement de la migration du parc applicatif</p>
-                </div>
-            </div>
-
+            <div class="migration-page">
             <!-- KPIs Migration avec flèches -->
             <section class="section">
                 <div class="kpi-header-row">
@@ -219,6 +213,7 @@ class MigrationPage {
                     </div>
                 </div>
             </section>
+            </div>
         `;
 
         await this.loadData();
