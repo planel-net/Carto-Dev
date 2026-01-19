@@ -54,12 +54,6 @@ class Sidebar {
         this.isCollapsed = !this.isCollapsed;
         this.sidebar.classList.toggle('collapsed', this.isCollapsed);
 
-        // Mettre à jour l'icône
-        const icon = this.toggleBtn.querySelector('span');
-        if (icon) {
-            icon.innerHTML = this.isCollapsed ? '&#9654;' : '&#9664;';
-        }
-
         // Sauvegarder l'état
         localStorage.setItem('sidebar_collapsed', this.isCollapsed);
     }
@@ -137,10 +131,6 @@ class Sidebar {
         if (collapsed) {
             this.isCollapsed = true;
             this.sidebar.classList.add('collapsed');
-            const icon = this.toggleBtn?.querySelector('span');
-            if (icon) {
-                icon.innerHTML = '&#9654;';
-            }
         }
     }
 

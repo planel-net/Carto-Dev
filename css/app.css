@@ -242,17 +242,7 @@
     transition: all var(--transition-fast);
 }
 
-.sidebar.collapsed .hamburger-line:nth-child(1) {
-    transform: rotate(45deg) translate(4px, 4px);
-}
-
-.sidebar.collapsed .hamburger-line:nth-child(2) {
-    opacity: 0;
-}
-
-.sidebar.collapsed .hamburger-line:nth-child(3) {
-    transform: rotate(-45deg) translate(4px, -4px);
-}
+/* Garder le hamburger même quand sidebar réduit (pas de transformation en X) */
 
 /* Sous-navigation */
 .nav-subitems {
