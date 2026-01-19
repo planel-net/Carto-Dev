@@ -4,13 +4,66 @@
    =========================================== */
 
 /**
- * Cache pour les données des tables
+ * Cache mémoire pour les données des tables
  */
 const tableCache = new Map();
 const CACHE_DURATION = 30000; // 30 secondes
+const EXCEL_TIMEOUT = 30000; // 30 secondes (augmenté pour les réseaux lents)
+
+/**
+ * Gestionnaire de statut de connexion Excel
+ */
+const ConnectionStatus = {
+    CONNECTED: 'connected',
+    CACHE: 'cache',
+    OFFLINE: 'offline',
+
+    _status: 'connected',
+    _lastSync: null,
+    _listeners: [],
+
+    get status() { return this._status; },
+    get lastSync() { return this._lastSync; },
+
+    setConnected() {
+        this._status = this.CONNECTED;
+        this._lastSync = Date.now();
+        this._notify();
+    },
+
+    setCache() {
+        this._status = this.CACHE;
+        this._notify();
+    },
+
+    setOffline() {
+        this._status = this.OFFLINE;
+        this._notify();
+    },
+
+    isOnline() {
+        return this._status === this.CONNECTED;
+    },
+
+    onChange(callback) {
+        this._listeners.push(callback);
+        // Notifier immédiatement du statut actuel
+        callback(this._status, this._lastSync);
+    },
+
+    _notify() {
+        this._listeners.forEach(cb => cb(this._status, this._lastSync));
+    }
+};
+
+// Exposer globalement
+if (typeof window !== 'undefined') {
+    window.ConnectionStatus = ConnectionStatus;
+}
 
 /**
  * Lit toutes les données d'une table Excel
+ * Utilise le cache persistant (localStorage) pour un affichage instantané
  * @param {string} tableName - Nom de la table Excel
  * @param {boolean} useCache - Utiliser le cache
  * @returns {Promise<Object>} { headers: [], rows: [], data: [] }
@@ -18,19 +71,42 @@ const CACHE_DURATION = 30000; // 30 secondes
 async function readTable(tableName, useCache = true) {
     console.log(`[readTable] Reading table: ${tableName}`);
 
-    // Vérifier le cache
+    // 1. Vérifier le cache mémoire (le plus rapide)
     if (useCache && tableCache.has(tableName)) {
         const cached = tableCache.get(tableName);
         if (Date.now() - cached.timestamp < CACHE_DURATION) {
-            console.log(`[readTable] ${tableName} returned from cache`);
+            console.log(`[readTable] ${tableName} returned from memory cache`);
             return cached.data;
         }
     }
 
+    // 2. Vérifier le cache persistant (localStorage)
+    let persistentCached = null;
+    if (useCache && typeof PersistentCache !== 'undefined') {
+        persistentCached = PersistentCache.get(tableName);
+        if (persistentCached?.isFresh) {
+            console.log(`[readTable] ${tableName} returned from localStorage (fresh)`);
+            // Mettre aussi en cache mémoire
+            tableCache.set(tableName, {
+                data: persistentCached.data,
+                timestamp: persistentCached.timestamp
+            });
+            return persistentCached.data;
+        }
+    }
+
+    // 3. Essayer de lire depuis Excel
     try {
         // Vérifier si Excel est disponible
         if (typeof Excel === 'undefined') {
             console.error('[readTable] Excel API is not available');
+            // Fallback sur le cache persistant même périmé
+            if (persistentCached?.isValid) {
+                console.log(`[readTable] ${tableName} fallback to localStorage (Excel unavailable)`);
+                ConnectionStatus.setOffline();
+                return persistentCached.data;
+            }
+            ConnectionStatus.setOffline();
             return { headers: [], rows: [], data: [] };
         }
 
@@ -66,25 +142,42 @@ async function readTable(tableName, useCache = true) {
 
             const result = { headers, rows, data };
 
-            // Mettre en cache
+            // Mettre en cache mémoire
             tableCache.set(tableName, {
                 data: result,
                 timestamp: Date.now()
             });
 
+            // Mettre en cache persistant (localStorage)
+            if (typeof PersistentCache !== 'undefined') {
+                PersistentCache.save(tableName, result);
+            }
+
+            // Marquer comme connecté
+            ConnectionStatus.setConnected();
+
             return result;
         });
 
-        // Timeout de 10 secondes pour ne pas bloquer
+        // Timeout de 30 secondes pour les réseaux lents
         const timeout = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error(`Timeout reading table ${tableName}`)), 10000)
+            setTimeout(() => reject(new Error(`Timeout reading table ${tableName}`)), EXCEL_TIMEOUT)
         );
 
         return await Promise.race([excelOperation, timeout]);
     } catch (error) {
         console.error(`[readTable] Error for ${tableName}:`, error);
         console.error(`[readTable] Error details - code: ${error.code}, message: ${error.message}`);
-        // Retourner des données vides au lieu de lever une erreur
+
+        // Fallback sur le cache persistant
+        if (persistentCached?.isValid) {
+            console.log(`[readTable] ${tableName} fallback to localStorage (error: ${error.message})`);
+            ConnectionStatus.setCache();
+            return persistentCached.data;
+        }
+
+        // Pas de cache disponible
+        ConnectionStatus.setOffline();
         return { headers: [], rows: [], data: [] };
     }
 }
@@ -388,8 +481,15 @@ async function listTables() {
 function invalidateCache(tableName = null) {
     if (tableName) {
         tableCache.delete(tableName);
+        // Aussi invalider le cache persistant
+        if (typeof PersistentCache !== 'undefined') {
+            PersistentCache.invalidate(tableName);
+        }
     } else {
         tableCache.clear();
+        if (typeof PersistentCache !== 'undefined') {
+            PersistentCache.clearAll();
+        }
     }
 }
 

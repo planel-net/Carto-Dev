@@ -7,6 +7,64 @@
    =========================================== */
 
 /**
+ * Gestionnaire de statut de connexion (côté Dialog)
+ * Miroir de ConnectionStatus dans excel-utils.js
+ */
+const ConnectionStatus = {
+    CONNECTED: 'connected',
+    CACHE: 'cache',
+    OFFLINE: 'offline',
+
+    _status: 'connected',
+    _lastSync: null,
+    _listeners: [],
+
+    get status() { return this._status; },
+    get lastSync() { return this._lastSync; },
+
+    setStatus(status, lastSync = null) {
+        this._status = status;
+        if (lastSync) this._lastSync = lastSync;
+        this._notify();
+    },
+
+    setConnected() {
+        this._status = this.CONNECTED;
+        this._lastSync = Date.now();
+        this._notify();
+    },
+
+    setCache() {
+        this._status = this.CACHE;
+        this._notify();
+    },
+
+    setOffline() {
+        this._status = this.OFFLINE;
+        this._notify();
+    },
+
+    isOnline() {
+        return this._status === this.CONNECTED;
+    },
+
+    onChange(callback) {
+        this._listeners.push(callback);
+        // Notifier immédiatement du statut actuel
+        callback(this._status, this._lastSync);
+    },
+
+    _notify() {
+        this._listeners.forEach(cb => cb(this._status, this._lastSync));
+    }
+};
+
+// Exposer globalement
+if (typeof window !== 'undefined') {
+    window.ConnectionStatus = ConnectionStatus;
+}
+
+/**
  * Bridge de communication entre Dialog et Taskpane
  * Utilisé côté DIALOG pour envoyer des requêtes au Taskpane
  */
@@ -20,8 +78,8 @@ const ExcelBridge = {
     // Flag pour savoir si on est dans un dialog
     _isDialog: false,
 
-    // Timeout par défaut (15 secondes)
-    _timeout: 15000,
+    // Timeout par défaut (45 secondes - augmenté pour les réseaux lents)
+    _timeout: 45000,
 
     /**
      * Initialise le bridge (côté Dialog)
@@ -146,7 +204,41 @@ const ExcelBridge = {
      */
 
     async readTable(tableName, useCache = true) {
-        return this.request('READ_TABLE', { tableName, useCache });
+        // Vérifier d'abord le cache persistant local (localStorage)
+        let persistentCached = null;
+        if (useCache && typeof PersistentCache !== 'undefined') {
+            persistentCached = PersistentCache.get(tableName);
+            if (persistentCached?.isFresh) {
+                console.log(`[ExcelBridge] ${tableName} returned from localStorage (fresh)`);
+                return persistentCached.data;
+            }
+        }
+
+        try {
+            const result = await this.request('READ_TABLE', { tableName, useCache });
+
+            // Sauvegarder dans le cache persistant
+            if (typeof PersistentCache !== 'undefined' && result && result.data) {
+                PersistentCache.save(tableName, result);
+            }
+
+            // Marquer comme connecté
+            ConnectionStatus.setConnected();
+
+            return result;
+        } catch (error) {
+            console.error(`[ExcelBridge] Error reading ${tableName}:`, error);
+
+            // Fallback sur le cache persistant
+            if (persistentCached?.isValid) {
+                console.log(`[ExcelBridge] ${tableName} fallback to localStorage`);
+                ConnectionStatus.setCache();
+                return persistentCached.data;
+            }
+
+            ConnectionStatus.setOffline();
+            return { headers: [], rows: [], data: [] };
+        }
     },
 
     async getMigrationStats(tableName, statusField) {
@@ -154,15 +246,42 @@ const ExcelBridge = {
     },
 
     async addTableRow(tableName, rowData) {
-        return this.request('ADD_ROW', { tableName, rowData });
+        // Vérifier si on est en ligne avant d'écrire
+        if (!ConnectionStatus.isOnline()) {
+            throw new Error('Mode hors ligne - Modifications impossibles. Cliquez sur "Actualiser" pour reconnecter.');
+        }
+        const result = await this.request('ADD_ROW', { tableName, rowData });
+        // Invalider le cache local après modification
+        if (typeof PersistentCache !== 'undefined') {
+            PersistentCache.invalidate(tableName);
+        }
+        return result;
     },
 
     async updateTableRow(tableName, rowIndex, rowData) {
-        return this.request('UPDATE_ROW', { tableName, rowIndex, rowData });
+        // Vérifier si on est en ligne avant d'écrire
+        if (!ConnectionStatus.isOnline()) {
+            throw new Error('Mode hors ligne - Modifications impossibles. Cliquez sur "Actualiser" pour reconnecter.');
+        }
+        const result = await this.request('UPDATE_ROW', { tableName, rowIndex, rowData });
+        // Invalider le cache local après modification
+        if (typeof PersistentCache !== 'undefined') {
+            PersistentCache.invalidate(tableName);
+        }
+        return result;
     },
 
     async deleteTableRow(tableName, rowIndex) {
-        return this.request('DELETE_ROW', { tableName, rowIndex });
+        // Vérifier si on est en ligne avant d'écrire
+        if (!ConnectionStatus.isOnline()) {
+            throw new Error('Mode hors ligne - Modifications impossibles. Cliquez sur "Actualiser" pour reconnecter.');
+        }
+        const result = await this.request('DELETE_ROW', { tableName, rowIndex });
+        // Invalider le cache local après modification
+        if (typeof PersistentCache !== 'undefined') {
+            PersistentCache.invalidate(tableName);
+        }
+        return result;
     },
 
     async getUniqueValues(tableName, columnName) {

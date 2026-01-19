@@ -411,6 +411,104 @@
     flex-wrap: wrap;
 }
 
+/* Indicateur de connexion - Header center */
+.main-header-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.connection-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    cursor: default;
+}
+
+.connection-status .connection-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    transition: background-color 0.3s ease;
+}
+
+.connection-status .connection-text {
+    white-space: nowrap;
+}
+
+.connection-status .connection-sync {
+    font-size: 10px;
+    color: inherit;
+    opacity: 0.8;
+}
+
+/* État: Connecté */
+.connection-status.connected {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.connection-status.connected .connection-dot {
+    background-color: #28a745;
+    box-shadow: 0 0 4px #28a745;
+}
+
+/* État: Cache local */
+.connection-status.cache {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeeba;
+}
+
+.connection-status.cache .connection-dot {
+    background-color: #ffc107;
+    box-shadow: 0 0 4px #ffc107;
+    animation: pulse-cache 2s infinite;
+}
+
+/* État: Hors ligne */
+.connection-status.offline {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.connection-status.offline .connection-dot {
+    background-color: #dc3545;
+    box-shadow: 0 0 4px #dc3545;
+}
+
+@keyframes pulse-cache {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* Responsive - Masquer le texte sur mobile */
+@media (max-width: 576px) {
+    .connection-status .connection-text,
+    .connection-status .connection-sync {
+        display: none;
+    }
+
+    .connection-status {
+        padding: 6px;
+        min-width: 24px;
+        justify-content: center;
+    }
+
+    .connection-status .connection-dot {
+        width: 10px;
+        height: 10px;
+    }
+}
+
 /* Zone de contenu */
 .main-body {
     flex: 1;

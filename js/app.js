@@ -303,6 +303,84 @@ function attachHeaderEvents() {
     if (closeBtn) {
         closeBtn.addEventListener('click', closeApp);
     }
+
+    // Initialiser l'indicateur de connexion
+    initConnectionStatusIndicator();
+}
+
+/**
+ * Initialise et met à jour l'indicateur de statut de connexion
+ */
+function initConnectionStatusIndicator() {
+    const statusEl = document.getElementById('connectionStatus');
+    if (!statusEl) return;
+
+    // S'abonner aux changements de statut
+    if (typeof ConnectionStatus !== 'undefined') {
+        ConnectionStatus.onChange((status, lastSync) => {
+            updateConnectionStatusUI(status, lastSync);
+        });
+    }
+}
+
+/**
+ * Met à jour l'interface de l'indicateur de connexion
+ */
+function updateConnectionStatusUI(status, lastSync) {
+    const statusEl = document.getElementById('connectionStatus');
+    if (!statusEl) return;
+
+    const textEl = statusEl.querySelector('.connection-text');
+    const syncEl = statusEl.querySelector('.connection-sync');
+
+    // Supprimer toutes les classes de statut
+    statusEl.classList.remove('connected', 'cache', 'offline');
+
+    // Appliquer le nouveau statut
+    switch (status) {
+        case 'connected':
+            statusEl.classList.add('connected');
+            statusEl.title = 'Connecté à Excel - Données synchronisées';
+            if (textEl) textEl.textContent = 'Connecté';
+            if (syncEl) {
+                syncEl.textContent = lastSync ? `(${formatSyncTime(lastSync)})` : '';
+            }
+            break;
+
+        case 'cache':
+            statusEl.classList.add('cache');
+            statusEl.title = 'Mode cache local - Lecture seule';
+            if (textEl) textEl.textContent = 'Cache local';
+            if (syncEl) {
+                const meta = typeof PersistentCache !== 'undefined' ? PersistentCache.getMeta() : null;
+                syncEl.textContent = meta?.lastSync ? `(${formatSyncTime(meta.lastSync)})` : '';
+            }
+            break;
+
+        case 'offline':
+            statusEl.classList.add('offline');
+            statusEl.title = 'Hors ligne - Modifications impossibles';
+            if (textEl) textEl.textContent = 'Hors ligne';
+            if (syncEl) syncEl.textContent = '';
+            break;
+    }
+}
+
+/**
+ * Formate le temps depuis la dernière synchronisation
+ */
+function formatSyncTime(timestamp) {
+    if (!timestamp) return '';
+
+    const age = Date.now() - timestamp;
+    const seconds = Math.floor(age / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+
+    if (seconds < 60) return 'à l\'instant';
+    if (minutes < 60) return `il y a ${minutes} min`;
+    if (hours < 24) return `il y a ${hours}h`;
+    return `il y a ${Math.floor(hours / 24)}j`;
 }
 
 /**
