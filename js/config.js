@@ -6,7 +6,7 @@
 const CONFIG = {
     // Nom de l'application
     APP_NAME: 'Carto',
-    APP_VERSION: '1.0.110',
+    APP_VERSION: '1.1.0',
 
     // Valeur spéciale pour filtrer les éléments sans valeur (périmètre/responsable vide)
     EMPTY_FILTER_VALUE: '(Non rempli)',
@@ -228,8 +228,11 @@ const CONFIG = {
                 { field: 'Type phase', label: 'Type phase', type: 'select', options: ['EB', 'Cadrage', 'Dev', 'Recette', 'MEP'] },
                 { field: 'Description', label: 'Description', type: 'textarea' },
                 { field: 'Chantier', label: 'Chantier', type: 'select', source: 'CHANTIER', sourceField: 'Chantier' },
+                { field: 'Mode', label: 'Mode', type: 'select', options: ['Sprint', 'Semaine'] },
                 { field: 'Sprint début', label: 'Sprint début', type: 'select', source: 'SPRINTS', sourceField: 'Sprint' },
                 { field: 'Sprint fin', label: 'Sprint fin', type: 'select', source: 'SPRINTS', sourceField: 'Sprint' },
+                { field: 'Semaine début', label: 'Semaine début', type: 'text' },
+                { field: 'Semaine fin', label: 'Semaine fin', type: 'text' },
                 { field: 'Couleur', label: 'Couleur', type: 'color' },
                 { field: 'Lien Teams', label: 'Lien Teams', type: 'text' }
             ]

@@ -14,6 +14,7 @@ let roadmapChantiersPageInstance = null;
 class RoadmapChantiersPage {
     // Constantes de dimensionnement (en pixels)
     static SPRINT_COL_WIDTH = 90;
+    static WEEK_COL_WIDTH = 45;
     static PHASE_MARGIN = 4;
 
     constructor() {
@@ -383,6 +384,138 @@ class RoadmapChantiersPage {
         return `${months[d.getMonth()]} ${String(d.getFullYear()).slice(-2)}`;
     }
 
+    // ==========================================
+    // GESTION DES SEMAINES ISO 8601
+    // ==========================================
+
+    /**
+     * Calcule le numéro de semaine ISO 8601 (règle française)
+     * La semaine 1 est celle qui contient le premier jeudi de l'année
+     * Les semaines commencent le lundi
+     * @param {Date} date - La date à analyser
+     * @returns {Object} { year: number, week: number }
+     */
+    getISOWeekNumber(date) {
+        const d = new Date(date);
+        d.setHours(0, 0, 0, 0);
+        // Jeudi de la semaine courante (ISO 8601: les semaines sont définies par leur jeudi)
+        d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
+        // Premier jeudi de l'année
+        const yearStart = new Date(d.getFullYear(), 0, 4);
+        // Numéro de semaine = nombre de semaines depuis le premier jeudi
+        const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+        return { year: d.getFullYear(), week: weekNo };
+    }
+
+    /**
+     * Parse un code semaine au format AAAAS99
+     * @param {string} weekCode - Code semaine (ex: "2026S02")
+     * @returns {Object|null} { year: number, week: number } ou null si invalide
+     */
+    parseWeekCode(weekCode) {
+        if (!weekCode || typeof weekCode !== 'string') return null;
+        const match = weekCode.match(/^(\d{4})S(\d{2})$/);
+        if (!match) return null;
+        return { year: parseInt(match[1]), week: parseInt(match[2]) };
+    }
+
+    /**
+     * Convertit un code semaine en date du lundi de cette semaine
+     * @param {string} weekCode - Code semaine (ex: "2026S02")
+     * @returns {Date|null} Date du lundi de la semaine ou null si invalide
+     */
+    weekCodeToDate(weekCode) {
+        const parsed = this.parseWeekCode(weekCode);
+        if (!parsed) return null;
+
+        // Trouver le premier jeudi de l'année (qui définit la semaine 1)
+        const jan4 = new Date(parsed.year, 0, 4);
+        const dayOfWeek = jan4.getDay() || 7; // Convertir 0 (dimanche) en 7
+        const firstThursday = new Date(jan4);
+        firstThursday.setDate(jan4.getDate() - dayOfWeek + 4); // Jeudi de la semaine 1
+
+        // Lundi de la semaine 1
+        const firstMonday = new Date(firstThursday);
+        firstMonday.setDate(firstThursday.getDate() - 3);
+
+        // Ajouter le nombre de semaines
+        const targetMonday = new Date(firstMonday);
+        targetMonday.setDate(firstMonday.getDate() + (parsed.week - 1) * 7);
+
+        return targetMonday;
+    }
+
+    /**
+     * Formate une date en code semaine AAAAS99
+     * @param {Date} date - La date
+     * @returns {string} Code semaine (ex: "2026S02")
+     */
+    formatWeekCode(date) {
+        const { year, week } = this.getISOWeekNumber(date);
+        return `${year}S${String(week).padStart(2, '0')}`;
+    }
+
+    /**
+     * Retourne la liste des semaines (codes) pour un sprint
+     * @param {Object} sprint - Le sprint avec Début et Fin
+     * @returns {Array<string>} Liste des codes semaines (ex: ["2026S02", "2026S03", "2026S04"])
+     */
+    getWeeksForSprint(sprint) {
+        const weeks = [];
+        const startDate = this.parseDate(sprint['Début']);
+        const endDate = this.parseDate(sprint['Fin']);
+
+        // Trouver le lundi de la première semaine du sprint
+        let currentDate = new Date(startDate);
+        const dayOfWeek = currentDate.getDay() || 7; // 1=lundi, 7=dimanche
+        if (dayOfWeek !== 1) {
+            // Revenir au lundi précédent ou celui de cette semaine
+            currentDate.setDate(currentDate.getDate() - (dayOfWeek - 1));
+        }
+
+        while (currentDate <= endDate) {
+            const weekCode = this.formatWeekCode(currentDate);
+            if (!weeks.includes(weekCode)) {
+                weeks.push(weekCode);
+            }
+            // Passer à la semaine suivante
+            currentDate.setDate(currentDate.getDate() + 7);
+        }
+
+        return weeks;
+    }
+
+    /**
+     * Construit la liste aplatie de toutes les semaines des sprints visibles
+     * @param {Array} visibleSprints - Les sprints visibles
+     * @returns {Array<Object>} Liste des semaines avec info sprint { weekCode, sprintName, isFirstOfSprint }
+     */
+    buildWeeksList(visibleSprints) {
+        const allWeeks = [];
+        visibleSprints.forEach(sprint => {
+            const weeks = this.getWeeksForSprint(sprint);
+            weeks.forEach((weekCode, idx) => {
+                allWeeks.push({
+                    weekCode,
+                    sprintName: sprint['Sprint'],
+                    sprint: sprint,
+                    isFirstOfSprint: idx === 0
+                });
+            });
+        });
+        return allWeeks;
+    }
+
+    /**
+     * Vérifie si une semaine est la semaine courante
+     * @param {string} weekCode - Code semaine
+     * @returns {boolean}
+     */
+    isCurrentWeek(weekCode) {
+        const todayCode = this.formatWeekCode(new Date());
+        return weekCode === todayCode;
+    }
+
     /**
      * Rendu de la légende
      */
@@ -670,16 +803,23 @@ class RoadmapChantiersPage {
             return;
         }
 
-        // Largeur fixe pour chaque colonne sprint (en pixels)
-        const SPRINT_COL_WIDTH = RoadmapChantiersPage.SPRINT_COL_WIDTH;
+        // Largeur fixe pour chaque colonne semaine (en pixels)
+        const WEEK_COL_WIDTH = RoadmapChantiersPage.WEEK_COL_WIDTH;
+
+        // Construire la liste des semaines pour tous les sprints visibles
+        const allWeeks = this.buildWeeksList(visibleSprints);
+        const totalWeekColumns = allWeeks.length;
+
+        // Stocker les semaines pour référence ultérieure
+        this._allWeeks = allWeeks;
 
         // Construire les lignes de chantiers
         const rowsHtml = filteredChantiers.map((chantier, chantierIndex) => {
             const chantierName = chantier['Chantier'];
             const chantierPhases = this.getPhasesForChantier(chantierName);
 
-            // Calculer les phases par sprint
-            const phasesBySprintRange = this.calculatePhasePositions(chantierPhases, visibleSprints);
+            // Calculer les phases par position (semaine)
+            const phasesByWeekRange = this.calculatePhasePositions(chantierPhases, visibleSprints, allWeeks);
 
             const noteCount = this.getNoteCount(chantierName);
             return `
@@ -701,27 +841,44 @@ class RoadmapChantiersPage {
                             </div>
                         </div>
                     </td>
-                    ${this.renderChantierCells(chantierName, chantierPhases, visibleSprints, phasesBySprintRange)}
+                    ${this.renderChantierCells(chantierName, chantierPhases, visibleSprints, phasesByWeekRange, allWeeks)}
                 </tr>
             `;
         }).join('');
 
-        // Générer les colgroup avec largeurs fixes
+        // Générer les colgroup avec largeurs fixes (une colonne par semaine)
         const colgroupHtml = `
             <colgroup>
                 <col class="gantt-col-chantier" style="width: 200px; min-width: 200px;">
-                ${visibleSprints.map(() => `<col style="width: ${SPRINT_COL_WIDTH}px; min-width: ${SPRINT_COL_WIDTH}px;">`).join('')}
+                ${allWeeks.map(w => `<col class="gantt-col-week" style="width: ${WEEK_COL_WIDTH}px; min-width: ${WEEK_COL_WIDTH}px;">`).join('')}
             </colgroup>
         `;
 
-        // Générer le HTML des sprints (header de table)
+        // Générer le HTML des sprints (première ligne header avec colspan)
         const sprintsHeaderHtml = visibleSprints.map(sprint => {
             const isCurrentSprintClass = this.isCurrentSprint(sprint) ? ' current-sprint' : '';
+            const weeksInSprint = this.getWeeksForSprint(sprint);
+            const colspan = weeksInSprint.length;
             return `
-            <th class="gantt-sprint-header-cell${isCurrentSprintClass}" data-sprint="${escapeHtml(sprint['Sprint'])}">
+            <th class="gantt-sprint-header-cell${isCurrentSprintClass}" colspan="${colspan}" data-sprint="${escapeHtml(sprint['Sprint'])}">
                 <div class="sprint-name">${escapeHtml(sprint['Sprint'])}</div>
-                <div class="sprint-date">${this.formatDate(sprint['Début'])}</div>
-                <div class="sprint-date">${this.formatDate(sprint['Fin'])}</div>
+                <div class="sprint-date">${this.formatDate(sprint['Début'])} - ${this.formatDate(sprint['Fin'])}</div>
+            </th>
+        `;
+        }).join('');
+
+        // Générer le HTML des semaines (deuxième ligne header)
+        const weeksHeaderHtml = allWeeks.map((weekInfo, idx) => {
+            const isCurrentWeekClass = this.isCurrentWeek(weekInfo.weekCode) ? ' current-week' : '';
+            const isFirstWeekClass = weekInfo.isFirstOfSprint ? ' first-week' : '';
+            // Afficher seulement S99 (sans l'année)
+            const weekLabel = 'S' + weekInfo.weekCode.slice(-2);
+            return `
+            <th class="gantt-week-header-cell${isCurrentWeekClass}${isFirstWeekClass}"
+                data-week="${escapeHtml(weekInfo.weekCode)}"
+                data-sprint="${escapeHtml(weekInfo.sprintName)}"
+                data-week-idx="${idx}">
+                ${weekLabel}
             </th>
         `;
         }).join('');
@@ -731,15 +888,18 @@ class RoadmapChantiersPage {
                 <table class="gantt-chantiers-table gantt-fixed-columns">
                     ${colgroupHtml}
                     <thead>
-                        <tr class="gantt-header-row">
-                            <th class="gantt-chantier-header">Chantiers</th>
+                        <tr class="gantt-header-row gantt-sprint-row">
+                            <th class="gantt-chantier-header" rowspan="2">Chantiers</th>
                             ${sprintsHeaderHtml}
+                        </tr>
+                        <tr class="gantt-header-row gantt-week-row">
+                            ${weeksHeaderHtml}
                         </tr>
                     </thead>
                     <tbody>
                         ${rowsHtml.length > 0 ? rowsHtml : `
                             <tr>
-                                <td colspan="${visibleSprints.length + 1}" class="empty-row">
+                                <td colspan="${totalWeekColumns + 1}" class="empty-row">
                                     <div class="empty-state-inline">Aucun chantier ne correspond aux filtres</div>
                                 </td>
                             </tr>
@@ -761,57 +921,126 @@ class RoadmapChantiersPage {
 
     /**
      * Calcule les positions des phases pour gérer les chevauchements
+     * Maintenant basé sur les semaines (chaque colonne = une semaine)
+     * @param {Array} phases - Les phases du chantier
+     * @param {Array} visibleSprints - Les sprints visibles
+     * @param {Array} allWeeks - La liste complète des semaines (de buildWeeksList)
+     * @returns {Object} Mapping weekCode -> liste de phases dans cette semaine
      */
-    calculatePhasePositions(phases, visibleSprints) {
+    calculatePhasePositions(phases, visibleSprints, allWeeks) {
         const result = {};
-        const visibleSprintNames = visibleSprints.map(s => s['Sprint']);
-
-        // Obtenir les indices globaux des sprints visibles pour comparer avec les phases
-        const allSprintNames = this.sprints.map(s => s['Sprint']);
-        const firstVisibleGlobalIdx = allSprintNames.indexOf(visibleSprintNames[0]);
-        const lastVisibleGlobalIdx = allSprintNames.indexOf(visibleSprintNames[visibleSprintNames.length - 1]);
+        const weekCodes = allWeeks.map(w => w.weekCode);
 
         phases.forEach(phase => {
-            const startSprint = phase['Sprint début'];
-            const endSprint = phase['Sprint fin'] || startSprint;
+            const mode = phase['Mode'] || 'Sprint';
+            let startWeekIdx, endWeekIdx;
 
-            // Indices dans la liste visible
-            let startIdx = visibleSprintNames.indexOf(startSprint);
-            let endIdx = visibleSprintNames.indexOf(endSprint);
+            if (mode === 'Semaine') {
+                // Mode Semaine: utiliser directement les codes semaines
+                const startWeek = phase['Semaine début'];
+                const endWeek = phase['Semaine fin'] || startWeek;
 
-            // Indices globaux pour vérifier le chevauchement
-            const startGlobalIdx = allSprintNames.indexOf(startSprint);
-            const endGlobalIdx = allSprintNames.indexOf(endSprint);
+                if (!startWeek) return; // Pas de semaine définie
 
-            // Vérifier si la phase chevauche la période visible
-            // La phase chevauche si: son sprint de fin >= premier sprint visible ET son sprint de début <= dernier sprint visible
-            if (endGlobalIdx < firstVisibleGlobalIdx || startGlobalIdx > lastVisibleGlobalIdx) {
-                return; // Pas de chevauchement, ignorer cette phase
-            }
+                startWeekIdx = weekCodes.indexOf(startWeek);
+                endWeekIdx = weekCodes.indexOf(endWeek);
 
-            // Ajuster les indices pour les phases qui commencent avant la période visible
-            if (startIdx === -1 && startGlobalIdx < firstVisibleGlobalIdx) {
-                startIdx = 0; // Commence au premier sprint visible
-            }
+                // Phase hors de la période visible
+                if (startWeekIdx === -1 && endWeekIdx === -1) {
+                    // Vérifier si la phase chevauche quand même
+                    const startParsed = this.parseWeekCode(startWeek);
+                    const endParsed = this.parseWeekCode(endWeek);
+                    const firstVisible = this.parseWeekCode(weekCodes[0]);
+                    const lastVisible = this.parseWeekCode(weekCodes[weekCodes.length - 1]);
 
-            // Ajuster les indices pour les phases qui finissent après la période visible
-            if (endIdx === -1 && endGlobalIdx > lastVisibleGlobalIdx) {
-                endIdx = visibleSprintNames.length - 1; // Finit au dernier sprint visible
-            }
+                    if (!startParsed || !endParsed || !firstVisible || !lastVisible) return;
 
-            const actualEndIdx = endIdx === -1 ? startIdx : endIdx;
+                    // Comparer les semaines
+                    const startNum = startParsed.year * 100 + startParsed.week;
+                    const endNum = endParsed.year * 100 + endParsed.week;
+                    const firstVisNum = firstVisible.year * 100 + firstVisible.week;
+                    const lastVisNum = lastVisible.year * 100 + lastVisible.week;
 
-            for (let i = startIdx; i <= actualEndIdx; i++) {
-                const sprintName = visibleSprintNames[i];
-                if (!result[sprintName]) {
-                    result[sprintName] = [];
+                    if (endNum < firstVisNum || startNum > lastVisNum) {
+                        return; // Pas de chevauchement
+                    }
+
+                    // Ajuster les indices
+                    startWeekIdx = startNum < firstVisNum ? 0 : weekCodes.indexOf(startWeek);
+                    endWeekIdx = endNum > lastVisNum ? weekCodes.length - 1 : weekCodes.indexOf(endWeek);
+                } else {
+                    // Ajuster si une extrémité est hors limites
+                    if (startWeekIdx === -1) startWeekIdx = 0;
+                    if (endWeekIdx === -1) endWeekIdx = weekCodes.length - 1;
                 }
-                result[sprintName].push({
+            } else {
+                // Mode Sprint (défaut): trouver les semaines correspondant aux sprints
+                const startSprint = phase['Sprint début'];
+                const endSprint = phase['Sprint fin'] || startSprint;
+
+                if (!startSprint) return; // Pas de sprint défini
+
+                // Trouver les indices globaux des sprints
+                const allSprintNames = this.sprints.map(s => s['Sprint']);
+                const startSprintGlobalIdx = allSprintNames.indexOf(startSprint);
+                const endSprintGlobalIdx = allSprintNames.indexOf(endSprint);
+
+                if (startSprintGlobalIdx === -1) return;
+
+                // Trouver les semaines du sprint de début et de fin
+                const startSprintObj = this.sprints[startSprintGlobalIdx];
+                const endSprintObj = this.sprints[endSprintGlobalIdx !== -1 ? endSprintGlobalIdx : startSprintGlobalIdx];
+
+                const startSprintWeeks = this.getWeeksForSprint(startSprintObj);
+                const endSprintWeeks = this.getWeeksForSprint(endSprintObj);
+
+                const phaseStartWeek = startSprintWeeks[0];
+                const phaseEndWeek = endSprintWeeks[endSprintWeeks.length - 1];
+
+                startWeekIdx = weekCodes.indexOf(phaseStartWeek);
+                endWeekIdx = weekCodes.indexOf(phaseEndWeek);
+
+                // Ajuster si hors limites (phase commence avant ou finit après la période visible)
+                if (startWeekIdx === -1 && endWeekIdx === -1) {
+                    // Vérifier chevauchement
+                    const startParsed = this.parseWeekCode(phaseStartWeek);
+                    const endParsed = this.parseWeekCode(phaseEndWeek);
+                    const firstVisible = this.parseWeekCode(weekCodes[0]);
+                    const lastVisible = this.parseWeekCode(weekCodes[weekCodes.length - 1]);
+
+                    if (!startParsed || !endParsed || !firstVisible || !lastVisible) return;
+
+                    const startNum = startParsed.year * 100 + startParsed.week;
+                    const endNum = endParsed.year * 100 + endParsed.week;
+                    const firstVisNum = firstVisible.year * 100 + firstVisible.week;
+                    const lastVisNum = lastVisible.year * 100 + lastVisible.week;
+
+                    if (endNum < firstVisNum || startNum > lastVisNum) {
+                        return; // Pas de chevauchement
+                    }
+
+                    startWeekIdx = 0;
+                    endWeekIdx = weekCodes.length - 1;
+                } else {
+                    if (startWeekIdx === -1) startWeekIdx = 0;
+                    if (endWeekIdx === -1) endWeekIdx = weekCodes.length - 1;
+                }
+            }
+
+            // Ajouter la phase à toutes les semaines qu'elle couvre
+            const actualEndIdx = endWeekIdx === -1 ? startWeekIdx : endWeekIdx;
+
+            for (let i = startWeekIdx; i <= actualEndIdx; i++) {
+                const weekCode = weekCodes[i];
+                if (!result[weekCode]) {
+                    result[weekCode] = [];
+                }
+                result[weekCode].push({
                     phase: phase,
-                    isStart: i === startIdx,
+                    isStart: i === startWeekIdx,
                     isEnd: i === actualEndIdx,
-                    colspan: actualEndIdx - startIdx + 1,
-                    startIdx: startIdx
+                    colspan: actualEndIdx - startWeekIdx + 1,
+                    startIdx: startWeekIdx
                 });
             }
         });
@@ -821,54 +1050,66 @@ class RoadmapChantiersPage {
 
     /**
      * Calcule les lanes (voies) pour les phases qui se chevauchent
-     * Retourne un objet avec les infos de lane pour chaque phase et le nombre total de lanes
+     * Maintenant basé sur les semaines
+     * @param {Array} phases - Les phases du chantier
+     * @param {Array} allWeeks - La liste complète des semaines
+     * @returns {Object} { phaseLanes: Map, totalLanes: number }
      */
-    calculatePhaseLanes(phases, visibleSprints) {
-        const visibleSprintNames = visibleSprints.map(s => s['Sprint']);
+    calculatePhaseLanes(phases, allWeeks) {
+        const weekCodes = allWeeks.map(w => w.weekCode);
         const phaseLanes = new Map(); // phase name -> lane number
         const lanes = []; // lanes[i] = end index of last phase in lane i
 
-        // Obtenir les indices globaux des sprints visibles pour comparer avec les phases
-        const allSprintNames = this.sprints.map(s => s['Sprint']);
-        const firstVisibleGlobalIdx = allSprintNames.indexOf(visibleSprintNames[0]);
-        const lastVisibleGlobalIdx = allSprintNames.indexOf(visibleSprintNames[visibleSprintNames.length - 1]);
-
-        // Trier les phases par sprint de début puis par sprint de fin
+        // Calculer les indices de début/fin en semaines pour chaque phase
         const sortedPhases = [...phases].map(phase => {
-            const startSprint = phase['Sprint début'];
-            const endSprint = phase['Sprint fin'] || startSprint;
+            const mode = phase['Mode'] || 'Sprint';
+            let startIdx, endIdx;
 
-            // Indices dans la liste visible
-            let startIdx = visibleSprintNames.indexOf(startSprint);
-            let endIdx = visibleSprintNames.indexOf(endSprint);
+            if (mode === 'Semaine') {
+                const startWeek = phase['Semaine début'];
+                const endWeek = phase['Semaine fin'] || startWeek;
+                if (!startWeek) return { phase, startIdx: Infinity, endIdx: 0 };
 
-            // Indices globaux pour vérifier le chevauchement
-            const startGlobalIdx = allSprintNames.indexOf(startSprint);
-            const endGlobalIdx = allSprintNames.indexOf(endSprint);
+                startIdx = weekCodes.indexOf(startWeek);
+                endIdx = weekCodes.indexOf(endWeek);
 
-            // Vérifier si la phase chevauche la période visible
-            const overlaps = endGlobalIdx >= firstVisibleGlobalIdx && startGlobalIdx <= lastVisibleGlobalIdx;
+                // Ajuster si hors limites
+                if (startIdx === -1) startIdx = 0;
+                if (endIdx === -1) endIdx = weekCodes.length - 1;
+            } else {
+                const startSprint = phase['Sprint début'];
+                const endSprint = phase['Sprint fin'] || startSprint;
+                if (!startSprint) return { phase, startIdx: Infinity, endIdx: 0 };
 
-            if (!overlaps) {
-                return { phase, startIdx: Infinity, endIdx: 0 }; // Sera filtré
-            }
+                const allSprintNames = this.sprints.map(s => s['Sprint']);
+                const startSprintIdx = allSprintNames.indexOf(startSprint);
+                const endSprintIdx = allSprintNames.indexOf(endSprint);
 
-            // Ajuster les indices pour les phases qui commencent avant la période visible
-            if (startIdx === -1 && startGlobalIdx < firstVisibleGlobalIdx) {
-                startIdx = 0;
-            }
+                if (startSprintIdx === -1) return { phase, startIdx: Infinity, endIdx: 0 };
 
-            // Ajuster les indices pour les phases qui finissent après la période visible
-            if (endIdx === -1 && endGlobalIdx > lastVisibleGlobalIdx) {
-                endIdx = visibleSprintNames.length - 1;
+                const startSprintObj = this.sprints[startSprintIdx];
+                const endSprintObj = this.sprints[endSprintIdx !== -1 ? endSprintIdx : startSprintIdx];
+
+                const startSprintWeeks = this.getWeeksForSprint(startSprintObj);
+                const endSprintWeeks = this.getWeeksForSprint(endSprintObj);
+
+                const phaseStartWeek = startSprintWeeks[0];
+                const phaseEndWeek = endSprintWeeks[endSprintWeeks.length - 1];
+
+                startIdx = weekCodes.indexOf(phaseStartWeek);
+                endIdx = weekCodes.indexOf(phaseEndWeek);
+
+                // Ajuster si hors limites
+                if (startIdx === -1) startIdx = 0;
+                if (endIdx === -1) endIdx = weekCodes.length - 1;
             }
 
             return {
                 phase,
-                startIdx: startIdx === -1 ? Infinity : startIdx,
-                endIdx: endIdx === -1 ? startIdx : endIdx
+                startIdx: startIdx,
+                endIdx: endIdx
             };
-        }).filter(p => p.startIdx !== Infinity)
+        }).filter(p => p.startIdx !== Infinity && p.startIdx <= weekCodes.length - 1)
           .sort((a, b) => a.startIdx - b.startIdx || a.endIdx - b.endIdx);
 
         // Assigner chaque phase à une lane
@@ -903,21 +1144,28 @@ class RoadmapChantiersPage {
 
     /**
      * Rendu des cellules d'un chantier
-     * Nouvelle approche : une cellule par sprint, phases positionnées en CSS avec lanes
+     * Nouvelle approche : une cellule par SEMAINE, phases positionnées en CSS avec lanes
+     * @param {string} chantierName - Nom du chantier
+     * @param {Array} chantierPhases - Phases du chantier
+     * @param {Array} visibleSprints - Sprints visibles
+     * @param {Object} phasesByWeekRange - Mapping weekCode -> phases
+     * @param {Array} allWeeks - Liste de toutes les semaines
      */
-    renderChantierCells(chantierName, chantierPhases, visibleSprints, phasesBySprintRange) {
+    renderChantierCells(chantierName, chantierPhases, visibleSprints, phasesByWeekRange, allWeeks) {
         const cellsHtml = [];
         const renderedPhases = new Set();
-        const visibleSprintNames = visibleSprints.map(s => s['Sprint']);
+        const weekCodes = allWeeks.map(w => w.weekCode);
 
-        // Calculer les lanes pour ce chantier
-        const { phaseLanes, totalLanes } = this.calculatePhaseLanes(chantierPhases, visibleSprints);
+        // Calculer les lanes pour ce chantier (basé sur les semaines)
+        const { phaseLanes, totalLanes } = this.calculatePhaseLanes(chantierPhases, allWeeks);
 
-        visibleSprints.forEach((sprint, sprintIdx) => {
-            const sprintName = sprint['Sprint'];
-            const phasesInCell = phasesBySprintRange[sprintName] || [];
+        allWeeks.forEach((weekInfo, weekIdx) => {
+            const weekCode = weekInfo.weekCode;
+            const sprintName = weekInfo.sprintName;
+            const isFirstWeek = weekInfo.isFirstOfSprint;
+            const phasesInCell = phasesByWeekRange[weekCode] || [];
 
-            // Filtrer les phases qui COMMENCENT à ce sprint et pas déjà rendues
+            // Filtrer les phases qui COMMENCENT à cette semaine et pas déjà rendues
             const phasesToRender = phasesInCell.filter(p =>
                 p.isStart && !renderedPhases.has(p.phase['Phase'])
             );
@@ -927,30 +1175,32 @@ class RoadmapChantiersPage {
 
             // Calculer le colspan effectif de chaque phase et ajouter les infos de lane
             const phasesWithColspan = phasesToRender.map(p => {
-                const endIdx = Math.min(p.startIdx + p.colspan - 1, visibleSprintNames.length - 1);
-                const effectiveColspan = endIdx - sprintIdx + 1;
+                const endIdx = Math.min(p.startIdx + p.colspan - 1, weekCodes.length - 1);
+                const effectiveColspan = endIdx - weekIdx + 1;
                 const lane = phaseLanes.get(p.phase['Phase']) || 0;
                 return { ...p, effectiveColspan, lane };
             });
 
             // Générer le HTML des phases qui commencent ici
-            // Passer sprintIdx pour calculer le z-index (phases qui commencent plus tard = z-index plus élevé)
             const phasesHtml = phasesWithColspan.map((p) =>
-                this.renderPhaseBlock(p.phase, totalLanes, p.lane, p.effectiveColspan, sprintIdx)
+                this.renderPhaseBlock(p.phase, totalLanes, p.lane, p.effectiveColspan, weekIdx)
             ).join('');
 
-            // Toujours créer une cellule pour chaque sprint
+            // Toujours créer une cellule pour chaque semaine
             const hasPhases = phasesWithColspan.length > 0;
             const cellClass = hasPhases ? 'gantt-phase-cell' : 'gantt-empty-cell';
+            const firstWeekClass = isFirstWeek ? ' first-week' : '';
 
             cellsHtml.push(`
-                <td class="gantt-data-cell ${cellClass}"
+                <td class="gantt-data-cell gantt-week-cell${firstWeekClass} ${cellClass}"
                     data-chantier="${escapeHtml(chantierName)}"
                     data-sprint="${escapeHtml(sprintName)}"
+                    data-week="${escapeHtml(weekCode)}"
+                    data-week-idx="${weekIdx}"
                     data-total-lanes="${totalLanes}">
                     ${hasPhases
                         ? `<div class="gantt-phases-container" data-total-lanes="${totalLanes}">${phasesHtml}</div>`
-                        : `<div class="empty-cell-clickzone" onclick="roadmapChantiersPageInstance.showAddPhaseModal('${escapeJsString(chantierName)}', '${escapeJsString(sprintName)}')"></div>`}
+                        : `<div class="empty-cell-clickzone" onclick="roadmapChantiersPageInstance.showAddPhaseModal('${escapeJsString(chantierName)}', '${escapeJsString(sprintName)}', '${escapeJsString(weekCode)}')"></div>`}
                 </td>
             `);
         });
@@ -2292,7 +2542,10 @@ class RoadmapChantiersPage {
     // GESTION DES PHASES
     // ==========================================
 
-    async showAddPhaseModal(chantierName, sprintName) {
+    async showAddPhaseModal(chantierName, sprintName, weekCode = '') {
+        // Générer le code semaine par défaut si non fourni
+        const defaultWeekCode = weekCode || this.formatWeekCode(new Date());
+
         const content = `
             <form id="formAddPhase" class="form">
                 <div class="form-group">
@@ -2318,10 +2571,17 @@ class RoadmapChantiersPage {
                     <label class="form-label">Chantier</label>
                     <input type="text" class="form-control" name="Chantier" value="${escapeHtml(chantierName)}" readonly>
                 </div>
-                <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Mode</label>
+                    <select class="form-control" name="Mode" id="addPhaseMode" onchange="roadmapChantiersPageInstance.toggleAddPhaseModeFields()">
+                        <option value="Sprint" selected>Sprint</option>
+                        <option value="Semaine">Semaine</option>
+                    </select>
+                </div>
+                <div class="form-row" id="addPhaseSprintFields">
                     <div class="form-group">
                         <label class="form-label required">Sprint début</label>
-                        <select class="form-control" name="Sprint début" required>
+                        <select class="form-control" name="Sprint début">
                             ${this.sprints.map(s => `
                                 <option value="${escapeHtml(s['Sprint'])}" ${s['Sprint'] === sprintName ? 'selected' : ''}>
                                     ${escapeHtml(s['Sprint'])}
@@ -2331,13 +2591,29 @@ class RoadmapChantiersPage {
                     </div>
                     <div class="form-group">
                         <label class="form-label required">Sprint fin</label>
-                        <select class="form-control" name="Sprint fin" required>
+                        <select class="form-control" name="Sprint fin">
                             ${this.sprints.map(s => `
                                 <option value="${escapeHtml(s['Sprint'])}" ${s['Sprint'] === sprintName ? 'selected' : ''}>
                                     ${escapeHtml(s['Sprint'])}
                                 </option>
                             `).join('')}
                         </select>
+                    </div>
+                </div>
+                <div class="form-row" id="addPhaseWeekFields" style="display: none;">
+                    <div class="form-group">
+                        <label class="form-label required">Semaine début</label>
+                        <input type="text" class="form-control" name="Semaine début"
+                               placeholder="AAAAS99" pattern="\\d{4}S\\d{2}"
+                               value="${escapeHtml(defaultWeekCode)}"
+                               title="Format: AAAAS99 (ex: 2026S02)">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label required">Semaine fin</label>
+                        <input type="text" class="form-control" name="Semaine fin"
+                               placeholder="AAAAS99" pattern="\\d{4}S\\d{2}"
+                               value="${escapeHtml(defaultWeekCode)}"
+                               title="Format: AAAAS99 (ex: 2026S02)">
                     </div>
                 </div>
                 <div class="form-group">
@@ -2363,22 +2639,17 @@ class RoadmapChantiersPage {
                 {
                     label: 'Ajouter',
                     class: 'btn-primary',
-                    action: async (modal) => {
+                    action: async () => {
                         const form = document.getElementById('formAddPhase');
                         const formData = new FormData(form);
 
-                        // Validation manuelle pour éviter les problèmes de timing avec la validation native
+                        // Validation manuelle
                         const phaseName = (formData.get('Phase') || '').trim();
                         const typePhase = formData.get('Type phase');
-                        const sprintDebut = formData.get('Sprint début');
-                        const sprintFin = formData.get('Sprint fin');
+                        const mode = formData.get('Mode') || 'Sprint';
 
                         if (!phaseName) {
                             showError('Veuillez saisir le nom de la phase');
-                            return false;
-                        }
-                        if (!sprintDebut || !sprintFin) {
-                            showError('Veuillez sélectionner les sprints de début et de fin');
                             return false;
                         }
 
@@ -2387,11 +2658,39 @@ class RoadmapChantiersPage {
                             'Type phase': typePhase || '',
                             'Description': formData.get('Description'),
                             'Chantier': chantierName,
-                            'Sprint début': sprintDebut,
-                            'Sprint fin': sprintFin,
+                            'Mode': mode,
+                            'Sprint début': '',
+                            'Sprint fin': '',
+                            'Semaine début': '',
+                            'Semaine fin': '',
                             'Lien Teams': formData.get('Lien Teams'),
                             'Couleur': CONFIG.PHASE_COLORS[typePhase] || ''
                         };
+
+                        if (mode === 'Sprint') {
+                            const sprintDebut = formData.get('Sprint début');
+                            const sprintFin = formData.get('Sprint fin');
+                            if (!sprintDebut || !sprintFin) {
+                                showError('Veuillez sélectionner les sprints de début et de fin');
+                                return false;
+                            }
+                            phaseData['Sprint début'] = sprintDebut;
+                            phaseData['Sprint fin'] = sprintFin;
+                        } else {
+                            const semaineDebut = (formData.get('Semaine début') || '').trim();
+                            const semaineFin = (formData.get('Semaine fin') || '').trim();
+                            if (!semaineDebut || !semaineFin) {
+                                showError('Veuillez saisir les semaines de début et de fin');
+                                return false;
+                            }
+                            // Valider le format
+                            if (!/^\d{4}S\d{2}$/.test(semaineDebut) || !/^\d{4}S\d{2}$/.test(semaineFin)) {
+                                showError('Format de semaine invalide. Utilisez AAAAS99 (ex: 2026S02)');
+                                return false;
+                            }
+                            phaseData['Semaine début'] = semaineDebut;
+                            phaseData['Semaine fin'] = semaineFin;
+                        }
 
                         try {
                             await addTableRow('tPhases', phaseData);
@@ -2423,6 +2722,23 @@ class RoadmapChantiersPage {
     }
 
     /**
+     * Bascule l'affichage des champs Sprint/Semaine dans la modale d'ajout
+     */
+    toggleAddPhaseModeFields() {
+        const mode = document.getElementById('addPhaseMode')?.value || 'Sprint';
+        const sprintFields = document.getElementById('addPhaseSprintFields');
+        const weekFields = document.getElementById('addPhaseWeekFields');
+
+        if (mode === 'Semaine') {
+            if (sprintFields) sprintFields.style.display = 'none';
+            if (weekFields) weekFields.style.display = 'flex';
+        } else {
+            if (sprintFields) sprintFields.style.display = 'flex';
+            if (weekFields) weekFields.style.display = 'none';
+        }
+    }
+
+    /**
      * Ouvre la modale d'ajout de phase pour un chantier (sans sprint pré-sélectionné)
      */
     showAddPhaseModalForChantier(chantierName) {
@@ -2445,6 +2761,10 @@ class RoadmapChantiersPage {
 
         // Récupérer les liens de cette phase
         const liens = this.phasesLien.filter(l => l['Phase'] === phase['Phase']);
+
+        // Déterminer le mode actuel
+        const currentMode = phase['Mode'] || 'Sprint';
+        const isWeekMode = currentMode === 'Semaine';
 
         const content = `
             <form id="formEditPhase" class="form">
@@ -2469,10 +2789,17 @@ class RoadmapChantiersPage {
                     <label class="form-label">Chantier</label>
                     <input type="text" class="form-control" value="${escapeHtml(phase['Chantier'])}" readonly>
                 </div>
-                <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Mode</label>
+                    <select class="form-control" name="Mode" id="editPhaseMode" onchange="roadmapChantiersPageInstance.toggleEditPhaseModeFields()">
+                        <option value="Sprint" ${!isWeekMode ? 'selected' : ''}>Sprint</option>
+                        <option value="Semaine" ${isWeekMode ? 'selected' : ''}>Semaine</option>
+                    </select>
+                </div>
+                <div class="form-row" id="editPhaseSprintFields" style="${isWeekMode ? 'display: none;' : ''}">
                     <div class="form-group">
                         <label class="form-label required">Sprint début</label>
-                        <select class="form-control" name="Sprint début" required>
+                        <select class="form-control" name="Sprint début">
                             ${this.sprints.map(s => `
                                 <option value="${escapeHtml(s['Sprint'])}" ${s['Sprint'] === phase['Sprint début'] ? 'selected' : ''}>
                                     ${escapeHtml(s['Sprint'])}
@@ -2482,13 +2809,29 @@ class RoadmapChantiersPage {
                     </div>
                     <div class="form-group">
                         <label class="form-label required">Sprint fin</label>
-                        <select class="form-control" name="Sprint fin" required>
+                        <select class="form-control" name="Sprint fin">
                             ${this.sprints.map(s => `
                                 <option value="${escapeHtml(s['Sprint'])}" ${s['Sprint'] === phase['Sprint fin'] ? 'selected' : ''}>
                                     ${escapeHtml(s['Sprint'])}
                                 </option>
                             `).join('')}
                         </select>
+                    </div>
+                </div>
+                <div class="form-row" id="editPhaseWeekFields" style="${!isWeekMode ? 'display: none;' : ''}">
+                    <div class="form-group">
+                        <label class="form-label required">Semaine début</label>
+                        <input type="text" class="form-control" name="Semaine début"
+                               placeholder="AAAAS99" pattern="\\d{4}S\\d{2}"
+                               value="${escapeHtml(phase['Semaine début'] || '')}"
+                               title="Format: AAAAS99 (ex: 2026S02)">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label required">Semaine fin</label>
+                        <input type="text" class="form-control" name="Semaine fin"
+                               placeholder="AAAAS99" pattern="\\d{4}S\\d{2}"
+                               value="${escapeHtml(phase['Semaine fin'] || '')}"
+                               title="Format: AAAAS99 (ex: 2026S02)">
                     </div>
                 </div>
                 <div class="form-group">
@@ -2522,22 +2865,17 @@ class RoadmapChantiersPage {
                 {
                     label: 'Enregistrer',
                     class: 'btn-primary',
-                    action: async (modal) => {
+                    action: async () => {
                         const form = document.getElementById('formEditPhase');
                         const formData = new FormData(form);
 
-                        // Validation manuelle pour éviter les problèmes de timing avec la validation native
+                        // Validation manuelle
                         const phaseName = (formData.get('Phase') || '').trim();
                         const typePhase = formData.get('Type phase');
-                        const sprintDebut = formData.get('Sprint début');
-                        const sprintFin = formData.get('Sprint fin');
+                        const mode = formData.get('Mode') || 'Sprint';
 
                         if (!phaseName) {
                             showError('Veuillez saisir le nom de la phase');
-                            return false;
-                        }
-                        if (!sprintDebut || !sprintFin) {
-                            showError('Veuillez sélectionner les sprints de début et de fin');
                             return false;
                         }
 
@@ -2546,11 +2884,38 @@ class RoadmapChantiersPage {
                             'Type phase': typePhase || '',
                             'Description': formData.get('Description'),
                             'Chantier': phase['Chantier'],
-                            'Sprint début': sprintDebut,
-                            'Sprint fin': sprintFin,
+                            'Mode': mode,
+                            'Sprint début': '',
+                            'Sprint fin': '',
+                            'Semaine début': '',
+                            'Semaine fin': '',
                             'Lien Teams': formData.get('Lien Teams'),
                             'Couleur': CONFIG.PHASE_COLORS[typePhase] || ''
                         };
+
+                        if (mode === 'Sprint') {
+                            const sprintDebut = formData.get('Sprint début');
+                            const sprintFin = formData.get('Sprint fin');
+                            if (!sprintDebut || !sprintFin) {
+                                showError('Veuillez sélectionner les sprints de début et de fin');
+                                return false;
+                            }
+                            updatedPhase['Sprint début'] = sprintDebut;
+                            updatedPhase['Sprint fin'] = sprintFin;
+                        } else {
+                            const semaineDebut = (formData.get('Semaine début') || '').trim();
+                            const semaineFin = (formData.get('Semaine fin') || '').trim();
+                            if (!semaineDebut || !semaineFin) {
+                                showError('Veuillez saisir les semaines de début et de fin');
+                                return false;
+                            }
+                            if (!/^\d{4}S\d{2}$/.test(semaineDebut) || !/^\d{4}S\d{2}$/.test(semaineFin)) {
+                                showError('Format de semaine invalide. Utilisez AAAAS99 (ex: 2026S02)');
+                                return false;
+                            }
+                            updatedPhase['Semaine début'] = semaineDebut;
+                            updatedPhase['Semaine fin'] = semaineFin;
+                        }
 
                         try {
                             await updateTableRow('tPhases', rowIndex, updatedPhase);
@@ -2590,6 +2955,23 @@ class RoadmapChantiersPage {
                 }
             ]
         });
+    }
+
+    /**
+     * Bascule l'affichage des champs Sprint/Semaine dans la modale d'édition
+     */
+    toggleEditPhaseModeFields() {
+        const mode = document.getElementById('editPhaseMode')?.value || 'Sprint';
+        const sprintFields = document.getElementById('editPhaseSprintFields');
+        const weekFields = document.getElementById('editPhaseWeekFields');
+
+        if (mode === 'Semaine') {
+            if (sprintFields) sprintFields.style.display = 'none';
+            if (weekFields) weekFields.style.display = 'flex';
+        } else {
+            if (sprintFields) sprintFields.style.display = 'flex';
+            if (weekFields) weekFields.style.display = 'none';
+        }
     }
 
     addLienRow() {
@@ -2832,17 +3214,54 @@ class RoadmapChantiersPage {
         this._boundResizeMove = this.handleResizeMove.bind(this);
         this._boundResizeEnd = this.handleResizeEnd.bind(this);
 
-        // Utiliser la constante de classe pour la largeur des cellules sprint
-        const cellWidth = RoadmapChantiersPage.SPRINT_COL_WIDTH;
+        // Utiliser la largeur des cellules semaine
+        const cellWidth = RoadmapChantiersPage.WEEK_COL_WIDTH;
 
-        // Obtenir les indices de sprint actuels
-        const startIdx = this.getSprintIndex(phase['Sprint début']);
-        const endIdx = this.getSprintIndex(phase['Sprint fin'] || phase['Sprint début']);
+        // Obtenir le mode de la phase
+        const mode = phase['Mode'] || 'Sprint';
+
+        // Calculer les indices de semaines pour cette phase
+        const allWeeks = this._allWeeks || [];
+        const weekCodes = allWeeks.map(w => w.weekCode);
+
+        let startIdx, endIdx;
+
+        if (mode === 'Semaine') {
+            const startWeek = phase['Semaine début'];
+            const endWeek = phase['Semaine fin'] || startWeek;
+            startIdx = weekCodes.indexOf(startWeek);
+            endIdx = weekCodes.indexOf(endWeek);
+        } else {
+            // Mode Sprint: trouver les semaines correspondantes
+            const startSprint = phase['Sprint début'];
+            const endSprint = phase['Sprint fin'] || startSprint;
+
+            const allSprintNames = this.sprints.map(s => s['Sprint']);
+            const startSprintIdx = allSprintNames.indexOf(startSprint);
+            const endSprintIdx = allSprintNames.indexOf(endSprint);
+
+            if (startSprintIdx === -1) {
+                console.error('Sprint de début non trouvé');
+                return;
+            }
+
+            const startSprintObj = this.sprints[startSprintIdx];
+            const endSprintObj = this.sprints[endSprintIdx !== -1 ? endSprintIdx : startSprintIdx];
+
+            const startSprintWeeks = this.getWeeksForSprint(startSprintObj);
+            const endSprintWeeks = this.getWeeksForSprint(endSprintObj);
+
+            startIdx = weekCodes.indexOf(startSprintWeeks[0]);
+            endIdx = weekCodes.indexOf(endSprintWeeks[endSprintWeeks.length - 1]);
+        }
+
+        if (startIdx === -1) startIdx = 0;
+        if (endIdx === -1) endIdx = weekCodes.length - 1;
+
         const currentColspan = endIdx - startIdx + 1;
 
         // Obtenir la position et dimensions du bloc
         const blockRect = block.getBoundingClientRect();
-        const parentRect = block.parentElement.getBoundingClientRect();
 
         // Créer l'élément de preview en pointillés
         const preview = document.createElement('div');
@@ -2865,8 +3284,9 @@ class RoadmapChantiersPage {
             startIdx: startIdx,
             endIdx: endIdx,
             currentColspan: currentColspan,
-            initialLeft: 0,
-            initialWidth: blockRect.width
+            initialWidth: blockRect.width,
+            mode: mode,
+            weekCodes: weekCodes
         };
 
         document.addEventListener('mousemove', this._boundResizeMove);
@@ -2876,11 +3296,11 @@ class RoadmapChantiersPage {
     handleResizeMove(e) {
         if (!this.resizingPhase) return;
 
-        const { direction, startX, preview, cellWidth, startIdx, endIdx, initialWidth, initialLeft } = this.resizingPhase;
+        const { direction, startX, preview, cellWidth, startIdx, endIdx, weekCodes } = this.resizingPhase;
         const deltaX = e.clientX - startX;
 
-        // Calculer le nombre de sprints de décalage (arrondi à l'entier le plus proche)
-        const sprintDelta = Math.round(deltaX / cellWidth);
+        // Calculer le nombre de semaines de décalage (arrondi à l'entier le plus proche)
+        const weekDelta = Math.round(deltaX / cellWidth);
 
         // Calculer les nouveaux indices
         let newStartIdx = startIdx;
@@ -2888,14 +3308,14 @@ class RoadmapChantiersPage {
 
         if (direction === 'left') {
             // Ancrage gauche: modifier le début
-            newStartIdx = startIdx + sprintDelta;
-            // Limites: ne pas dépasser le début des sprints, et garder au moins 1 sprint
+            newStartIdx = startIdx + weekDelta;
+            // Limites: ne pas dépasser le début des semaines, et garder au moins 1 semaine
             newStartIdx = Math.max(0, Math.min(newStartIdx, endIdx));
         } else {
             // Ancrage droit: modifier la fin
-            newEndIdx = endIdx + sprintDelta;
-            // Limites: ne pas dépasser la fin des sprints, et garder au moins 1 sprint
-            newEndIdx = Math.min(this.sprints.length - 1, Math.max(newEndIdx, startIdx));
+            newEndIdx = endIdx + weekDelta;
+            // Limites: ne pas dépasser la fin des semaines, et garder au moins 1 semaine
+            newEndIdx = Math.min(weekCodes.length - 1, Math.max(newEndIdx, startIdx));
         }
 
         const newColspan = newEndIdx - newStartIdx + 1;
@@ -2917,7 +3337,7 @@ class RoadmapChantiersPage {
         // Stocker les valeurs calculées pour handleResizeEnd
         this.resizingPhase.newStartIdx = newStartIdx;
         this.resizingPhase.newEndIdx = newEndIdx;
-        this.resizingPhase.sprintDelta = sprintDelta;
+        this.resizingPhase.weekDelta = weekDelta;
     }
 
     async handleResizeEnd(e) {
@@ -2927,7 +3347,7 @@ class RoadmapChantiersPage {
         document.removeEventListener('mousemove', this._boundResizeMove);
         document.removeEventListener('mouseup', this._boundResizeEnd);
 
-        const { phase, direction, block, preview, newStartIdx, newEndIdx, startIdx, endIdx } = this.resizingPhase;
+        const { phase, direction, block, preview, newStartIdx, newEndIdx, startIdx, endIdx, mode, weekCodes } = this.resizingPhase;
 
         // Supprimer la preview et la classe resizing
         if (preview && preview.parentNode) {
@@ -2956,12 +3376,40 @@ class RoadmapChantiersPage {
         }
 
         try {
-            if (direction === 'left') {
-                // Ancrage gauche: modifier Sprint début
-                phase['Sprint début'] = this.sprints[newStartIdx]['Sprint'];
+            const newStartWeek = weekCodes[newStartIdx];
+            const newEndWeek = weekCodes[newEndIdx];
+
+            if (mode === 'Semaine') {
+                // Mode Semaine: mettre à jour les semaines directement
+                if (direction === 'left') {
+                    phase['Semaine début'] = newStartWeek;
+                } else {
+                    phase['Semaine fin'] = newEndWeek;
+                }
             } else {
-                // Ancrage droit: modifier Sprint fin
-                phase['Sprint fin'] = this.sprints[newEndIdx]['Sprint'];
+                // Mode Sprint (défaut): trouver le sprint correspondant à la semaine
+                // et mettre à jour Sprint début/fin
+                const findSprintForWeek = (weekCode) => {
+                    for (const sprint of this.sprints) {
+                        const sprintWeeks = getWeeksForSprint(sprint);
+                        if (sprintWeeks.includes(weekCode)) {
+                            return sprint['Sprint'];
+                        }
+                    }
+                    return null;
+                };
+
+                if (direction === 'left') {
+                    const newSprint = findSprintForWeek(newStartWeek);
+                    if (newSprint) {
+                        phase['Sprint début'] = newSprint;
+                    }
+                } else {
+                    const newSprint = findSprintForWeek(newEndWeek);
+                    if (newSprint) {
+                        phase['Sprint fin'] = newSprint;
+                    }
+                }
             }
 
             await updateTableRow('tPhases', rowIndex, phase);

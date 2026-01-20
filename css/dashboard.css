@@ -1952,6 +1952,42 @@
     background: #E2250C;
 }
 
+/* Cellule de semaine (en-tête de table) */
+.gantt-week-header-cell {
+    background: var(--mh-bleu-clair);
+    color: var(--mh-blanc);
+    font-size: 10px;
+    text-align: center;
+    padding: 4px 2px;
+    width: 45px;
+    min-width: 45px;
+    max-width: 45px;
+    border-left: 1px dashed rgba(255, 255, 255, 0.4);
+    vertical-align: middle;
+}
+
+/* Première semaine d'un sprint - bordure solide */
+.gantt-week-header-cell.first-week {
+    border-left: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Semaine actuelle */
+.gantt-week-header-cell.current-week {
+    background: #E2250C;
+}
+
+/* Cellule de données pour semaines */
+.gantt-week-cell {
+    width: 45px;
+    min-width: 45px;
+    max-width: 45px;
+    border-left: 1px dashed #dee2e6;
+}
+
+.gantt-week-cell.first-week {
+    border-left: 1px solid #dee2e6;
+}
+
 /* Anciens styles pour compatibilité */
 .gantt-month-header,
 .gantt-months-row th {
