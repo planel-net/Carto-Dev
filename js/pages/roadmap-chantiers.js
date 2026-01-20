@@ -3391,7 +3391,7 @@ class RoadmapChantiersPage {
                 // et mettre à jour Sprint début/fin
                 const findSprintForWeek = (weekCode) => {
                     for (const sprint of this.sprints) {
-                        const sprintWeeks = getWeeksForSprint(sprint);
+                        const sprintWeeks = this.getWeeksForSprint(sprint);
                         if (sprintWeeks.includes(weekCode)) {
                             return sprint['Sprint'];
                         }
