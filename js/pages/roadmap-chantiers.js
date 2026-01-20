@@ -1172,6 +1172,20 @@ class RoadmapChantiersPage {
     }
 
     /**
+     * Trouve la cellule de données à une position donnée (méthode robuste basée sur les coordonnées)
+     */
+    findCellAtPosition(x, y) {
+        const cells = document.querySelectorAll('.gantt-chantiers-table .gantt-data-cell');
+        for (const cell of cells) {
+            const rect = cell.getBoundingClientRect();
+            if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+                return cell;
+            }
+        }
+        return null;
+    }
+
+    /**
      * Gère le mouvement pendant le drag personnalisé
      */
     handleCustomDragMove(e) {
@@ -1179,9 +1193,8 @@ class RoadmapChantiersPage {
 
         const { preview, colspan, chantier: sourceChantier } = this.draggedPhase;
 
-        // Trouver la cellule sous le curseur
-        const elementsUnder = document.elementsFromPoint(e.clientX, e.clientY);
-        const cell = elementsUnder.find(el => el.classList.contains('gantt-data-cell'));
+        // Trouver la cellule sous le curseur (méthode basée sur les coordonnées, plus robuste)
+        const cell = this.findCellAtPosition(e.clientX, e.clientY);
 
         // Nettoyer les anciennes classes
         document.querySelectorAll('.gantt-data-cell').forEach(c => {
@@ -1249,9 +1262,8 @@ class RoadmapChantiersPage {
             preview.parentNode.removeChild(preview);
         }
 
-        // Trouver la cellule sous le curseur
-        const elementsUnder = document.elementsFromPoint(e.clientX, e.clientY);
-        const cell = elementsUnder.find(el => el.classList.contains('gantt-data-cell'));
+        // Trouver la cellule sous le curseur (méthode basée sur les coordonnées)
+        const cell = this.findCellAtPosition(e.clientX, e.clientY);
 
         // Nettoyer les classes
         document.querySelectorAll('.gantt-phase-block').forEach(b => {

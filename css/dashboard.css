@@ -2062,6 +2062,8 @@
 
 .gantt-phase-cell {
     /* Pas de z-index pour éviter de créer un contexte d'empilement qui bloquerait les phases étendues */
+    /* pointer-events: none permet aux phases étendues des cellules précédentes de recevoir les événements */
+    pointer-events: none;
 }
 
 .gantt-empty-cell {
@@ -2099,6 +2101,10 @@
     align-items: flex-start;
     /* z-index élevé pour que les phases étendues apparaissent au-dessus des cellules vides */
     z-index: 15;
+    /* IMPORTANT: pointer-events: none permet aux phases qui débordent des cellules précédentes
+       de recevoir les événements (clic, double-clic, resize). Les blocs de phase eux-mêmes
+       ont pointer-events: auto pour rester cliquables. */
+    pointer-events: none;
 }
 
 /* ===========================================
@@ -2118,6 +2124,8 @@
     transition: transform var(--transition-fast), box-shadow var(--transition-fast);
     z-index: 10;
     box-sizing: border-box;
+    /* Réactiver les pointer-events pour les blocs de phase (désactivés sur le container parent) */
+    pointer-events: auto;
 }
 
 .gantt-chantiers-table .gantt-phase-block.fullwidth {
@@ -2197,6 +2205,25 @@
 
 .gantt-chantiers-table .gantt-phase-block.resizing {
     opacity: 0.7;
+}
+
+/* Phase en cours de glisser-déposer */
+.gantt-chantiers-table .gantt-phase-block.dragging {
+    opacity: 0.5;
+    cursor: grabbing;
+    /* pointer-events: none permet de détecter les cellules sous la phase pendant le drag */
+    pointer-events: none;
+    z-index: 100;
+}
+
+/* Cellule survolée pendant le drag - destination valide */
+.gantt-chantiers-table .gantt-data-cell.drag-over {
+    background: rgba(0, 102, 204, 0.15) !important;
+}
+
+/* Cellule survolée pendant le drag - destination invalide (autre chantier) */
+.gantt-chantiers-table .gantt-data-cell.drag-invalid {
+    background: rgba(220, 53, 69, 0.15) !important;
 }
 
 /* Drag preview with dashed border - shows where phase will land during drag */
