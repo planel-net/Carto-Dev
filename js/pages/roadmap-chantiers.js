@@ -475,18 +475,21 @@ class RoadmapChantiersPage {
         const startDate = this.parseDate(sprint['Début']);
         const endDate = this.parseDate(sprint['Fin']);
 
-        // Trouver le lundi de la première semaine du sprint
+        if (!startDate || !endDate) return weeks;
+
+        // Trouver le premier lundi à inclure
+        // Règle: on n'inclut une semaine QUE si son lundi est >= date début ET < date fin
         let currentDate = new Date(startDate);
         const dayOfWeek = currentDate.getDay() || 7; // 1=lundi, 7=dimanche
-        if (dayOfWeek !== 1) {
-            // Revenir au lundi précédent ou celui de cette semaine
-            currentDate.setDate(currentDate.getDate() - (dayOfWeek - 1));
-        }
 
-        // Inclure une semaine seulement si son lundi est strictement avant la date de fin du sprint
-        // Cela évite d'afficher des semaines "gap" entre les sprints
-        // Ex: Sprint 09 finit le 29/12 (lundi), Sprint 10 commence le 05/01 (lundi)
-        //     -> S01 (lundi 29/12) ne sera pas affiché car 29/12 n'est pas < 29/12
+        if (dayOfWeek !== 1) {
+            // Le sprint ne commence pas un lundi
+            // Aller au lundi SUIVANT (pas le précédent qui serait dans le gap)
+            currentDate.setDate(currentDate.getDate() + (8 - dayOfWeek));
+        }
+        // Si le sprint commence un lundi, currentDate reste sur startDate
+
+        // Boucle: inclure les semaines dont le lundi est >= début ET < fin
         while (currentDate < endDate) {
             const weekCode = this.formatWeekCode(currentDate);
             if (!weeks.includes(weekCode)) {
