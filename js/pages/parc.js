@@ -106,59 +106,60 @@ class ParcPage {
 
     /**
      * Obtient les processus structures (groupes par processus principal avec sous-processus)
-     * Tries par la colonne Ordre (valeur minimum si plusieurs lignes pour le meme processus)
+     * Tries par la colonne Ordre de chaque ligne processus/sous-processus
+     * Les colonnes contigues avec le meme processus sont regroupees
      */
     getStructuredProcessus() {
-        const structured = {};
-        const processOrdre = {}; // Stocke le min Ordre pour chaque processus
-        const subProcessOrdre = {}; // Stocke le min Ordre pour chaque sous-processus par processus
+        // 1. Creer une liste plate de toutes les colonnes (processus + sous-processus) avec leur ordre
+        const columns = [];
+        const seen = new Set(); // Pour eviter les doublons
 
         this.processus.forEach(p => {
             const mainProcess = p.Processus;
-            const subProcess = p['Sous-processus'];
+            const subProcess = p['Sous-processus'] || null;
             const ordre = p.Ordre !== undefined && p.Ordre !== '' ? Number(p.Ordre) : Infinity;
+            const key = `${mainProcess}|${subProcess || ''}`;
 
-            if (!structured[mainProcess]) {
-                structured[mainProcess] = {
-                    name: mainProcess,
-                    subProcesses: []
-                };
-                processOrdre[mainProcess] = ordre;
-                subProcessOrdre[mainProcess] = {};
+            if (!seen.has(key)) {
+                seen.add(key);
+                columns.push({
+                    process: mainProcess,
+                    subProcess: subProcess,
+                    ordre: ordre
+                });
+            }
+        });
+
+        // 2. Trier par ordre
+        columns.sort((a, b) => a.ordre - b.ordre);
+
+        // 3. Grouper les colonnes contigues avec le meme processus
+        const structured = [];
+        let currentGroup = null;
+
+        columns.forEach(col => {
+            if (currentGroup && currentGroup.name === col.process) {
+                // Meme processus que le groupe courant, on ajoute le sous-processus
+                if (col.subProcess) {
+                    currentGroup.subProcesses.push(col.subProcess);
+                }
             } else {
-                // Garder le minimum des ordres pour ce processus
-                processOrdre[mainProcess] = Math.min(processOrdre[mainProcess], ordre);
-            }
-
-            if (subProcess && !structured[mainProcess].subProcesses.includes(subProcess)) {
-                structured[mainProcess].subProcesses.push(subProcess);
-                subProcessOrdre[mainProcess][subProcess] = ordre;
-            } else if (subProcess && subProcessOrdre[mainProcess][subProcess] !== undefined) {
-                // Garder le minimum des ordres pour ce sous-processus
-                subProcessOrdre[mainProcess][subProcess] = Math.min(subProcessOrdre[mainProcess][subProcess], ordre);
+                // Nouveau processus ou premier element
+                currentGroup = {
+                    name: col.process,
+                    subProcesses: col.subProcess ? [col.subProcess] : []
+                };
+                structured.push(currentGroup);
             }
         });
 
-        // Trier les sous-processus de chaque processus par ordre
-        Object.keys(structured).forEach(mainProcess => {
-            structured[mainProcess].subProcesses.sort((a, b) => {
-                const ordreA = subProcessOrdre[mainProcess][a] !== undefined ? subProcessOrdre[mainProcess][a] : Infinity;
-                const ordreB = subProcessOrdre[mainProcess][b] !== undefined ? subProcessOrdre[mainProcess][b] : Infinity;
-                return ordreA - ordreB;
-            });
-        });
-
-        // Trier les processus principaux par ordre
-        return Object.values(structured).sort((a, b) => {
-            const ordreA = processOrdre[a.name] !== undefined ? processOrdre[a.name] : Infinity;
-            const ordreB = processOrdre[b.name] !== undefined ? processOrdre[b.name] : Infinity;
-            return ordreA - ordreB;
-        });
+        return structured;
     }
 
     /**
      * Obtient les processus uniques (noms principaux)
      * Tries par la colonne Ordre (valeur minimum si plusieurs lignes pour le meme processus)
+     * Utilise pour le filtre de processus dans la toolbar
      */
     getUniqueProcessus() {
         const processOrdre = {};
@@ -174,7 +175,7 @@ class ParcPage {
             }
         });
 
-        // Trier par ordre puis retourner les noms
+        // Trier par ordre minimum puis retourner les noms
         return Object.keys(processOrdre).sort((a, b) => {
             return processOrdre[a] - processOrdre[b];
         });
