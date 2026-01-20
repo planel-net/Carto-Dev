@@ -400,11 +400,21 @@ class RoadmapChantiersPage {
         d.setHours(0, 0, 0, 0);
         // Jeudi de la semaine courante (ISO 8601: les semaines sont définies par leur jeudi)
         d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
+        const year = d.getFullYear();
         // Premier jeudi de l'année
-        const yearStart = new Date(d.getFullYear(), 0, 4);
+        const yearStart = new Date(year, 0, 4);
         // Numéro de semaine = nombre de semaines depuis le premier jeudi
-        const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
-        return { year: d.getFullYear(), week: weekNo };
+        let weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+
+        // Si weekNo <= 0, la semaine appartient à l'année précédente (semaine 52 ou 53)
+        if (weekNo <= 0) {
+            // Recalculer avec l'année précédente
+            const prevYearStart = new Date(year - 1, 0, 4);
+            weekNo = Math.ceil((((d - prevYearStart) / 86400000) + 1) / 7);
+            return { year: year - 1, week: weekNo };
+        }
+
+        return { year: year, week: weekNo };
     }
 
     /**
