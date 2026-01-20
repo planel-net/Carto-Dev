@@ -3771,76 +3771,131 @@ class RoadmapChantiersPage {
             // Légende des couleurs (uniquement page 1)
             yPos = this.drawPdfLegend(doc, yPos + 2, margin);
 
-            // Calculer la largeur des colonnes (égales pour tous les sprints)
-            const availableWidth = pageWidth - margin * 2;
-            const chantierColWidth = 40;
-            const sprintColWidth = (availableWidth - chantierColWidth) / visibleSprints.length;
+            // Construire la liste des semaines (comme dans le UI)
+            const allWeeks = this.buildWeeksList(visibleSprints);
+            const totalWeekColumns = allWeeks.length;
 
-            // Construire les en-têtes du tableau avec dates des sprints
+            // Calculer la largeur des colonnes (une colonne par semaine)
+            const availableWidth = pageWidth - margin * 2;
+            const chantierColWidth = 35;
+            const weekColWidth = (availableWidth - chantierColWidth) / totalWeekColumns;
+
+            // Construire les en-têtes du tableau avec 3 lignes: Sprint / Semaine / Date
             const tableHeaders = [
+                // Ligne 1: Noms des sprints avec colspan
                 [
-                    { content: 'Chantier', rowSpan: 2, styles: { valign: 'middle' } },
-                    ...visibleSprints.map(s => ({
-                        content: s['Sprint'],
-                        styles: { halign: 'center', fontStyle: 'bold' }
-                    }))
+                    { content: 'Chantier', rowSpan: 3, styles: { valign: 'middle' } },
+                    ...visibleSprints.map(sprint => {
+                        const weeksInSprint = this.getWeeksForSprint(sprint);
+                        return {
+                            content: sprint['Sprint'],
+                            colSpan: weeksInSprint.length,
+                            styles: { halign: 'center', fontStyle: 'bold' }
+                        };
+                    })
                 ],
-                visibleSprints.map(s => ({
-                    content: `${this.formatDate(s['Début'])} - ${this.formatDate(s['Fin'])}`,
+                // Ligne 2: Numéros de semaine
+                allWeeks.map(weekInfo => ({
+                    content: 'S' + weekInfo.weekCode.slice(-2),
                     styles: { halign: 'center', fontSize: 5 }
-                }))
+                })),
+                // Ligne 3: Dates du lundi
+                allWeeks.map(weekInfo => {
+                    const mondayDate = this.weekCodeToDate(weekInfo.weekCode);
+                    return {
+                        content: mondayDate ? this.formatDate(mondayDate) : '',
+                        styles: { halign: 'center', fontSize: 4 }
+                    };
+                })
             ];
 
-            // Construire les données du tableau avec gestion des phases multiples ET fusion de cellules
+            // Construire les données du tableau avec gestion des phases par semaine
             const tableData = [];
             const phasesMap = new Map(); // Pour stocker les infos de phases par cellule (clé: rowIdx-colIdx où colIdx est 1-based)
-            const cellSpans = new Map(); // Pour stocker les colSpan de chaque cellule
+
+            // Helper: vérifier si une semaine est dans une plage de sprints
+            const isWeekInSprintRange = (weekCode, sprintStart, sprintEnd) => {
+                const startSprint = visibleSprints.find(s => s['Sprint'] === sprintStart);
+                const endSprint = visibleSprints.find(s => s['Sprint'] === (sprintEnd || sprintStart));
+                if (!startSprint) return false;
+
+                const startWeeks = this.getWeeksForSprint(startSprint);
+                const endWeeks = endSprint ? this.getWeeksForSprint(endSprint) : startWeeks;
+
+                if (startWeeks.length === 0 || endWeeks.length === 0) return false;
+
+                const firstWeek = startWeeks[0];
+                const lastWeek = endWeeks[endWeeks.length - 1];
+
+                return weekCode >= firstWeek && weekCode <= lastWeek;
+            };
 
             filteredChantiers.forEach((chantier, rowIdx) => {
                 const chantierName = chantier['Chantier'] || '';
                 const chantierPhases = this.phases.filter(p => p['Chantier'] === chantierName);
                 const row = [chantierName];
 
-                let sprintIdx = 0;
-                while (sprintIdx < visibleSprints.length) {
-                    const sprint = visibleSprints[sprintIdx];
-                    const sprintName = sprint['Sprint'];
-                    const colIdx = sprintIdx + 1; // Index de colonne (1-based car colonne 0 = chantier)
+                let weekIdx = 0;
+                while (weekIdx < allWeeks.length) {
+                    const weekInfo = allWeeks[weekIdx];
+                    const weekCode = weekInfo.weekCode;
+                    const colIdx = weekIdx + 1; // Index de colonne (1-based car colonne 0 = chantier)
 
-                    // Collecter les phases actives pour ce sprint
+                    // Collecter les phases actives pour cette semaine
                     const activePhases = chantierPhases.filter(phase => {
-                        const phaseStart = phase['Sprint début'];
-                        const phaseEnd = phase['Sprint fin'] || phaseStart;
-                        return this.isSprintInRange(sprintName, phaseStart, phaseEnd);
+                        const mode = phase['Mode'] || 'Sprint';
+                        if (mode === 'Semaine') {
+                            const startWeek = phase['Semaine début'];
+                            const endWeek = phase['Semaine fin'] || startWeek;
+                            return startWeek && weekCode >= startWeek && weekCode <= endWeek;
+                        } else {
+                            const phaseStart = phase['Sprint début'];
+                            const phaseEnd = phase['Sprint fin'] || phaseStart;
+                            return isWeekInSprintRange(weekCode, phaseStart, phaseEnd);
+                        }
                     });
 
                     if (activePhases.length === 0) {
-                        // Pas de phase, cellule vide
                         row.push('');
                         phasesMap.set(`${rowIdx}-${colIdx}`, []);
-                        cellSpans.set(`${rowIdx}-${colIdx}`, 1);
-                        sprintIdx++;
+                        weekIdx++;
                     } else if (activePhases.length === 1) {
-                        // Une seule phase - vérifier si on peut fusionner sur plusieurs sprints
+                        // Une seule phase - vérifier si on peut fusionner sur plusieurs semaines
                         const phase = activePhases[0];
-                        const phaseEndSprint = phase['Sprint fin'] || phase['Sprint début'];
-
-                        // Calculer combien de sprints consécutifs cette phase couvre
                         let colSpan = 1;
-                        for (let nextIdx = sprintIdx + 1; nextIdx < visibleSprints.length; nextIdx++) {
-                            const nextSprintName = visibleSprints[nextIdx]['Sprint'];
-                            if (!this.isSprintInRange(nextSprintName, phase['Sprint début'], phaseEndSprint)) {
-                                break;
+
+                        for (let nextIdx = weekIdx + 1; nextIdx < allWeeks.length; nextIdx++) {
+                            const nextWeekCode = allWeeks[nextIdx].weekCode;
+                            const mode = phase['Mode'] || 'Sprint';
+                            let stillActive = false;
+
+                            if (mode === 'Semaine') {
+                                const startWeek = phase['Semaine début'];
+                                const endWeek = phase['Semaine fin'] || startWeek;
+                                stillActive = startWeek && nextWeekCode >= startWeek && nextWeekCode <= endWeek;
+                            } else {
+                                const phaseStart = phase['Sprint début'];
+                                const phaseEnd = phase['Sprint fin'] || phaseStart;
+                                stillActive = isWeekInSprintRange(nextWeekCode, phaseStart, phaseEnd);
                             }
-                            // Vérifier qu'il n'y a pas d'autres phases sur ce sprint
+
+                            if (!stillActive) break;
+
+                            // Vérifier qu'il n'y a pas d'autres phases sur cette semaine
                             const nextActivePhases = chantierPhases.filter(p => {
-                                const pStart = p['Sprint début'];
-                                const pEnd = p['Sprint fin'] || pStart;
-                                return this.isSprintInRange(nextSprintName, pStart, pEnd);
+                                const pMode = p['Mode'] || 'Sprint';
+                                if (pMode === 'Semaine') {
+                                    const sw = p['Semaine début'];
+                                    const ew = p['Semaine fin'] || sw;
+                                    return sw && nextWeekCode >= sw && nextWeekCode <= ew;
+                                } else {
+                                    const ps = p['Sprint début'];
+                                    const pe = p['Sprint fin'] || ps;
+                                    return isWeekInSprintRange(nextWeekCode, ps, pe);
+                                }
                             });
-                            if (nextActivePhases.length !== 1 || nextActivePhases[0] !== phase) {
-                                break;
-                            }
+
+                            if (nextActivePhases.length !== 1 || nextActivePhases[0] !== phase) break;
                             colSpan++;
                         }
 
@@ -3856,8 +3911,7 @@ class RoadmapChantiersPage {
                         }
 
                         phasesMap.set(`${rowIdx}-${colIdx}`, phasesInfo);
-                        cellSpans.set(`${rowIdx}-${colIdx}`, colSpan);
-                        sprintIdx += colSpan;
+                        weekIdx += colSpan;
                     } else {
                         // Plusieurs phases - pas de fusion, empilement vertical
                         const phasesInfo = activePhases.map(p => ({
@@ -3867,18 +3921,17 @@ class RoadmapChantiersPage {
 
                         row.push('');
                         phasesMap.set(`${rowIdx}-${colIdx}`, phasesInfo);
-                        cellSpans.set(`${rowIdx}-${colIdx}`, 1);
-                        sprintIdx++;
+                        weekIdx++;
                     }
                 }
 
                 tableData.push(row);
             });
 
-            // Générer les colonnes styles avec largeurs égales
+            // Générer les colonnes styles avec largeurs égales (une colonne par semaine)
             const columnStyles = { 0: { cellWidth: chantierColWidth, fontStyle: 'bold', valign: 'middle' } };
-            for (let i = 1; i <= visibleSprints.length; i++) {
-                columnStyles[i] = { cellWidth: sprintColWidth, halign: 'center', valign: 'middle' };
+            for (let i = 1; i <= totalWeekColumns; i++) {
+                columnStyles[i] = { cellWidth: weekColWidth, halign: 'center', valign: 'middle' };
             }
 
             // Générer le tableau avec autoTable
