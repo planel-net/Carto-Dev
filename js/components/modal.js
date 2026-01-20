@@ -55,15 +55,24 @@ class Modal {
      * Crée les éléments DOM de la modale
      */
     createElements() {
+        // Calculer le z-index basé sur les modales existantes
+        const existingModals = document.querySelectorAll('.modal.show, .modal-backdrop.show');
+        const stackDepth = Math.floor(existingModals.length / 2) + _modalStack.length;
+        const baseZIndex = 1000;
+        const backdropZIndex = baseZIndex + (stackDepth * 10) + 5;
+        const modalZIndex = baseZIndex + (stackDepth * 10) + 6;
+
         // Backdrop
         this.backdrop = document.createElement('div');
         this.backdrop.className = 'modal-backdrop';
         this.backdrop.id = this.id + '_backdrop';
+        this.backdrop.style.zIndex = backdropZIndex;
 
         // Modal
         this.element = document.createElement('div');
         this.element.className = `modal modal-${this.size}`;
         this.element.id = this.id;
+        this.element.style.zIndex = modalZIndex;
 
         this.element.innerHTML = `
             <div class="modal-header">
