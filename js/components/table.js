@@ -698,6 +698,11 @@ class DataTable {
     handleAdd() {
         if (this.onAdd) {
             this.onAdd();
+        } else if (this.tableName === 'tChantiers' && typeof ChantierModal !== 'undefined') {
+            // Utiliser la modale partagée pour les chantiers
+            ChantierModal.showAddModal(async () => {
+                await this.refresh();
+            });
         } else {
             showFormModal(
                 `Ajouter - ${this.tableConfig?.displayName || this.tableName}`,
@@ -741,6 +746,12 @@ class DataTable {
     handleEdit(row, index) {
         if (this.onEdit) {
             this.onEdit(row, index);
+        } else if (this.tableName === 'tChantiers' && typeof ChantierModal !== 'undefined') {
+            // Utiliser la modale partagée pour les chantiers
+            const chantierName = row['Chantier'];
+            ChantierModal.showEditModal(chantierName, async () => {
+                await this.refresh();
+            });
         } else {
             // Utiliser _rowIndex de la row (index Excel réel) plutôt que l'index du tableau affiché
             const rowIndex = row._rowIndex;
