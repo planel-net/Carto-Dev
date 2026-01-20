@@ -477,10 +477,15 @@ class RoadmapChantiersPage {
 
         if (!startDate || !endDate) return weeks;
 
+        // Normaliser les dates à midi pour éviter les problèmes de timezone
+        startDate.setHours(12, 0, 0, 0);
+        endDate.setHours(12, 0, 0, 0);
+
         // Trouver le premier lundi à inclure
         // Règle: on n'inclut une semaine QUE si son lundi est >= date début ET < date fin
         let currentDate = new Date(startDate);
-        const dayOfWeek = currentDate.getDay() || 7; // 1=lundi, 7=dimanche
+        currentDate.setHours(12, 0, 0, 0);
+        const dayOfWeek = currentDate.getDay() || 7; // 0=dimanche->7, 1=lundi, ..., 6=samedi
 
         if (dayOfWeek !== 1) {
             // Le sprint ne commence pas un lundi
