@@ -1952,7 +1952,7 @@
     background: #E2250C;
 }
 
-/* Cellule de semaine (en-tête de table) */
+/* Cellule de semaine (en-tête de table) - numéros et dates */
 .gantt-week-header-cell {
     background: var(--mh-bleu-clair);
     color: var(--mh-blanc);
@@ -1963,7 +1963,8 @@
     min-width: 45px;
     max-width: 45px;
     border-left: 1px dashed rgba(255, 255, 255, 0.4);
-    border-bottom: none;
+    border-bottom: none !important;
+    border-top: none !important;
     vertical-align: middle;
 }
 
