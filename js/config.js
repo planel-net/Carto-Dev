@@ -6,7 +6,7 @@
 const CONFIG = {
     // Nom de l'application
     APP_NAME: 'Carto',
-    APP_VERSION: '1.0.88',
+    APP_VERSION: '1.0.101',
 
     // Valeur spéciale pour filtrer les éléments sans valeur (périmètre/responsable vide)
     EMPTY_FILTER_VALUE: '(Non rempli)',
@@ -107,9 +107,11 @@ const CONFIG = {
             sheet: 'Processus',
             displayName: 'Processus',
             icon: '&#128736;',
+            sortable: true, // Enable drag-and-drop sorting
             columns: [
                 { field: 'Processus', label: 'Processus', type: 'text', required: true },
-                { field: 'Sous-processus', label: 'Sous-processus', type: 'text' }
+                { field: 'Sous-processus', label: 'Sous-processus', type: 'text' },
+                { field: 'Ordre', label: 'Ordre', type: 'number' }
             ]
         },
         PDT_PROCESS: {

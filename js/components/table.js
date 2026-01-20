@@ -37,6 +37,10 @@ class DataTable {
         this.showCheckboxes = options.showCheckboxes || false;
         this.editable = options.editable !== false;
 
+        // Drag-and-drop sortable (enabled from tableConfig.sortable)
+        this.sortable = this.tableConfig?.sortable || false;
+        this.draggedRow = null;
+
         this.init();
     }
 
@@ -202,6 +206,9 @@ class DataTable {
         // Trier
         if (this.sortColumn) {
             filtered = sortBy(filtered, this.sortColumn, this.sortDirection);
+        } else if (this.sortable) {
+            // Pour les tables sortables, trier par Ordre par défaut
+            filtered = sortBy(filtered, 'Ordre', 'asc');
         }
 
         this.filteredData = filtered;
@@ -226,6 +233,7 @@ class DataTable {
         // Header
         thead.innerHTML = `
             <tr>
+                ${this.sortable ? '<th class="col-drag-handle"></th>' : ''}
                 ${this.showCheckboxes ? '<th class="col-checkbox"><input type="checkbox" id="selectAll"></th>' : ''}
                 ${visibleColumns.map(col => `
                     <th class="sortable" data-field="${col.field}">
@@ -247,7 +255,7 @@ class DataTable {
         if (pageData.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="${visibleColumns.length + (this.showCheckboxes ? 1 : 0) + (this.showActions ? 1 : 0)}">
+                    <td colspan="${visibleColumns.length + (this.sortable ? 1 : 0) + (this.showCheckboxes ? 1 : 0) + (this.showActions ? 1 : 0)}">
                         <div class="table-empty">
                             <div class="table-empty-icon">&#128194;</div>
                             <div class="table-empty-title">Aucune donnée</div>
@@ -277,7 +285,12 @@ class DataTable {
         const visibleColumns = this.getVisibleColumns();
 
         return `
-            <tr data-index="${rowIndex}">
+            <tr data-index="${rowIndex}" ${this.sortable ? 'draggable="true"' : ''}>
+                ${this.sortable ? `
+                    <td class="col-drag-handle">
+                        <span class="drag-handle" title="Glisser pour réordonner">&#9776;</span>
+                    </td>
+                ` : ''}
                 ${this.showCheckboxes ? `
                     <td class="col-checkbox">
                         <input type="checkbox" class="row-checkbox" data-index="${rowIndex}">
@@ -315,6 +328,7 @@ class DataTable {
     renderFilterRow(visibleColumns) {
         return `
             <tr class="filter-row">
+                ${this.sortable ? '<th class="filter-cell"></th>' : ''}
                 ${this.showCheckboxes ? '<th class="filter-cell"></th>' : ''}
                 ${visibleColumns.map(col => {
                     const currentValue = this.columnFilters[col.field] || '';
@@ -546,6 +560,135 @@ class DataTable {
                     this.onRowClick(row, index);
                 });
             });
+        }
+
+        // Drag-and-drop events for sortable tables
+        if (this.sortable) {
+            this.attachDragEvents();
+        }
+    }
+
+    /**
+     * Attache les événements de drag-and-drop pour les tables triables
+     */
+    attachDragEvents() {
+        const tbody = this.container.querySelector('tbody');
+        const rows = tbody.querySelectorAll('tr[draggable="true"]');
+
+        rows.forEach(row => {
+            // Drag start only from the handle
+            const handle = row.querySelector('.drag-handle');
+            if (handle) {
+                handle.addEventListener('mousedown', () => {
+                    row.classList.add('drag-ready');
+                });
+
+                handle.addEventListener('mouseup', () => {
+                    row.classList.remove('drag-ready');
+                });
+            }
+
+            row.addEventListener('dragstart', (e) => {
+                // Only allow drag if started from handle
+                if (!row.classList.contains('drag-ready')) {
+                    e.preventDefault();
+                    return;
+                }
+                this.draggedRow = row;
+                row.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/html', row.outerHTML);
+            });
+
+            row.addEventListener('dragend', () => {
+                row.classList.remove('dragging');
+                row.classList.remove('drag-ready');
+                this.draggedRow = null;
+                // Remove all drag-over classes
+                tbody.querySelectorAll('.drag-over').forEach(r => r.classList.remove('drag-over'));
+            });
+
+            row.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                if (this.draggedRow && row !== this.draggedRow) {
+                    row.classList.add('drag-over');
+                }
+            });
+
+            row.addEventListener('dragleave', () => {
+                row.classList.remove('drag-over');
+            });
+
+            row.addEventListener('drop', async (e) => {
+                e.preventDefault();
+                row.classList.remove('drag-over');
+
+                if (!this.draggedRow || row === this.draggedRow) return;
+
+                const draggedIndex = parseInt(this.draggedRow.dataset.index);
+                const targetIndex = parseInt(row.dataset.index);
+
+                // Get the actual positions in the current data array
+                const draggedDataIndex = this.data.findIndex(r => r._rowIndex === draggedIndex);
+                const targetDataIndex = this.data.findIndex(r => r._rowIndex === targetIndex);
+
+                if (draggedDataIndex === -1 || targetDataIndex === -1) return;
+
+                // Reorder in DOM
+                if (draggedDataIndex < targetDataIndex) {
+                    row.parentNode.insertBefore(this.draggedRow, row.nextSibling);
+                } else {
+                    row.parentNode.insertBefore(this.draggedRow, row);
+                }
+
+                // Update order in Excel
+                await this.updateRowOrder(draggedIndex, targetIndex, draggedDataIndex < targetDataIndex);
+            });
+        });
+    }
+
+    /**
+     * Met à jour l'ordre des lignes dans Excel après un glisser-déposer
+     */
+    async updateRowOrder(draggedIndex, targetIndex, insertAfter) {
+        try {
+            // Get all rows in their new visual order
+            const tbody = this.container.querySelector('tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr[data-index]'));
+
+            // Build the new order array with new Ordre values
+            const updates = [];
+            rows.forEach((row, visualIndex) => {
+                const rowIndex = parseInt(row.dataset.index);
+                const dataRow = this.data.find(r => r._rowIndex === rowIndex);
+                if (dataRow) {
+                    updates.push({
+                        rowIndex: rowIndex,
+                        newOrdre: visualIndex + 1
+                    });
+                }
+            });
+
+            // Update each row's Ordre value in Excel
+            for (const update of updates) {
+                const dataRow = this.data.find(r => r._rowIndex === update.rowIndex);
+                if (dataRow && dataRow.Ordre !== update.newOrdre) {
+                    dataRow.Ordre = update.newOrdre;
+                    await updateTableRow(this.tableName, update.rowIndex, dataRow);
+                }
+            }
+
+            showSuccess('Ordre mis à jour');
+
+            // Refresh to ensure data is synced
+            await this.refresh();
+
+        } catch (error) {
+            console.error('Erreur mise à jour ordre:', error);
+            showError('Erreur lors de la mise à jour de l\'ordre');
+            // Refresh to restore original order
+            await this.refresh();
         }
     }
 

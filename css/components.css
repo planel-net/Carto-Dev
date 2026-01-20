@@ -925,3 +925,69 @@ textarea.form-control {
     font-size: var(--font-size-xs);
     font-weight: 600;
 }
+
+/* ===========================================
+   DRAG AND DROP - SORTABLE TABLE
+   =========================================== */
+
+/* Colonne du handle de drag */
+.col-drag-handle {
+    width: 40px;
+    min-width: 40px;
+    max-width: 40px;
+    text-align: center;
+    padding: 0 !important;
+}
+
+/* Handle de drag (hamburger icon) */
+.drag-handle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    cursor: grab;
+    color: var(--mh-gris-moyen);
+    font-size: 16px;
+    border-radius: var(--border-radius-sm);
+    transition: all var(--transition-fast);
+    user-select: none;
+}
+
+.drag-handle:hover {
+    background-color: var(--mh-gris-clair);
+    color: var(--mh-gris-fonce);
+}
+
+.drag-handle:active {
+    cursor: grabbing;
+    background-color: var(--mh-bleu-clair);
+    color: white;
+}
+
+/* Ligne en cours de drag */
+tr.dragging {
+    opacity: 0.5;
+    background-color: var(--mh-gris-clair) !important;
+}
+
+/* Ligne prête à être draggée */
+tr.drag-ready {
+    background-color: rgba(0, 102, 204, 0.05);
+}
+
+/* Ligne cible du drop */
+tr.drag-over {
+    border-top: 3px solid var(--mh-bleu-clair) !important;
+    background-color: rgba(0, 102, 204, 0.1) !important;
+}
+
+/* Désactiver la sélection de texte pendant le drag */
+.data-table tr[draggable="true"] {
+    user-select: none;
+}
+
+/* Curseur sur les lignes draggables */
+.data-table tr[draggable="true"]:hover .drag-handle {
+    color: var(--mh-bleu-clair);
+}

@@ -106,47 +106,86 @@ class ParcPage {
 
     /**
      * Obtient les processus structures (groupes par processus principal avec sous-processus)
+     * Tries par la colonne Ordre (valeur minimum si plusieurs lignes pour le meme processus)
      */
     getStructuredProcessus() {
         const structured = {};
+        const processOrdre = {}; // Stocke le min Ordre pour chaque processus
+        const subProcessOrdre = {}; // Stocke le min Ordre pour chaque sous-processus par processus
 
         this.processus.forEach(p => {
             const mainProcess = p.Processus;
             const subProcess = p['Sous-processus'];
+            const ordre = p.Ordre !== undefined && p.Ordre !== '' ? Number(p.Ordre) : Infinity;
 
             if (!structured[mainProcess]) {
                 structured[mainProcess] = {
                     name: mainProcess,
                     subProcesses: []
                 };
+                processOrdre[mainProcess] = ordre;
+                subProcessOrdre[mainProcess] = {};
+            } else {
+                // Garder le minimum des ordres pour ce processus
+                processOrdre[mainProcess] = Math.min(processOrdre[mainProcess], ordre);
             }
 
             if (subProcess && !structured[mainProcess].subProcesses.includes(subProcess)) {
                 structured[mainProcess].subProcesses.push(subProcess);
+                subProcessOrdre[mainProcess][subProcess] = ordre;
+            } else if (subProcess && subProcessOrdre[mainProcess][subProcess] !== undefined) {
+                // Garder le minimum des ordres pour ce sous-processus
+                subProcessOrdre[mainProcess][subProcess] = Math.min(subProcessOrdre[mainProcess][subProcess], ordre);
             }
         });
 
-        return Object.values(structured);
+        // Trier les sous-processus de chaque processus par ordre
+        Object.keys(structured).forEach(mainProcess => {
+            structured[mainProcess].subProcesses.sort((a, b) => {
+                const ordreA = subProcessOrdre[mainProcess][a] !== undefined ? subProcessOrdre[mainProcess][a] : Infinity;
+                const ordreB = subProcessOrdre[mainProcess][b] !== undefined ? subProcessOrdre[mainProcess][b] : Infinity;
+                return ordreA - ordreB;
+            });
+        });
+
+        // Trier les processus principaux par ordre
+        return Object.values(structured).sort((a, b) => {
+            const ordreA = processOrdre[a.name] !== undefined ? processOrdre[a.name] : Infinity;
+            const ordreB = processOrdre[b.name] !== undefined ? processOrdre[b.name] : Infinity;
+            return ordreA - ordreB;
+        });
     }
 
     /**
      * Obtient les processus uniques (noms principaux)
+     * Tries par la colonne Ordre (valeur minimum si plusieurs lignes pour le meme processus)
      */
     getUniqueProcessus() {
-        const processus = new Set();
+        const processOrdre = {};
+
         this.processus.forEach(p => {
             if (p.Processus) {
-                processus.add(p.Processus);
+                const ordre = p.Ordre !== undefined && p.Ordre !== '' ? Number(p.Ordre) : Infinity;
+                if (processOrdre[p.Processus] === undefined) {
+                    processOrdre[p.Processus] = ordre;
+                } else {
+                    processOrdre[p.Processus] = Math.min(processOrdre[p.Processus], ordre);
+                }
             }
         });
-        return Array.from(processus).sort();
+
+        // Trier par ordre puis retourner les noms
+        return Object.keys(processOrdre).sort((a, b) => {
+            return processOrdre[a] - processOrdre[b];
+        });
     }
 
     /**
      * Obtient les sous-processus disponibles (filtres par processus selectionnes)
+     * Tries par la colonne Ordre (valeur minimum si plusieurs lignes pour le meme sous-processus)
      */
     getAvailableSubProcessus() {
-        const subProcessus = new Set();
+        const subProcessOrdre = {};
         const selectedProc = this.filters.selectedProcessus;
 
         this.processus.forEach(p => {
@@ -154,11 +193,20 @@ class ParcPage {
             // Sinon, on filtre par les processus selectionnes
             if (selectedProc.length === 0 || selectedProc.includes(p.Processus)) {
                 if (p['Sous-processus']) {
-                    subProcessus.add(p['Sous-processus']);
+                    const ordre = p.Ordre !== undefined && p.Ordre !== '' ? Number(p.Ordre) : Infinity;
+                    if (subProcessOrdre[p['Sous-processus']] === undefined) {
+                        subProcessOrdre[p['Sous-processus']] = ordre;
+                    } else {
+                        subProcessOrdre[p['Sous-processus']] = Math.min(subProcessOrdre[p['Sous-processus']], ordre);
+                    }
                 }
             }
         });
-        return Array.from(subProcessus).sort();
+
+        // Trier par ordre puis retourner les noms
+        return Object.keys(subProcessOrdre).sort((a, b) => {
+            return subProcessOrdre[a] - subProcessOrdre[b];
+        });
     }
 
     /**
