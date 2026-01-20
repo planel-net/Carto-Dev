@@ -483,7 +483,11 @@ class RoadmapChantiersPage {
             currentDate.setDate(currentDate.getDate() - (dayOfWeek - 1));
         }
 
-        while (currentDate <= endDate) {
+        // Inclure une semaine seulement si son lundi est strictement avant la date de fin du sprint
+        // Cela évite d'afficher des semaines "gap" entre les sprints
+        // Ex: Sprint 09 finit le 29/12 (lundi), Sprint 10 commence le 05/01 (lundi)
+        //     -> S01 (lundi 29/12) ne sera pas affiché car 29/12 n'est pas < 29/12
+        while (currentDate < endDate) {
             const weekCode = this.formatWeekCode(currentDate);
             if (!weeks.includes(weekCode)) {
                 weeks.push(weekCode);
