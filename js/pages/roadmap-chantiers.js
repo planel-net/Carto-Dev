@@ -3108,18 +3108,17 @@ class RoadmapChantiersPage {
                 }))
             ];
 
-            // Construire les données du tableau avec fusion des cellules adjacentes
+            // Construire les données du tableau avec gestion des phases multiples
             const tableData = [];
-            const spanInfo = new Map(); // Pour stocker les infos de colSpan
+            const phasesMap = new Map(); // Pour stocker les infos de phases par cellule
 
             filteredChantiers.forEach((chantier, rowIdx) => {
                 const chantierName = chantier['Chantier'] || '';
                 const chantierPhases = this.phases.filter(p => p['Chantier'] === chantierName);
                 const row = [chantierName];
 
-                let colIdx = 0;
-                while (colIdx < visibleSprints.length) {
-                    const sprint = visibleSprints[colIdx];
+                // Pour chaque sprint, collecter les phases actives
+                visibleSprints.forEach((sprint, sprintIdx) => {
                     const sprintName = sprint['Sprint'];
                     const activePhases = chantierPhases.filter(phase => {
                         const phaseStart = phase['Sprint début'];
@@ -3127,90 +3126,21 @@ class RoadmapChantiersPage {
                         return this.isSprintInRange(sprintName, phaseStart, phaseEnd);
                     });
 
-                    if (activePhases.length === 0) {
-                        row.push({ content: '', phases: [], colSpan: 1 });
-                        colIdx++;
-                        continue;
-                    }
-
-                    // Calculer le colSpan pour les phases qui s'étendent sur plusieurs sprints
                     const phasesInfo = activePhases.map(p => ({
                         title: p['Phase'] || p['Type phase'] || '',
-                        type: p['Type phase'] || ''
+                        type: p['Type phase'] || '',
+                        sprintDebut: p['Sprint début'],
+                        sprintFin: p['Sprint fin'] || p['Sprint début']
                     }));
 
-                    // Vérifier combien de sprints consécutifs ont le même contenu
-                    let colSpan = 1;
-                    const currentContent = phasesInfo.map(p => p.title).sort().join('|');
+                    // Stocker les phases pour le rendu personnalisé
+                    phasesMap.set(`${rowIdx}-${sprintIdx + 1}`, phasesInfo);
 
-                    for (let nextCol = colIdx + 1; nextCol < visibleSprints.length; nextCol++) {
-                        const nextSprint = visibleSprints[nextCol];
-                        const nextSprintName = nextSprint['Sprint'];
-                        const nextPhases = chantierPhases.filter(phase => {
-                            const phaseStart = phase['Sprint début'];
-                            const phaseEnd = phase['Sprint fin'] || phaseStart;
-                            return this.isSprintInRange(nextSprintName, phaseStart, phaseEnd);
-                        });
-
-                        const nextPhasesInfo = nextPhases.map(p => ({
-                            title: p['Phase'] || p['Type phase'] || '',
-                            type: p['Type phase'] || ''
-                        }));
-                        const nextContent = nextPhasesInfo.map(p => p.title).sort().join('|');
-
-                        if (nextContent === currentContent && currentContent !== '') {
-                            colSpan++;
-                        } else {
-                            break;
-                        }
-                    }
-
-                    row.push({
-                        content: phasesInfo.map(p => p.title).join('\n'),
-                        phases: phasesInfo,
-                        colSpan: colSpan
-                    });
-
-                    // Ajouter des cellules vides pour les colonnes fusionnées
-                    for (let i = 1; i < colSpan; i++) {
-                        row.push({ skip: true });
-                    }
-
-                    colIdx += colSpan;
-                }
-
-                tableData.push(row);
-            });
-
-            // Préparer les données pour autoTable avec colSpan
-            const phasesMap = new Map();
-            const colSpanMap = new Map();
-            const bodyData = tableData.map((row, rowIdx) => {
-                const processedRow = [];
-                let actualColIdx = 0;
-
-                row.forEach((cell, colIdx) => {
-                    if (colIdx === 0) {
-                        processedRow.push(cell);
-                        return;
-                    }
-
-                    if (typeof cell === 'object' && cell.skip) {
-                        return; // Ignorer les cellules fusionnées
-                    }
-
-                    if (typeof cell === 'object') {
-                        phasesMap.set(`${rowIdx}-${processedRow.length}`, cell.phases);
-                        if (cell.colSpan > 1) {
-                            colSpanMap.set(`${rowIdx}-${processedRow.length}`, cell.colSpan);
-                        }
-                        processedRow.push({ content: cell.content, colSpan: cell.colSpan || 1 });
-                    } else {
-                        processedRow.push(cell);
-                    }
+                    // Le contenu de la cellule sera vide (rendu personnalisé dans didDrawCell)
+                    row.push('');
                 });
 
-                return processedRow;
+                tableData.push(row);
             });
 
             // Générer les colonnes styles avec largeurs égales
@@ -3225,17 +3155,18 @@ class RoadmapChantiersPage {
 
             doc.autoTable({
                 head: tableHeaders,
-                body: bodyData,
+                body: tableData,
                 startY: yPos + 2,
                 margin: { left: margin, right: margin },
                 tableWidth: availableWidth,
                 styles: {
                     fontSize: 6,
-                    cellPadding: 1,
-                    overflow: 'linebreak',
+                    cellPadding: 0,
+                    overflow: 'hidden',
                     lineWidth: 0.1,
                     valign: 'middle',
-                    halign: 'center'
+                    halign: 'center',
+                    minCellHeight: 8
                 },
                 headStyles: {
                     fillColor: [0, 51, 102],
@@ -3243,40 +3174,61 @@ class RoadmapChantiersPage {
                     fontStyle: 'bold',
                     halign: 'center',
                     valign: 'middle',
-                    fontSize: 6
+                    fontSize: 6,
+                    cellPadding: 1
                 },
                 columnStyles: columnStyles,
                 alternateRowStyles: {
-                    fillColor: [250, 250, 250]
+                    fillColor: [255, 255, 255]
                 },
-                didParseCell: function(data) {
-                    // Colorer les cellules selon le type de phase
+                didDrawCell: function(data) {
+                    // Dessiner les phases avec couleurs dans les cellules du body
                     if (data.section === 'body' && data.column.index > 0) {
                         const phases = phasesMap.get(`${data.row.index}-${data.column.index}`);
                         if (phases && phases.length > 0) {
-                            // Utiliser la couleur de la première phase
-                            const firstPhaseType = phases[0].type;
-                            const color = CONFIG.PHASE_COLORS[firstPhaseType];
-                            if (color) {
-                                const rgb = self.hexToRgb(color);
-                                data.cell.styles.fillColor = rgb;
-                                data.cell.styles.textColor = [0, 0, 0];
-                            } else {
-                                // Gris clair pour les phases sans type standard
-                                data.cell.styles.fillColor = [220, 220, 220];
-                                data.cell.styles.textColor = [0, 0, 0];
-                            }
-                        }
-                    }
+                            const cellX = data.cell.x;
+                            const cellY = data.cell.y;
+                            const cellW = data.cell.width;
+                            const cellH = data.cell.height;
+                            const padding = 0.5;
 
-                    // Réduire la police si le contenu est trop long
-                    if (data.section === 'body' && data.column.index > 0 && data.cell.raw) {
-                        const cellContent = typeof data.cell.raw === 'object' ? data.cell.raw.content : data.cell.raw;
-                        if (cellContent && cellContent.length > 20) {
-                            data.cell.styles.fontSize = 5;
-                        }
-                        if (cellContent && cellContent.length > 40) {
-                            data.cell.styles.fontSize = 4;
+                            // Diviser la cellule verticalement pour chaque phase
+                            const phaseHeight = (cellH - padding * 2) / phases.length;
+
+                            phases.forEach((phase, idx) => {
+                                const phaseY = cellY + padding + (idx * phaseHeight);
+                                const phaseW = cellW - padding * 2;
+                                const phaseH = phaseHeight - 0.3;
+
+                                // Couleur de fond
+                                const color = CONFIG.PHASE_COLORS[phase.type];
+                                if (color) {
+                                    const rgb = self.hexToRgb(color);
+                                    doc.setFillColor(rgb[0], rgb[1], rgb[2]);
+                                } else {
+                                    doc.setFillColor(220, 220, 220); // Gris clair par défaut
+                                }
+
+                                // Dessiner le rectangle de fond
+                                doc.rect(cellX + padding, phaseY, phaseW, phaseH, 'F');
+
+                                // Texte de la phase
+                                doc.setFontSize(phases.length > 1 ? 4 : 5);
+                                doc.setFont('helvetica', 'normal');
+                                doc.setTextColor(0, 0, 0);
+
+                                // Tronquer le texte si nécessaire
+                                let text = phase.title;
+                                const maxTextWidth = phaseW - 1;
+                                while (doc.getTextWidth(text) > maxTextWidth && text.length > 3) {
+                                    text = text.slice(0, -4) + '...';
+                                }
+
+                                // Centrer le texte verticalement et horizontalement
+                                const textX = cellX + cellW / 2;
+                                const textY = phaseY + phaseH / 2 + 1;
+                                doc.text(text, textX, textY, { align: 'center', maxWidth: maxTextWidth });
+                            });
                         }
                     }
                 },
