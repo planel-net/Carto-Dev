@@ -766,14 +766,38 @@ class RoadmapChantiersPage {
         const result = {};
         const visibleSprintNames = visibleSprints.map(s => s['Sprint']);
 
+        // Obtenir les indices globaux des sprints visibles pour comparer avec les phases
+        const allSprintNames = this.sprints.map(s => s['Sprint']);
+        const firstVisibleGlobalIdx = allSprintNames.indexOf(visibleSprintNames[0]);
+        const lastVisibleGlobalIdx = allSprintNames.indexOf(visibleSprintNames[visibleSprintNames.length - 1]);
+
         phases.forEach(phase => {
             const startSprint = phase['Sprint début'];
             const endSprint = phase['Sprint fin'] || startSprint;
 
-            const startIdx = visibleSprintNames.indexOf(startSprint);
-            const endIdx = visibleSprintNames.indexOf(endSprint);
+            // Indices dans la liste visible
+            let startIdx = visibleSprintNames.indexOf(startSprint);
+            let endIdx = visibleSprintNames.indexOf(endSprint);
 
-            if (startIdx === -1) return;
+            // Indices globaux pour vérifier le chevauchement
+            const startGlobalIdx = allSprintNames.indexOf(startSprint);
+            const endGlobalIdx = allSprintNames.indexOf(endSprint);
+
+            // Vérifier si la phase chevauche la période visible
+            // La phase chevauche si: son sprint de fin >= premier sprint visible ET son sprint de début <= dernier sprint visible
+            if (endGlobalIdx < firstVisibleGlobalIdx || startGlobalIdx > lastVisibleGlobalIdx) {
+                return; // Pas de chevauchement, ignorer cette phase
+            }
+
+            // Ajuster les indices pour les phases qui commencent avant la période visible
+            if (startIdx === -1 && startGlobalIdx < firstVisibleGlobalIdx) {
+                startIdx = 0; // Commence au premier sprint visible
+            }
+
+            // Ajuster les indices pour les phases qui finissent après la période visible
+            if (endIdx === -1 && endGlobalIdx > lastVisibleGlobalIdx) {
+                endIdx = visibleSprintNames.length - 1; // Finit au dernier sprint visible
+            }
 
             const actualEndIdx = endIdx === -1 ? startIdx : endIdx;
 
@@ -804,12 +828,41 @@ class RoadmapChantiersPage {
         const phaseLanes = new Map(); // phase name -> lane number
         const lanes = []; // lanes[i] = end index of last phase in lane i
 
+        // Obtenir les indices globaux des sprints visibles pour comparer avec les phases
+        const allSprintNames = this.sprints.map(s => s['Sprint']);
+        const firstVisibleGlobalIdx = allSprintNames.indexOf(visibleSprintNames[0]);
+        const lastVisibleGlobalIdx = allSprintNames.indexOf(visibleSprintNames[visibleSprintNames.length - 1]);
+
         // Trier les phases par sprint de début puis par sprint de fin
         const sortedPhases = [...phases].map(phase => {
             const startSprint = phase['Sprint début'];
             const endSprint = phase['Sprint fin'] || startSprint;
-            const startIdx = visibleSprintNames.indexOf(startSprint);
-            const endIdx = visibleSprintNames.indexOf(endSprint);
+
+            // Indices dans la liste visible
+            let startIdx = visibleSprintNames.indexOf(startSprint);
+            let endIdx = visibleSprintNames.indexOf(endSprint);
+
+            // Indices globaux pour vérifier le chevauchement
+            const startGlobalIdx = allSprintNames.indexOf(startSprint);
+            const endGlobalIdx = allSprintNames.indexOf(endSprint);
+
+            // Vérifier si la phase chevauche la période visible
+            const overlaps = endGlobalIdx >= firstVisibleGlobalIdx && startGlobalIdx <= lastVisibleGlobalIdx;
+
+            if (!overlaps) {
+                return { phase, startIdx: Infinity, endIdx: 0 }; // Sera filtré
+            }
+
+            // Ajuster les indices pour les phases qui commencent avant la période visible
+            if (startIdx === -1 && startGlobalIdx < firstVisibleGlobalIdx) {
+                startIdx = 0;
+            }
+
+            // Ajuster les indices pour les phases qui finissent après la période visible
+            if (endIdx === -1 && endGlobalIdx > lastVisibleGlobalIdx) {
+                endIdx = visibleSprintNames.length - 1;
+            }
+
             return {
                 phase,
                 startIdx: startIdx === -1 ? Infinity : startIdx,
