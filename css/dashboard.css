@@ -1977,14 +1977,15 @@
 }
 
 /* Cellule de données pour semaines */
-.gantt-week-cell {
-    width: 45px;
-    min-width: 45px;
-    max-width: 45px;
-    border-left: 1px dashed #dee2e6;
+.gantt-chantiers-table .gantt-week-cell {
+    width: 45px !important;
+    min-width: 45px !important;
+    max-width: 45px !important;
+    border-left: 1px dashed #ccc;
+    border-right: none;
 }
 
-.gantt-week-cell.first-week {
+.gantt-chantiers-table .gantt-week-cell.first-week {
     border-left: 1px solid #dee2e6;
 }
 
