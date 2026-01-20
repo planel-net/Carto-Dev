@@ -111,6 +111,14 @@ class ParamsPage {
      * Affiche le formulaire d'ajout
      */
     showAddForm() {
+        // Utiliser la modale partagée pour les chantiers
+        if (this.tableKey === 'CHANTIER' && typeof ChantierModal !== 'undefined') {
+            ChantierModal.showAddModal(async () => {
+                await this.refresh();
+            });
+            return;
+        }
+
         showFormModal(
             `Ajouter - ${this.tableConfig.displayName}`,
             this.tableConfig.columns,
@@ -133,6 +141,15 @@ class ParamsPage {
      * Affiche le formulaire de modification
      */
     showEditForm(row, index) {
+        // Utiliser la modale partagée pour les chantiers
+        if (this.tableKey === 'CHANTIER' && typeof ChantierModal !== 'undefined') {
+            const chantierName = row['Chantier'];
+            ChantierModal.showEditModal(chantierName, async () => {
+                await this.refresh();
+            });
+            return;
+        }
+
         // Utiliser _rowIndex de la row (index Excel réel) plutôt que l'index du tableau affiché
         const rowIndex = row._rowIndex;
 
