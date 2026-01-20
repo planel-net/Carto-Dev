@@ -209,6 +209,44 @@ async function loadDynamicSelectOptions(form) {
                         }
                         select.appendChild(option);
                     });
+                } else if (source === 'PROCESSUS') {
+                    // Pour les processus, charger les données et trier par Ordre, puis dédupliquer
+                    const result = await readTable(tableConfig.name);
+                    const processusData = result.data || [];
+
+                    // Trier par Ordre
+                    processusData.sort((a, b) => {
+                        const ordreA = a['Ordre'] || 999;
+                        const ordreB = b['Ordre'] || 999;
+                        return ordreA - ordreB;
+                    });
+
+                    // Extraire les valeurs distinctes en préservant l'ordre
+                    const seen = new Set();
+                    const values = [];
+                    for (const p of processusData) {
+                        const val = p[field];
+                        if (val && !seen.has(val)) {
+                            seen.add(val);
+                            values.push(val);
+                        }
+                    }
+
+                    // Conserver la premiere option (placeholder)
+                    const placeholder = select.options[0];
+                    select.innerHTML = '';
+                    select.appendChild(placeholder);
+
+                    // Ajouter les options
+                    values.forEach(val => {
+                        const option = document.createElement('option');
+                        option.value = val;
+                        option.textContent = val;
+                        if (val === currentValue) {
+                            option.selected = true;
+                        }
+                        select.appendChild(option);
+                    });
                 } else {
                     const values = await getUniqueValues(tableConfig.name, field);
 
