@@ -3108,37 +3108,86 @@ class RoadmapChantiersPage {
                 }))
             ];
 
-            // Construire les données du tableau avec gestion des phases multiples
+            // Construire les données du tableau avec gestion des phases multiples ET fusion de cellules
             const tableData = [];
-            const phasesMap = new Map(); // Pour stocker les infos de phases par cellule
+            const phasesMap = new Map(); // Pour stocker les infos de phases par cellule (clé: rowIdx-colIdx où colIdx est 1-based)
+            const cellSpans = new Map(); // Pour stocker les colSpan de chaque cellule
 
             filteredChantiers.forEach((chantier, rowIdx) => {
                 const chantierName = chantier['Chantier'] || '';
                 const chantierPhases = this.phases.filter(p => p['Chantier'] === chantierName);
                 const row = [chantierName];
 
-                // Pour chaque sprint, collecter les phases actives
-                visibleSprints.forEach((sprint, sprintIdx) => {
+                let sprintIdx = 0;
+                while (sprintIdx < visibleSprints.length) {
+                    const sprint = visibleSprints[sprintIdx];
                     const sprintName = sprint['Sprint'];
+                    const colIdx = sprintIdx + 1; // Index de colonne (1-based car colonne 0 = chantier)
+
+                    // Collecter les phases actives pour ce sprint
                     const activePhases = chantierPhases.filter(phase => {
                         const phaseStart = phase['Sprint début'];
                         const phaseEnd = phase['Sprint fin'] || phaseStart;
                         return this.isSprintInRange(sprintName, phaseStart, phaseEnd);
                     });
 
-                    const phasesInfo = activePhases.map(p => ({
-                        title: p['Phase'] || p['Type phase'] || '',
-                        type: p['Type phase'] || '',
-                        sprintDebut: p['Sprint début'],
-                        sprintFin: p['Sprint fin'] || p['Sprint début']
-                    }));
+                    if (activePhases.length === 0) {
+                        // Pas de phase, cellule vide
+                        row.push('');
+                        phasesMap.set(`${rowIdx}-${colIdx}`, []);
+                        cellSpans.set(`${rowIdx}-${colIdx}`, 1);
+                        sprintIdx++;
+                    } else if (activePhases.length === 1) {
+                        // Une seule phase - vérifier si on peut fusionner sur plusieurs sprints
+                        const phase = activePhases[0];
+                        const phaseEndSprint = phase['Sprint fin'] || phase['Sprint début'];
 
-                    // Stocker les phases pour le rendu personnalisé
-                    phasesMap.set(`${rowIdx}-${sprintIdx + 1}`, phasesInfo);
+                        // Calculer combien de sprints consécutifs cette phase couvre
+                        let colSpan = 1;
+                        for (let nextIdx = sprintIdx + 1; nextIdx < visibleSprints.length; nextIdx++) {
+                            const nextSprintName = visibleSprints[nextIdx]['Sprint'];
+                            if (!this.isSprintInRange(nextSprintName, phase['Sprint début'], phaseEndSprint)) {
+                                break;
+                            }
+                            // Vérifier qu'il n'y a pas d'autres phases sur ce sprint
+                            const nextActivePhases = chantierPhases.filter(p => {
+                                const pStart = p['Sprint début'];
+                                const pEnd = p['Sprint fin'] || pStart;
+                                return this.isSprintInRange(nextSprintName, pStart, pEnd);
+                            });
+                            if (nextActivePhases.length !== 1 || nextActivePhases[0] !== phase) {
+                                break;
+                            }
+                            colSpan++;
+                        }
 
-                    // Le contenu de la cellule sera vide (rendu personnalisé dans didDrawCell)
-                    row.push('');
-                });
+                        const phasesInfo = [{
+                            title: phase['Phase'] || phase['Type phase'] || '',
+                            type: phase['Type phase'] || ''
+                        }];
+
+                        if (colSpan > 1) {
+                            row.push({ content: '', colSpan: colSpan });
+                        } else {
+                            row.push('');
+                        }
+
+                        phasesMap.set(`${rowIdx}-${colIdx}`, phasesInfo);
+                        cellSpans.set(`${rowIdx}-${colIdx}`, colSpan);
+                        sprintIdx += colSpan;
+                    } else {
+                        // Plusieurs phases - pas de fusion, empilement vertical
+                        const phasesInfo = activePhases.map(p => ({
+                            title: p['Phase'] || p['Type phase'] || '',
+                            type: p['Type phase'] || ''
+                        }));
+
+                        row.push('');
+                        phasesMap.set(`${rowIdx}-${colIdx}`, phasesInfo);
+                        cellSpans.set(`${rowIdx}-${colIdx}`, 1);
+                        sprintIdx++;
+                    }
+                }
 
                 tableData.push(row);
             });
