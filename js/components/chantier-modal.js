@@ -259,9 +259,10 @@ const ChantierModal = {
             .filter(cp => cp['Chantier'] === chantierName)
             .map(cp => cp['Produit']);
 
-        this._state.selectedDataAnas = this._data.chantierDataAna
-            .filter(cd => cd['Chantier'] === chantierName)
-            .map(cd => cd['DataAna']);
+        // DataAnas associés : on filtre directement tDataAnas par le champ Chantier
+        this._state.selectedDataAnas = this._data.dataAnas
+            .filter(d => d['Chantier'] === chantierName)
+            .map(d => d['Clé']);
 
         // Notes du chantier (triées par date décroissante)
         this._state.notes = this._data.chantierNotes
@@ -769,14 +770,18 @@ const ChantierModal = {
                     }
                 }
 
-                // Supprimer les anciens liens DataAnas (en ordre inverse)
-                const liensDataAnasToDelete = this._data.chantierDataAna
-                    .filter(cd => cd['Chantier'] === this._state.chantierName)
-                    .sort((a, b) => (b._rowIndex ?? 0) - (a._rowIndex ?? 0));
+                // Mettre à jour les DataAnas : vider le champ Chantier pour ceux qui ne sont plus sélectionnés
+                const previouslySelectedDataAnas = this._data.dataAnas
+                    .filter(d => d['Chantier'] === this._state.chantierName);
 
-                for (const cd of liensDataAnasToDelete) {
-                    if (cd._rowIndex !== undefined && cd._rowIndex !== null) {
-                        await deleteTableRow('tChantierDataAna', cd._rowIndex);
+                for (const dataAna of previouslySelectedDataAnas) {
+                    // Si ce DataAna n'est plus dans la sélection, vider son champ Chantier
+                    if (!this._state.selectedDataAnas.includes(dataAna['Clé'])) {
+                        if (dataAna._rowIndex !== undefined && dataAna._rowIndex !== null) {
+                            const updatedData = { ...dataAna, 'Chantier': '' };
+                            delete updatedData._rowIndex;
+                            await updateTableRow('tDataAnas', dataAna._rowIndex, updatedData);
+                        }
                     }
                 }
             } else {
@@ -794,14 +799,19 @@ const ChantierModal = {
             }
             invalidateCache('tChantierProduit');
 
-            // Ajouter les liens chantier-dataana
-            for (const dataAna of this._state.selectedDataAnas) {
-                await addTableRow('tChantierDataAna', {
-                    'Chantier': chantierData['Chantier'],
-                    'DataAna': dataAna
-                });
+            // Mettre à jour le champ Chantier des DataAnas sélectionnés
+            for (const dataAnaKey of this._state.selectedDataAnas) {
+                const dataAna = this._data.dataAnas.find(d => d['Clé'] === dataAnaKey);
+                if (dataAna && dataAna._rowIndex !== undefined && dataAna._rowIndex !== null) {
+                    // Mettre à jour uniquement si le chantier est différent
+                    if (dataAna['Chantier'] !== chantierData['Chantier']) {
+                        const updatedData = { ...dataAna, 'Chantier': chantierData['Chantier'] };
+                        delete updatedData._rowIndex;
+                        await updateTableRow('tDataAnas', dataAna._rowIndex, updatedData);
+                    }
+                }
             }
-            invalidateCache('tChantierDataAna');
+            invalidateCache('tDataAnas');
 
             showSuccess(isEdit ? 'Chantier modifié avec succès' : 'Chantier ajouté avec succès');
 

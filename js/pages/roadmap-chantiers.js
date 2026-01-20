@@ -2037,14 +2037,16 @@ class RoadmapChantiersPage {
                             }
                             invalidateCache('tChantierProduit');
 
-                            // Ajouter les liens chantier-dataana
-                            for (const dataAna of this._addModalSelectedDataAnas) {
-                                await addTableRow('tChantierDataAna', {
-                                    'Chantier': chantierData['Chantier'],
-                                    'DataAna': dataAna
-                                });
+                            // Mettre à jour le champ Chantier des DataAnas sélectionnés
+                            for (const dataAnaKey of this._addModalSelectedDataAnas) {
+                                const dataAna = this.dataAnas.find(d => d['Clé'] === dataAnaKey);
+                                if (dataAna && dataAna._rowIndex !== undefined && dataAna._rowIndex !== null) {
+                                    const updatedData = { ...dataAna, 'Chantier': chantierData['Chantier'] };
+                                    delete updatedData._rowIndex;
+                                    await updateTableRow('tDataAnas', dataAna._rowIndex, updatedData);
+                                }
                             }
-                            invalidateCache('tChantierDataAna');
+                            invalidateCache('tDataAnas');
 
                             showSuccess('Chantier ajouté avec succès');
                             await this.refresh();

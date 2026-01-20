@@ -6,7 +6,7 @@
 const CONFIG = {
     // Nom de l'application
     APP_NAME: 'Carto',
-    APP_VERSION: '1.1.16',
+    APP_VERSION: '1.1.17',
 
     // Valeur spéciale pour filtrer les éléments sans valeur (périmètre/responsable vide)
     EMPTY_FILTER_VALUE: '(Non rempli)',
