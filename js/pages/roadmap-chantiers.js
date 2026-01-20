@@ -477,33 +477,41 @@ class RoadmapChantiersPage {
 
         if (!startDate || !endDate) return weeks;
 
+        // DEBUG v1.1.12 - Afficher dans la console pour diagnostic
+        console.log(`[v1.1.12] getWeeksForSprint: ${sprint['Sprint']} | Début brut: ${sprint['Début']} | Fin brut: ${sprint['Fin']}`);
+        console.log(`[v1.1.12] Après parseDate: startDate=${startDate.toISOString()} endDate=${endDate.toISOString()}`);
+
         // Normaliser les dates à midi pour éviter les problèmes de timezone
         startDate.setHours(12, 0, 0, 0);
         endDate.setHours(12, 0, 0, 0);
 
         // Trouver le premier lundi à inclure
-        // Règle: on n'inclut une semaine QUE si son lundi est >= date début ET < date fin
         let currentDate = new Date(startDate);
         currentDate.setHours(12, 0, 0, 0);
-        const dayOfWeek = currentDate.getDay() || 7; // 0=dimanche->7, 1=lundi, ..., 6=samedi
+        const dayOfWeek = currentDate.getDay(); // 0=dimanche, 1=lundi, ..., 6=samedi
 
-        if (dayOfWeek !== 1) {
-            // Le sprint ne commence pas un lundi
-            // Aller au lundi SUIVANT (pas le précédent qui serait dans le gap)
+        console.log(`[v1.1.12] dayOfWeek=${dayOfWeek} (0=dim, 1=lun, 2=mar...)`);
+
+        // Si pas lundi, aller au lundi SUIVANT
+        if (dayOfWeek === 0) {
+            // Dimanche -> +1 jour = Lundi
+            currentDate.setDate(currentDate.getDate() + 1);
+        } else if (dayOfWeek !== 1) {
+            // Mardi à Samedi -> aller au lundi suivant
             currentDate.setDate(currentDate.getDate() + (8 - dayOfWeek));
         }
-        // Si le sprint commence un lundi, currentDate reste sur startDate
+        // Si lundi (dayOfWeek === 1), on ne change rien
 
-        // Boucle: inclure les semaines dont le lundi est >= début ET < fin
+        console.log(`[v1.1.12] Premier lundi: ${currentDate.toISOString()}`);
+
+        // Boucle: inclure les semaines dont le lundi est < fin
         while (currentDate < endDate) {
             const weekCode = this.formatWeekCode(currentDate);
-            if (!weeks.includes(weekCode)) {
-                weeks.push(weekCode);
-            }
-            // Passer à la semaine suivante
+            weeks.push(weekCode);
             currentDate.setDate(currentDate.getDate() + 7);
         }
 
+        console.log(`[v1.1.12] Semaines générées: ${weeks.join(', ')}`);
         return weeks;
     }
 
