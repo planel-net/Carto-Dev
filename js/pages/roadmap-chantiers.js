@@ -396,23 +396,22 @@ class RoadmapChantiersPage {
      * @returns {Object} { year: number, week: number }
      */
     getISOWeekNumber(date) {
-        const d = new Date(date);
-        d.setHours(0, 0, 0, 0);
-        // Jeudi de la semaine courante (ISO 8601: les semaines sont définies par leur jeudi)
-        d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
-        const year = d.getFullYear();
-        // Premier jeudi de l'année
-        const yearStart = new Date(year, 0, 4);
-        // Numéro de semaine = nombre de semaines depuis le premier jeudi
-        let weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+        // Utiliser UTC pour éviter les problèmes de timezone
+        const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
 
-        // Si weekNo <= 0, la semaine appartient à l'année précédente (semaine 52 ou 53)
-        if (weekNo <= 0) {
-            // Recalculer avec l'année précédente
-            const prevYearStart = new Date(year - 1, 0, 4);
-            weekNo = Math.ceil((((d - prevYearStart) / 86400000) + 1) / 7);
-            return { year: year - 1, week: weekNo };
-        }
+        // ISO 8601: aller au jeudi de la semaine courante
+        // Le jeudi définit à quelle année appartient la semaine
+        const dayNum = d.getUTCDay() || 7; // Dimanche = 7 au lieu de 0
+        d.setUTCDate(d.getUTCDate() + 4 - dayNum); // Aller au jeudi
+
+        // L'année est celle du jeudi
+        const year = d.getUTCFullYear();
+
+        // Premier janvier de cette année
+        const yearStart = new Date(Date.UTC(year, 0, 1));
+
+        // Numéro de semaine = ceil((jours depuis 1er janvier + 1) / 7)
+        const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
 
         return { year: year, week: weekNo };
     }
