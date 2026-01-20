@@ -24,6 +24,7 @@ class RoadmapChantiersPage {
         this.phasesLien = [];
         this.chantierProduit = [];
         this.chantierDataAna = [];
+        this.chantierNotes = [];
         this.sprints = [];
         this.acteurs = [];
         this.perimetres = [];
@@ -504,6 +505,9 @@ class RoadmapChantiersPage {
             <button class="btn btn-primary" id="btnAddChantier">
                 + Ajouter un chantier
             </button>
+            <button class="btn btn-secondary" id="btnExportPdf" title="Exporter en PDF">
+                &#128196; PDF
+            </button>
             <button class="btn btn-secondary" id="btnShowArchived">
                 Réafficher un chantier archivé
             </button>
@@ -980,6 +984,10 @@ class RoadmapChantiersPage {
 
         document.getElementById('btnShowArchived')?.addEventListener('click', () => {
             this.showArchivedChantiersModal();
+        });
+
+        document.getElementById('btnExportPdf')?.addEventListener('click', () => {
+            this.showPdfExportModal();
         });
 
         document.getElementById('btnRefreshTable')?.addEventListener('click', () => {
@@ -2861,6 +2869,349 @@ class RoadmapChantiersPage {
         this.attachFilterEvents();
         this.renderGantt();
         // attachCellEvents est appelé dans renderGantt, pas besoin de l'appeler ici
+    }
+
+    /**
+     * Affiche la modale d'export PDF
+     */
+    showPdfExportModal() {
+        const today = new Date().toISOString().split('T')[0];
+
+        const content = `
+            <form id="formPdfExport">
+                <div class="form-group">
+                    <label>Notes du :</label>
+                    <input type="date" name="dateDebut" id="pdfDateDebut" value="${today}" required>
+                </div>
+                <div class="form-group">
+                    <label>au :</label>
+                    <input type="date" name="dateFin" id="pdfDateFin" value="${today}" required>
+                </div>
+                <p class="text-muted" style="font-size: 12px; margin-top: 10px;">
+                    Le tableau des chantiers utilisera les filtres actuels de la page (période, périmètre, responsable, périmètre-processus).
+                </p>
+            </form>
+        `;
+
+        showModal({
+            title: 'Export PDF',
+            content,
+            size: 'sm',
+            buttons: [
+                {
+                    label: 'Annuler',
+                    class: 'btn-secondary',
+                    action: 'close'
+                },
+                {
+                    label: 'Lancer',
+                    class: 'btn-primary',
+                    action: async () => {
+                        const dateDebut = document.getElementById('pdfDateDebut').value;
+                        const dateFin = document.getElementById('pdfDateFin').value;
+
+                        if (!dateDebut || !dateFin) {
+                            showError('Veuillez renseigner les deux dates');
+                            return false;
+                        }
+
+                        if (new Date(dateDebut) > new Date(dateFin)) {
+                            showError('La date de début doit être antérieure à la date de fin');
+                            return false;
+                        }
+
+                        await this.generatePdf(dateDebut, dateFin);
+                        return true;
+                    }
+                }
+            ]
+        });
+    }
+
+    /**
+     * Génère le PDF avec le tableau des chantiers et les notes
+     */
+    async generatePdf(notesDateDebut, notesDateFin) {
+        try {
+            showInfo('Génération du PDF en cours...');
+
+            // Charger les notes depuis Excel
+            const notesData = await readTable('tChantierNote');
+            const allNotes = notesData.data || [];
+
+            // Récupérer les chantiers et sprints filtrés (selon les filtres de la page)
+            const filteredChantiers = this.getFilteredChantiers();
+            const visibleSprints = this.getVisibleSprints();
+
+            if (filteredChantiers.length === 0) {
+                showWarning('Aucun chantier à exporter avec les filtres actuels');
+                return;
+            }
+
+            // Initialiser jsPDF
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({
+                orientation: 'landscape',
+                unit: 'mm',
+                format: 'a4'
+            });
+
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const margin = 10;
+
+            // ============================================
+            // PAGE 1: Tableau des chantiers et sprints
+            // ============================================
+
+            // Titre
+            doc.setFontSize(16);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Roadmap Chantiers', pageWidth / 2, 15, { align: 'center' });
+
+            // Sous-titre avec la période du tableau
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'normal');
+            const periodStart = this.formatDateFull(this.filters.dateDebut);
+            const periodEnd = this.formatDateFull(this.filters.dateFin);
+            doc.text(`Période : ${periodStart} - ${periodEnd}`, pageWidth / 2, 22, { align: 'center' });
+
+            // Construire les données du tableau
+            const tableHeaders = ['Chantier', ...visibleSprints.map(s => s['Sprint'])];
+            const tableData = filteredChantiers.map(chantier => {
+                const chantierName = chantier['Chantier'] || '';
+                const chantierPhases = this.phases.filter(p => p['Chantier'] === chantierName);
+
+                // Pour chaque sprint, trouver les phases actives
+                const sprintsCells = visibleSprints.map(sprint => {
+                    const sprintName = sprint['Sprint'];
+                    const activePhases = chantierPhases.filter(phase => {
+                        const phaseStart = phase['Sprint début'];
+                        const phaseEnd = phase['Sprint fin'] || phaseStart;
+                        return this.isSprintInRange(sprintName, phaseStart, phaseEnd);
+                    });
+
+                    if (activePhases.length === 0) return '';
+
+                    // Retourner les types de phases actives
+                    return activePhases.map(p => p['Type phase'] || '').filter(Boolean).join(', ');
+                });
+
+                return [chantierName, ...sprintsCells];
+            });
+
+            // Générer le tableau avec autoTable
+            doc.autoTable({
+                head: [tableHeaders],
+                body: tableData,
+                startY: 28,
+                margin: { left: margin, right: margin },
+                styles: {
+                    fontSize: 7,
+                    cellPadding: 2,
+                    overflow: 'linebreak',
+                    lineWidth: 0.1
+                },
+                headStyles: {
+                    fillColor: [0, 51, 102], // MH bleu foncé
+                    textColor: 255,
+                    fontStyle: 'bold',
+                    halign: 'center'
+                },
+                columnStyles: {
+                    0: { cellWidth: 40, fontStyle: 'bold' } // Colonne Chantier plus large
+                },
+                alternateRowStyles: {
+                    fillColor: [245, 245, 245]
+                },
+                didParseCell: (data) => {
+                    // Colorer les cellules selon le type de phase
+                    if (data.section === 'body' && data.column.index > 0) {
+                        const cellValue = data.cell.raw;
+                        if (cellValue) {
+                            if (cellValue.includes('EB')) {
+                                data.cell.styles.fillColor = [156, 39, 176]; // Violet
+                            } else if (cellValue.includes('Cadrage')) {
+                                data.cell.styles.fillColor = [0, 188, 212]; // Cyan
+                            } else if (cellValue.includes('Dev')) {
+                                data.cell.styles.fillColor = [255, 235, 59]; // Jaune
+                                data.cell.styles.textColor = [0, 0, 0];
+                            } else if (cellValue.includes('Recette')) {
+                                data.cell.styles.fillColor = [255, 87, 34]; // Orange
+                            } else if (cellValue.includes('MEP')) {
+                                data.cell.styles.fillColor = [76, 175, 80]; // Vert
+                            }
+                        }
+                    }
+                }
+            });
+
+            // ============================================
+            // PAGES SUIVANTES: Notes par chantier
+            // ============================================
+
+            // Filtrer les notes dans la période spécifiée
+            const notesStartDate = new Date(notesDateDebut);
+            notesStartDate.setHours(0, 0, 0, 0);
+            const notesEndDate = new Date(notesDateFin);
+            notesEndDate.setHours(23, 59, 59, 999);
+
+            // Regrouper les notes par chantier
+            const notesByChantier = {};
+            filteredChantiers.forEach(c => {
+                const chantierName = c['Chantier'];
+                const chantierNotes = allNotes
+                    .filter(n => {
+                        if (n['Chantier'] !== chantierName) return false;
+                        const noteDate = this.parseDate(n['Date']);
+                        return noteDate >= notesStartDate && noteDate <= notesEndDate;
+                    })
+                    .sort((a, b) => {
+                        const dateA = this.parseDate(a['Date']);
+                        const dateB = this.parseDate(b['Date']);
+                        return dateB - dateA; // Ordre décroissant
+                    });
+
+                if (chantierNotes.length > 0) {
+                    notesByChantier[chantierName] = chantierNotes;
+                }
+            });
+
+            const chantiersWithNotes = Object.keys(notesByChantier);
+
+            if (chantiersWithNotes.length > 0) {
+                // Nouvelle page pour les notes
+                doc.addPage();
+
+                // Titre de la section notes
+                doc.setFontSize(16);
+                doc.setFont('helvetica', 'bold');
+                doc.text('Notes des Chantiers', pageWidth / 2, 15, { align: 'center' });
+
+                doc.setFontSize(10);
+                doc.setFont('helvetica', 'normal');
+                doc.text(`Période : ${this.formatDateFull(notesStartDate)} - ${this.formatDateFull(notesEndDate)}`, pageWidth / 2, 22, { align: 'center' });
+
+                let yPosition = 32;
+
+                for (const chantierName of chantiersWithNotes) {
+                    const notes = notesByChantier[chantierName];
+
+                    // Vérifier s'il faut une nouvelle page
+                    if (yPosition > pageHeight - 40) {
+                        doc.addPage();
+                        yPosition = 15;
+                    }
+
+                    // Nom du chantier
+                    doc.setFontSize(12);
+                    doc.setFont('helvetica', 'bold');
+                    doc.setTextColor(0, 51, 102); // MH bleu foncé
+                    doc.text(chantierName, margin, yPosition);
+                    yPosition += 6;
+
+                    // Notes du chantier
+                    doc.setFontSize(9);
+                    doc.setFont('helvetica', 'normal');
+                    doc.setTextColor(0, 0, 0);
+
+                    for (const note of notes) {
+                        // Vérifier s'il faut une nouvelle page
+                        if (yPosition > pageHeight - 20) {
+                            doc.addPage();
+                            yPosition = 15;
+                        }
+
+                        const noteDate = this.formatDateFull(this.parseDate(note['Date']));
+                        const noteContent = this.stripHtml(note['Note'] || '');
+
+                        // Date de la note
+                        doc.setFont('helvetica', 'bold');
+                        doc.text(`${noteDate} :`, margin + 2, yPosition);
+
+                        // Contenu de la note (avec retour à la ligne automatique)
+                        doc.setFont('helvetica', 'normal');
+                        const maxWidth = pageWidth - margin * 2 - 4;
+                        const lines = doc.splitTextToSize(noteContent, maxWidth);
+
+                        yPosition += 4;
+                        for (const line of lines) {
+                            if (yPosition > pageHeight - 10) {
+                                doc.addPage();
+                                yPosition = 15;
+                            }
+                            doc.text(line, margin + 4, yPosition);
+                            yPosition += 4;
+                        }
+
+                        yPosition += 3; // Espace entre les notes
+                    }
+
+                    yPosition += 5; // Espace entre les chantiers
+                }
+            }
+
+            // Sauvegarder le PDF
+            const fileName = `Roadmap_Chantiers_${this.formatDateFile(new Date())}.pdf`;
+            doc.save(fileName);
+
+            showSuccess('PDF généré avec succès');
+
+        } catch (error) {
+            console.error('Erreur génération PDF:', error);
+            showError('Erreur lors de la génération du PDF');
+        }
+    }
+
+    /**
+     * Vérifie si un sprint est dans la plage d'une phase
+     */
+    isSprintInRange(sprintName, phaseStart, phaseEnd) {
+        const sprintIndex = this.sprints.findIndex(s => s['Sprint'] === sprintName);
+        const startIndex = this.sprints.findIndex(s => s['Sprint'] === phaseStart);
+        const endIndex = this.sprints.findIndex(s => s['Sprint'] === phaseEnd);
+
+        if (sprintIndex === -1 || startIndex === -1) return false;
+        const effectiveEndIndex = endIndex === -1 ? startIndex : endIndex;
+
+        return sprintIndex >= startIndex && sprintIndex <= effectiveEndIndex;
+    }
+
+    /**
+     * Formate une date complète pour l'affichage
+     */
+    formatDateFull(date) {
+        const d = date instanceof Date ? date : this.parseDate(date);
+        return d.toLocaleDateString('fr-FR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        });
+    }
+
+    /**
+     * Formate une date pour le nom de fichier
+     */
+    formatDateFile(date) {
+        const d = date instanceof Date ? date : new Date(date);
+        return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+    }
+
+    /**
+     * Supprime les balises HTML d'une chaîne
+     */
+    stripHtml(html) {
+        if (!html) return '';
+        // Créer un élément temporaire pour parser le HTML
+        const temp = document.createElement('div');
+        temp.innerHTML = html;
+        // Remplacer les <br> et </p> par des retours à la ligne
+        let text = temp.innerHTML
+            .replace(/<br\s*\/?>/gi, '\n')
+            .replace(/<\/p>/gi, '\n')
+            .replace(/<\/li>/gi, '\n');
+        temp.innerHTML = text;
+        return temp.textContent || temp.innerText || '';
     }
 }
 
