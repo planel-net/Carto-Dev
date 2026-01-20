@@ -2941,6 +2941,98 @@ class RoadmapChantiersPage {
     }
 
     /**
+     * Convertit une couleur hexadécimale en RGB
+     */
+    hexToRgb(hex) {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? [
+            parseInt(result[1], 16),
+            parseInt(result[2], 16),
+            parseInt(result[3], 16)
+        ] : [200, 200, 200];
+    }
+
+    /**
+     * Dessine la légende des couleurs sur le PDF
+     */
+    drawPdfLegend(doc, startY, margin) {
+        const phaseTypes = ['EB', 'Cadrage', 'Dev', 'Recette', 'MEP'];
+        const colors = CONFIG.PHASE_COLORS;
+
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Légende :', margin, startY);
+
+        let xPos = margin + 18;
+        phaseTypes.forEach(type => {
+            const rgb = this.hexToRgb(colors[type]);
+
+            // Rectangle de couleur
+            doc.setFillColor(rgb[0], rgb[1], rgb[2]);
+            doc.rect(xPos, startY - 3, 8, 4, 'F');
+            doc.setDrawColor(150, 150, 150);
+            doc.rect(xPos, startY - 3, 8, 4, 'S');
+
+            // Label
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(0, 0, 0);
+            doc.text(type, xPos + 10, startY);
+
+            xPos += 30;
+        });
+
+        return startY + 6;
+    }
+
+    /**
+     * Construit le texte des filtres appliqués
+     */
+    buildFiltersText() {
+        const filters = [];
+
+        // Période
+        const periodStart = this.formatDateFull(this.filters.dateDebut);
+        const periodEnd = this.formatDateFull(this.filters.dateFin);
+        filters.push(`Période : ${periodStart} - ${periodEnd}`);
+
+        // Périmètres
+        const allPerimetres = this.getAllPerimetres();
+        if (this.filters.perimetres.length === allPerimetres.length) {
+            filters.push('Périmètres : Tous');
+        } else if (this.filters.perimetres.length > 0) {
+            const perimetresStr = this.filters.perimetres.length <= 3
+                ? this.filters.perimetres.join(', ')
+                : `${this.filters.perimetres.length} sélectionné(s)`;
+            filters.push(`Périmètres : ${perimetresStr}`);
+        }
+
+        // Responsables
+        const allResponsables = this.getAllResponsables();
+        if (this.filters.responsables.length === allResponsables.length) {
+            filters.push('Responsables : Tous');
+        } else if (this.filters.responsables.length > 0) {
+            const responsablesDisplay = this.filters.responsables.slice(0, 3).map(r => this.formatActorName(r));
+            const responsablesStr = this.filters.responsables.length <= 3
+                ? responsablesDisplay.join(', ')
+                : `${this.filters.responsables.length} sélectionné(s)`;
+            filters.push(`Responsables : ${responsablesStr}`);
+        }
+
+        // Périmètre-Processus
+        const allPerimProcessus = this.getAllPerimetreProcessus();
+        if (this.filters.perimetreProcessus.length === allPerimProcessus.length) {
+            filters.push('Périmètre-Processus : Tous');
+        } else if (this.filters.perimetreProcessus.length > 0) {
+            const ppStr = this.filters.perimetreProcessus.length <= 3
+                ? this.filters.perimetreProcessus.join(', ')
+                : `${this.filters.perimetreProcessus.length} sélectionné(s)`;
+            filters.push(`Périmètre-Processus : ${ppStr}`);
+        }
+
+        return filters;
+    }
+
+    /**
      * Génère le PDF avec le tableau des chantiers et les notes
      */
     async generatePdf(notesDateDebut, notesDateFin) {
@@ -2979,17 +3071,39 @@ class RoadmapChantiersPage {
             // Titre
             doc.setFontSize(16);
             doc.setFont('helvetica', 'bold');
-            doc.text('Roadmap Chantiers', pageWidth / 2, 15, { align: 'center' });
+            doc.setTextColor(0, 51, 102);
+            doc.text('Roadmap Chantiers', pageWidth / 2, 12, { align: 'center' });
 
-            // Sous-titre avec la période du tableau
-            doc.setFontSize(10);
+            // Filtres appliqués
+            doc.setFontSize(8);
             doc.setFont('helvetica', 'normal');
-            const periodStart = this.formatDateFull(this.filters.dateDebut);
-            const periodEnd = this.formatDateFull(this.filters.dateFin);
-            doc.text(`Période : ${periodStart} - ${periodEnd}`, pageWidth / 2, 22, { align: 'center' });
+            doc.setTextColor(100, 100, 100);
+            const filtersText = this.buildFiltersText();
+            let yPos = 17;
+            filtersText.forEach(filter => {
+                doc.text(filter, pageWidth / 2, yPos, { align: 'center' });
+                yPos += 4;
+            });
 
-            // Construire les données du tableau
-            const tableHeaders = ['Chantier', ...visibleSprints.map(s => s['Sprint'])];
+            // Légende des couleurs
+            yPos = this.drawPdfLegend(doc, yPos + 2, margin);
+
+            // Construire les en-têtes du tableau avec dates des sprints
+            const tableHeaders = [
+                [
+                    { content: 'Chantier', rowSpan: 2, styles: { valign: 'middle' } },
+                    ...visibleSprints.map(s => ({
+                        content: s['Sprint'],
+                        styles: { halign: 'center', fontStyle: 'bold' }
+                    }))
+                ],
+                visibleSprints.map(s => ({
+                    content: `${this.formatDate(s['Début'])} - ${this.formatDate(s['Fin'])}`,
+                    styles: { halign: 'center', fontSize: 6 }
+                }))
+            ];
+
+            // Construire les données du tableau avec les titres des phases
             const tableData = filteredChantiers.map(chantier => {
                 const chantierName = chantier['Chantier'] || '';
                 const chantierPhases = this.phases.filter(p => p['Chantier'] === chantierName);
@@ -3003,57 +3117,86 @@ class RoadmapChantiersPage {
                         return this.isSprintInRange(sprintName, phaseStart, phaseEnd);
                     });
 
-                    if (activePhases.length === 0) return '';
+                    if (activePhases.length === 0) return { content: '', phases: [] };
 
-                    // Retourner les types de phases actives
-                    return activePhases.map(p => p['Type phase'] || '').filter(Boolean).join(', ');
+                    // Retourner les titres des phases actives avec leurs types pour le coloriage
+                    const phasesInfo = activePhases.map(p => ({
+                        title: p['Phase'] || p['Type phase'] || '',
+                        type: p['Type phase'] || ''
+                    }));
+
+                    return {
+                        content: phasesInfo.map(p => p.title).join('\n'),
+                        phases: phasesInfo
+                    };
                 });
 
                 return [chantierName, ...sprintsCells];
             });
 
+            // Préparer les données pour autoTable (avec les phases pour le coloriage)
+            const phasesMap = new Map(); // Pour stocker les infos de phases par cellule
+            const bodyData = tableData.map((row, rowIdx) => {
+                return row.map((cell, colIdx) => {
+                    if (colIdx === 0) return cell; // Colonne chantier
+                    if (typeof cell === 'object') {
+                        phasesMap.set(`${rowIdx}-${colIdx}`, cell.phases);
+                        return cell.content;
+                    }
+                    return cell;
+                });
+            });
+
             // Générer le tableau avec autoTable
+            const self = this;
             doc.autoTable({
-                head: [tableHeaders],
-                body: tableData,
-                startY: 28,
+                head: tableHeaders,
+                body: bodyData,
+                startY: yPos + 2,
                 margin: { left: margin, right: margin },
                 styles: {
                     fontSize: 7,
-                    cellPadding: 2,
+                    cellPadding: 1.5,
                     overflow: 'linebreak',
                     lineWidth: 0.1
                 },
                 headStyles: {
-                    fillColor: [0, 51, 102], // MH bleu foncé
+                    fillColor: [0, 51, 102],
                     textColor: 255,
                     fontStyle: 'bold',
-                    halign: 'center'
+                    halign: 'center',
+                    valign: 'middle'
                 },
                 columnStyles: {
-                    0: { cellWidth: 40, fontStyle: 'bold' } // Colonne Chantier plus large
+                    0: { cellWidth: 35, fontStyle: 'bold', valign: 'middle' }
                 },
                 alternateRowStyles: {
-                    fillColor: [245, 245, 245]
+                    fillColor: [250, 250, 250]
                 },
-                didParseCell: (data) => {
+                didParseCell: function(data) {
                     // Colorer les cellules selon le type de phase
                     if (data.section === 'body' && data.column.index > 0) {
-                        const cellValue = data.cell.raw;
-                        if (cellValue) {
-                            if (cellValue.includes('EB')) {
-                                data.cell.styles.fillColor = [156, 39, 176]; // Violet
-                            } else if (cellValue.includes('Cadrage')) {
-                                data.cell.styles.fillColor = [0, 188, 212]; // Cyan
-                            } else if (cellValue.includes('Dev')) {
-                                data.cell.styles.fillColor = [255, 235, 59]; // Jaune
+                        const phases = phasesMap.get(`${data.row.index}-${data.column.index}`);
+                        if (phases && phases.length > 0) {
+                            // Utiliser la couleur de la première phase (ou mélanger si plusieurs)
+                            const firstPhaseType = phases[0].type;
+                            const color = CONFIG.PHASE_COLORS[firstPhaseType];
+                            if (color) {
+                                const rgb = self.hexToRgb(color);
+                                data.cell.styles.fillColor = rgb;
                                 data.cell.styles.textColor = [0, 0, 0];
-                            } else if (cellValue.includes('Recette')) {
-                                data.cell.styles.fillColor = [255, 87, 34]; // Orange
-                            } else if (cellValue.includes('MEP')) {
-                                data.cell.styles.fillColor = [76, 175, 80]; // Vert
                             }
                         }
+                    }
+                },
+                didDrawPage: function(data) {
+                    // Répéter le titre et la légende sur chaque nouvelle page du tableau
+                    if (data.pageNumber > 1) {
+                        doc.setFontSize(12);
+                        doc.setFont('helvetica', 'bold');
+                        doc.setTextColor(0, 51, 102);
+                        doc.text('Roadmap Chantiers (suite)', pageWidth / 2, 10, { align: 'center' });
+                        self.drawPdfLegend(doc, 16, margin);
                     }
                 }
             });
@@ -3098,13 +3241,16 @@ class RoadmapChantiersPage {
                 // Titre de la section notes
                 doc.setFontSize(16);
                 doc.setFont('helvetica', 'bold');
-                doc.text('Notes des Chantiers', pageWidth / 2, 15, { align: 'center' });
+                doc.setTextColor(0, 51, 102);
+                doc.text('Notes des Chantiers', pageWidth / 2, 12, { align: 'center' });
 
+                // Période des notes (uniquement ici)
                 doc.setFontSize(10);
                 doc.setFont('helvetica', 'normal');
-                doc.text(`Période : ${this.formatDateFull(notesStartDate)} - ${this.formatDateFull(notesEndDate)}`, pageWidth / 2, 22, { align: 'center' });
+                doc.setTextColor(100, 100, 100);
+                doc.text(`Période des notes : ${this.formatDateFull(notesStartDate)} - ${this.formatDateFull(notesEndDate)}`, pageWidth / 2, 18, { align: 'center' });
 
-                let yPosition = 32;
+                let yPosition = 26;
 
                 for (const chantierName of chantiersWithNotes) {
                     const notes = notesByChantier[chantierName];
@@ -3112,15 +3258,20 @@ class RoadmapChantiersPage {
                     // Vérifier s'il faut une nouvelle page
                     if (yPosition > pageHeight - 40) {
                         doc.addPage();
-                        yPosition = 15;
+                        // Répéter le titre sur les nouvelles pages
+                        doc.setFontSize(12);
+                        doc.setFont('helvetica', 'bold');
+                        doc.setTextColor(0, 51, 102);
+                        doc.text('Notes des Chantiers (suite)', pageWidth / 2, 10, { align: 'center' });
+                        yPosition = 18;
                     }
 
                     // Nom du chantier
-                    doc.setFontSize(12);
+                    doc.setFontSize(11);
                     doc.setFont('helvetica', 'bold');
-                    doc.setTextColor(0, 51, 102); // MH bleu foncé
+                    doc.setTextColor(0, 51, 102);
                     doc.text(chantierName, margin, yPosition);
-                    yPosition += 6;
+                    yPosition += 5;
 
                     // Notes du chantier
                     doc.setFontSize(9);
@@ -3131,7 +3282,11 @@ class RoadmapChantiersPage {
                         // Vérifier s'il faut une nouvelle page
                         if (yPosition > pageHeight - 20) {
                             doc.addPage();
-                            yPosition = 15;
+                            doc.setFontSize(12);
+                            doc.setFont('helvetica', 'bold');
+                            doc.setTextColor(0, 51, 102);
+                            doc.text('Notes des Chantiers (suite)', pageWidth / 2, 10, { align: 'center' });
+                            yPosition = 18;
                         }
 
                         const noteDate = this.formatDateFull(this.parseDate(note['Date']));
@@ -3139,10 +3294,12 @@ class RoadmapChantiersPage {
 
                         // Date de la note
                         doc.setFont('helvetica', 'bold');
+                        doc.setTextColor(80, 80, 80);
                         doc.text(`${noteDate} :`, margin + 2, yPosition);
 
                         // Contenu de la note (avec retour à la ligne automatique)
                         doc.setFont('helvetica', 'normal');
+                        doc.setTextColor(0, 0, 0);
                         const maxWidth = pageWidth - margin * 2 - 4;
                         const lines = doc.splitTextToSize(noteContent, maxWidth);
 
@@ -3150,24 +3307,30 @@ class RoadmapChantiersPage {
                         for (const line of lines) {
                             if (yPosition > pageHeight - 10) {
                                 doc.addPage();
-                                yPosition = 15;
+                                doc.setFontSize(12);
+                                doc.setFont('helvetica', 'bold');
+                                doc.setTextColor(0, 51, 102);
+                                doc.text('Notes des Chantiers (suite)', pageWidth / 2, 10, { align: 'center' });
+                                yPosition = 18;
+                                doc.setFontSize(9);
+                                doc.setFont('helvetica', 'normal');
+                                doc.setTextColor(0, 0, 0);
                             }
                             doc.text(line, margin + 4, yPosition);
                             yPosition += 4;
                         }
 
-                        yPosition += 3; // Espace entre les notes
+                        yPosition += 2; // Espace entre les notes
                     }
 
-                    yPosition += 5; // Espace entre les chantiers
+                    yPosition += 4; // Espace entre les chantiers
                 }
             }
 
-            // Sauvegarder le PDF
+            // Générer le PDF et le télécharger
             const fileName = `Roadmap_Chantiers_${this.formatDateFile(new Date())}.pdf`;
             doc.save(fileName);
-
-            showSuccess('PDF généré avec succès');
+            showSuccess(`PDF "${fileName}" téléchargé dans votre dossier Téléchargements`);
 
         } catch (error) {
             console.error('Erreur génération PDF:', error);
