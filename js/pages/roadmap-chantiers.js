@@ -29,13 +29,15 @@ class RoadmapChantiersPage {
         this.perimetres = [];
         this.produits = [];
         this.dataAnas = [];
+        this.processus = [];
 
         // Filtres (période par défaut: 1 mois avant à 3 mois après)
         this.filters = {
             dateDebut: new Date(new Date().setMonth(new Date().getMonth() - 1)),
             dateFin: new Date(new Date().setMonth(new Date().getMonth() + 3)),
             perimetres: [],
-            responsables: []
+            responsables: [],
+            perimetreProcessus: []
         };
 
         // État
@@ -92,7 +94,8 @@ class RoadmapChantiersPage {
                 acteursData,
                 perimetresData,
                 produitsData,
-                dataAnasData
+                dataAnasData,
+                processusData
             ] = await Promise.all([
                 readTable('tChantiers'),
                 readTable('tPhases'),
@@ -103,7 +106,8 @@ class RoadmapChantiersPage {
                 readTable('tActeurs'),
                 readTable('tPerimetres'),
                 readTable('tProduits'),
-                readTable('tDataAnas')
+                readTable('tDataAnas'),
+                readTable('tProcessus')
             ]);
 
             // Séparer chantiers actifs et archivés
@@ -120,6 +124,14 @@ class RoadmapChantiersPage {
             this.perimetres = perimetresData.data || [];
             this.produits = produitsData.data || [];
             this.dataAnas = dataAnasData.data || [];
+            this.processus = processusData.data || [];
+
+            // Trier les processus par ordre
+            this.processus.sort((a, b) => {
+                const ordreA = a['Ordre'] || 999;
+                const ordreB = b['Ordre'] || 999;
+                return ordreA - ordreB;
+            });
 
             // Trier les sprints par date de début
             this.sprints.sort((a, b) => {
@@ -131,6 +143,7 @@ class RoadmapChantiersPage {
             // Initialiser les filtres avec toutes les valeurs (pour afficher tout par défaut, y compris "Non rempli")
             this.filters.perimetres = this.getAllPerimetres();
             this.filters.responsables = this.getAllResponsables();
+            this.filters.perimetreProcessus = this.getAllPerimetreProcessus();
 
         } catch (error) {
             console.error('Erreur chargement données roadmap chantiers:', error);
@@ -200,6 +213,53 @@ class RoadmapChantiersPage {
     }
 
     /**
+     * Retourne la liste des couples Périmètre-Processus existants dans les chantiers
+     * Format: "Périmètre-Processus" ou juste "Périmètre" ou "Processus" si l'un est vide
+     * Inclut "(Non rempli)" si des chantiers n'ont ni périmètre ni processus
+     */
+    getAllPerimetreProcessus() {
+        const couples = new Set();
+        let hasEmpty = false;
+
+        this.chantiers.forEach(c => {
+            const perimetre = c['Perimetre'] || '';
+            const processus = c['Processus'] || '';
+
+            if (!perimetre && !processus) {
+                hasEmpty = true;
+            } else {
+                let label = '';
+                if (perimetre && processus) {
+                    label = `${perimetre}-${processus}`;
+                } else if (perimetre) {
+                    label = perimetre;
+                } else {
+                    label = processus;
+                }
+                if (label) {
+                    couples.add(label);
+                }
+            }
+        });
+
+        const result = [...couples].sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+
+        // Ajouter "(Non rempli)" en dernier si des chantiers n'ont ni périmètre ni processus
+        if (hasEmpty) {
+            result.push(CONFIG.EMPTY_FILTER_VALUE);
+        }
+
+        return result;
+    }
+
+    /**
+     * Retourne la liste des processus uniques (ordonnés par Ordre)
+     */
+    getOrderedProcessus() {
+        return this.processus.map(p => p['Processus']).filter(Boolean);
+    }
+
+    /**
      * Parse une date (Excel ou string)
      */
     parseDate(value) {
@@ -260,9 +320,10 @@ class RoadmapChantiersPage {
             return d.toISOString().split('T')[0];
         };
 
-        // Liste unique des périmètres et responsables (incluant l'option "Non rempli" si nécessaire)
+        // Liste unique des périmètres, responsables et couples périmètre-processus
         const perimetresList = this.getAllPerimetres();
         const responsablesList = this.getAllResponsables();
+        const perimetreProcessusList = this.getAllPerimetreProcessus();
 
         // Calcul des labels
         const perimetreAllSelected = this.filters.perimetres.length === perimetresList.length;
@@ -272,6 +333,10 @@ class RoadmapChantiersPage {
         const responsableAllSelected = this.filters.responsables.length === responsablesList.length;
         const responsableLabel = responsableAllSelected ? 'Tous' :
             (this.filters.responsables.length === 0 ? 'Aucun' : this.filters.responsables.length + ' sélectionné(s)');
+
+        const perimProcessAllSelected = this.filters.perimetreProcessus.length === perimetreProcessusList.length;
+        const perimProcessLabel = perimProcessAllSelected ? 'Tous' :
+            (this.filters.perimetreProcessus.length === 0 ? 'Aucun' : this.filters.perimetreProcessus.length + ' sélectionné(s)');
 
         container.innerHTML = `
             <div class="filter-group">
@@ -324,6 +389,31 @@ class RoadmapChantiersPage {
                                         ${this.filters.responsables.includes(r) ? 'checked' : ''}
                                         onchange="roadmapChantiersPageInstance.onResponsableCheckChange()">
                                     <span>${r === CONFIG.EMPTY_FILTER_VALUE ? r : this.formatActorName(r)}</span>
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="filter-group filter-group-wide">
+                <label>Périmètre-Processus :</label>
+                <div class="multi-select-wrapper multi-select-wide" id="perimetreProcessusFilterWrapper">
+                    <div class="multi-select-trigger" onclick="roadmapChantiersPageInstance.toggleMultiSelect('perimetreProcessus')">
+                        <span class="multi-select-label">${perimProcessLabel}</span>
+                        <span class="multi-select-arrow">&#9662;</span>
+                    </div>
+                    <div class="multi-select-dropdown multi-select-dropdown-wide" id="perimetreProcessusDropdown">
+                        <div class="multi-select-actions">
+                            <button class="btn btn-xs" onclick="roadmapChantiersPageInstance.selectAllPerimetreProcessus()">Tous</button>
+                            <button class="btn btn-xs" onclick="roadmapChantiersPageInstance.clearPerimetreProcessusFilter()">Aucun</button>
+                        </div>
+                        <div class="multi-select-options">
+                            ${perimetreProcessusList.map(pp => `
+                                <label class="multi-select-option${pp === CONFIG.EMPTY_FILTER_VALUE ? ' empty-option' : ''}">
+                                    <input type="checkbox" value="${escapeHtml(pp)}"
+                                        ${this.filters.perimetreProcessus.includes(pp) ? 'checked' : ''}
+                                        onchange="roadmapChantiersPageInstance.onPerimetreProcessusCheckChange()">
+                                    <span>${escapeHtml(pp)}</span>
                                 </label>
                             `).join('')}
                         </div>
@@ -390,6 +480,12 @@ class RoadmapChantiersPage {
             .map(p => (p || '').toLowerCase());
         const includeEmptyPerimetre = this.filters.perimetres.includes(CONFIG.EMPTY_FILTER_VALUE);
         const includeEmptyResponsable = this.filters.responsables.includes(CONFIG.EMPTY_FILTER_VALUE);
+        const includeEmptyPerimProcessus = this.filters.perimetreProcessus.includes(CONFIG.EMPTY_FILTER_VALUE);
+
+        // Préparer les valeurs du filtre périmètre-processus en lowercase
+        const perimetreProcessusLower = this.filters.perimetreProcessus
+            .filter(pp => pp !== CONFIG.EMPTY_FILTER_VALUE)
+            .map(pp => (pp || '').toLowerCase());
 
         return this.chantiers.filter(chantier => {
             // Filtre par périmètre (vide = afficher aucun) - comparaison insensible à la casse
@@ -413,6 +509,30 @@ class RoadmapChantiersPage {
                 ? includeEmptyResponsable
                 : this.filters.responsables.includes(chantierResponsable);
             if (!responsableMatch) {
+                return false;
+            }
+
+            // Filtre par périmètre-processus (vide = afficher aucun)
+            if (this.filters.perimetreProcessus.length === 0) {
+                return false;
+            }
+            const perimetre = chantier['Perimetre'] || '';
+            const processus = chantier['Processus'] || '';
+
+            // Construire le label périmètre-processus du chantier
+            let chantierPerimProcessus = '';
+            if (perimetre && processus) {
+                chantierPerimProcessus = `${perimetre}-${processus}`;
+            } else if (perimetre) {
+                chantierPerimProcessus = perimetre;
+            } else if (processus) {
+                chantierPerimProcessus = processus;
+            }
+
+            const perimProcessusMatch = chantierPerimProcessus === ''
+                ? includeEmptyPerimProcessus
+                : perimetreProcessusLower.includes(chantierPerimProcessus.toLowerCase());
+            if (!perimProcessusMatch) {
                 return false;
             }
 
@@ -1078,6 +1198,41 @@ class RoadmapChantiersPage {
         }
     }
 
+    selectAllPerimetreProcessus() {
+        const checkboxes = document.querySelectorAll('#perimetreProcessusDropdown input[type="checkbox"]');
+        checkboxes.forEach(cb => cb.checked = true);
+        this.filters.perimetreProcessus = this.getAllPerimetreProcessus();
+        this.updatePerimetreProcessusLabel();
+        this.applyFiltersWithoutRenderingFilters();
+    }
+
+    clearPerimetreProcessusFilter() {
+        const checkboxes = document.querySelectorAll('#perimetreProcessusDropdown input[type="checkbox"]');
+        checkboxes.forEach(cb => cb.checked = false);
+        this.filters.perimetreProcessus = [];
+        this.updatePerimetreProcessusLabel();
+        this.applyFiltersWithoutRenderingFilters();
+    }
+
+    onPerimetreProcessusCheckChange() {
+        const checkboxes = document.querySelectorAll('#perimetreProcessusDropdown input[type="checkbox"]');
+        this.filters.perimetreProcessus = Array.from(checkboxes)
+            .filter(cb => cb.checked)
+            .map(cb => cb.value);
+        this.updatePerimetreProcessusLabel();
+        this.applyFiltersWithoutRenderingFilters();
+    }
+
+    updatePerimetreProcessusLabel() {
+        const label = document.querySelector('#perimetreProcessusFilterWrapper .multi-select-label');
+        if (label) {
+            const allPerimetreProcessus = this.getAllPerimetreProcessus();
+            const allSelected = this.filters.perimetreProcessus.length === allPerimetreProcessus.length;
+            label.textContent = allSelected ? 'Tous' :
+                (this.filters.perimetreProcessus.length === 0 ? 'Aucun' : this.filters.perimetreProcessus.length + ' sélectionné(s)');
+        }
+    }
+
     applyFiltersWithoutRenderingFilters() {
         this.renderGantt();
         // attachCellEvents est appelé dans renderGantt, pas besoin de l'appeler ici
@@ -1092,12 +1247,13 @@ class RoadmapChantiersPage {
 
     resetFilters() {
         // Réinitialiser avec les dates par défaut (1 mois avant à 3 mois après)
-        // et tous les périmètres/responsables sélectionnés (y compris "Non rempli")
+        // et tous les périmètres/responsables/périmètre-processus sélectionnés (y compris "Non rempli")
         this.filters = {
             dateDebut: new Date(new Date().setMonth(new Date().getMonth() - 1)),
             dateFin: new Date(new Date().setMonth(new Date().getMonth() + 3)),
             perimetres: this.getAllPerimetres(),
-            responsables: this.getAllResponsables()
+            responsables: this.getAllResponsables(),
+            perimetreProcessus: this.getAllPerimetreProcessus()
         };
         this.applyFilters();
     }
@@ -1202,6 +1358,15 @@ class RoadmapChantiersPage {
                         `).join('')}
                     </select>
                 </div>
+                <div class="form-group">
+                    <label class="form-label">Processus</label>
+                    <select class="form-control" name="Processus">
+                        <option value="">-- Sélectionner --</option>
+                        ${this.getOrderedProcessus().map(p => `
+                            <option value="${escapeHtml(p)}">${escapeHtml(p)}</option>
+                        `).join('')}
+                    </select>
+                </div>
 
                 <!-- Section Produits -->
                 <div class="assigned-section">
@@ -1259,6 +1424,7 @@ class RoadmapChantiersPage {
                             'Chantier': formData.get('Chantier'),
                             'Responsable': formData.get('Responsable'),
                             'Perimetre': formData.get('Perimetre'),
+                            'Processus': formData.get('Processus'),
                             'Archivé': form.querySelector('input[name="Archivé"]').checked ? true : false
                         };
 
@@ -1442,6 +1608,17 @@ class RoadmapChantiersPage {
                         `).join('')}
                     </select>
                 </div>
+                <div class="form-group">
+                    <label class="form-label">Processus</label>
+                    <select class="form-control" name="Processus">
+                        <option value="">-- Sélectionner --</option>
+                        ${this.getOrderedProcessus().map(p => `
+                            <option value="${escapeHtml(p)}" ${p === chantier['Processus'] ? 'selected' : ''}>
+                                ${escapeHtml(p)}
+                            </option>
+                        `).join('')}
+                    </select>
+                </div>
 
                 <!-- Section Produits -->
                 <div class="assigned-section">
@@ -1499,6 +1676,7 @@ class RoadmapChantiersPage {
                             'Chantier': formData.get('Chantier'),
                             'Responsable': formData.get('Responsable'),
                             'Perimetre': formData.get('Perimetre'),
+                            'Processus': formData.get('Processus'),
                             'Archivé': form.querySelector('input[name="Archivé"]').checked ? true : false
                         };
 

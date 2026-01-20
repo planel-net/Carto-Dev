@@ -527,6 +527,24 @@ thead tr:nth-child(2) .matrix-col-fixed {
     font-style: italic;
 }
 
+/* Wide multi-select for Périmètre-Processus filter */
+.multi-select-wide {
+    min-width: 200px;
+}
+
+.multi-select-wide .multi-select-trigger {
+    min-width: 200px;
+}
+
+.multi-select-dropdown-wide {
+    min-width: 250px;
+    max-width: 400px;
+}
+
+.filter-group-wide {
+    flex: 0 0 auto;
+}
+
 /* ===========================================
    PARC APPLICATIF - Responsive Styles
    =========================================== */
