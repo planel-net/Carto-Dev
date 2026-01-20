@@ -427,7 +427,6 @@ thead tr:nth-child(2) .matrix-col-fixed {
     background: var(--mh-blanc);
     cursor: pointer;
     min-width: 100px;
-    max-width: 140px;
     transition: border-color var(--transition-fast);
 }
 
@@ -451,7 +450,6 @@ thead tr:nth-child(2) .matrix-col-fixed {
     position: absolute;
     top: 100%;
     left: 0;
-    right: 0;
     margin-top: 4px;
     background: var(--mh-blanc);
     border: 1px solid #dee2e6;
@@ -462,6 +460,9 @@ thead tr:nth-child(2) .matrix-col-fixed {
     max-height: 300px;
     overflow: hidden;
     flex-direction: column;
+    min-width: 200px;
+    width: max-content;
+    max-width: 350px;
 }
 
 .multi-select-dropdown.open {
@@ -510,8 +511,6 @@ thead tr:nth-child(2) .matrix-col-fixed {
 }
 
 .multi-select-option span {
-    overflow: hidden;
-    text-overflow: ellipsis;
     white-space: nowrap;
 }
 
