@@ -881,8 +881,9 @@ class RoadmapChantiersPage {
             });
 
             // Générer le HTML des phases qui commencent ici
+            // Passer sprintIdx pour calculer le z-index (phases qui commencent plus tard = z-index plus élevé)
             const phasesHtml = phasesWithColspan.map((p) =>
-                this.renderPhaseBlock(p.phase, totalLanes, p.lane, p.effectiveColspan)
+                this.renderPhaseBlock(p.phase, totalLanes, p.lane, p.effectiveColspan, sprintIdx)
             ).join('');
 
             // Toujours créer une cellule pour chaque sprint
@@ -908,8 +909,10 @@ class RoadmapChantiersPage {
      * Rendu d'un bloc de phase
      * La largeur sera calculée dynamiquement après le rendu via updatePhaseWidths()
      * La hauteur et position verticale dépendent du nombre de lanes
+     * Le z-index est basé sur startSprintIdx pour que les phases qui commencent plus tard
+     * soient au-dessus (important pour les interactions sur les zones de chevauchement)
      */
-    renderPhaseBlock(phase, totalLanes, lane, phaseColspan = 1) {
+    renderPhaseBlock(phase, totalLanes, lane, phaseColspan = 1, startSprintIdx = 0) {
         const typePhase = phase['Type phase'] || '';
         const color = CONFIG.PHASE_COLORS[typePhase] || '#E0E0E0';
         const phaseName = phase['Phase'] || '';
@@ -923,15 +926,20 @@ class RoadmapChantiersPage {
         const topPercent = (lane / totalLanes) * 100;
         const hasMultipleLanes = totalLanes > 1;
 
+        // Z-index basé sur le sprint de départ: les phases qui commencent plus tard sont au-dessus
+        // Cela permet d'interagir avec les phases même quand d'autres phases les chevauchent visuellement
+        const zIndex = 10 + startSprintIdx;
+
         // Note: width sera calculée dynamiquement par updatePhaseWidths() après le rendu
         return `
             <div class="gantt-phase-block ${hasMultipleLanes ? 'lane-mode' : 'fullwidth'}"
-                 style="background-color: ${color}; margin-left: ${PHASE_MARGIN}px; ${hasMultipleLanes ? `height: calc(${heightPercent}% - 2px); top: ${topPercent}%;` : ''}"
+                 style="background-color: ${color}; margin-left: ${PHASE_MARGIN}px; z-index: ${zIndex}; ${hasMultipleLanes ? `height: calc(${heightPercent}% - 2px); top: ${topPercent}%;` : ''}"
                  data-phase-index="${phaseIndex}"
                  data-phase-name="${escapeHtml(phaseName)}"
                  data-chantier="${escapeHtml(phase['Chantier'])}"
                  data-colspan="${phaseColspan}"
-                 data-lane="${lane}">
+                 data-lane="${lane}"
+                 data-start-sprint-idx="${startSprintIdx}">
                 <div class="gantt-resize-handle gantt-resize-handle-left" data-direction="left"></div>
                 <span class="phase-name">${escapeHtml(phaseName)}</span>
                 <div class="gantt-resize-handle gantt-resize-handle-right" data-direction="right"></div>
@@ -1143,12 +1151,21 @@ class RoadmapChantiersPage {
     startCustomDrag(block, e) {
         const phaseIndex = parseInt(block.dataset.phaseIndex);
         const phase = this.phases[phaseIndex];
+        const colspan = parseInt(block.dataset.colspan) || 1;
+
+        // Créer l'élément de prévisualisation en pointillés bleus
+        const preview = document.createElement('div');
+        preview.className = 'gantt-drag-preview';
+        preview.style.display = 'none'; // Masqué jusqu'à ce qu'on survole une cellule valide
+        document.body.appendChild(preview);
 
         this.draggedPhase = {
             index: phaseIndex,
             phase: phase,
             chantier: phase['Chantier'],
-            block: block
+            block: block,
+            colspan: colspan,
+            preview: preview
         };
 
         block.classList.add('dragging');
@@ -1159,6 +1176,8 @@ class RoadmapChantiersPage {
      */
     handleCustomDragMove(e) {
         if (!this.draggedPhase) return;
+
+        const { preview, colspan, chantier: sourceChantier } = this.draggedPhase;
 
         // Trouver la cellule sous le curseur
         const elementsUnder = document.elementsFromPoint(e.clientX, e.clientY);
@@ -1171,11 +1190,48 @@ class RoadmapChantiersPage {
 
         if (cell) {
             const targetChantier = cell.dataset.chantier;
-            const sourceChantier = this.draggedPhase.chantier;
             if (targetChantier === sourceChantier) {
                 cell.classList.add('drag-over');
+
+                // Afficher et positionner le preview
+                if (preview) {
+                    preview.style.display = 'block';
+
+                    // Trouver la ligne et les cellules pour calculer la position
+                    const row = cell.closest('tr');
+                    if (row) {
+                        const dataCells = Array.from(row.querySelectorAll('.gantt-data-cell'));
+                        const cellIndex = dataCells.indexOf(cell);
+                        const endCellIndex = Math.min(cellIndex + colspan - 1, dataCells.length - 1);
+
+                        // Obtenir les positions pour calculer la largeur du preview
+                        const startCellRect = cell.getBoundingClientRect();
+                        const endCell = dataCells[endCellIndex];
+                        const endCellRect = endCell ? endCell.getBoundingClientRect() : startCellRect;
+
+                        // Calculer la position et la taille du preview
+                        const PHASE_MARGIN = RoadmapChantiersPage.PHASE_MARGIN;
+                        const previewWidth = (endCellRect.right - startCellRect.left) - (PHASE_MARGIN * 2);
+                        const previewHeight = startCellRect.height - 8; // Marge verticale
+
+                        preview.style.position = 'fixed';
+                        preview.style.left = (startCellRect.left + PHASE_MARGIN) + 'px';
+                        preview.style.top = (startCellRect.top + 4) + 'px';
+                        preview.style.width = previewWidth + 'px';
+                        preview.style.height = previewHeight + 'px';
+                    }
+                }
             } else {
                 cell.classList.add('drag-invalid');
+                // Masquer le preview si on survole une cellule invalide
+                if (preview) {
+                    preview.style.display = 'none';
+                }
+            }
+        } else {
+            // Masquer le preview si on ne survole pas de cellule
+            if (preview) {
+                preview.style.display = 'none';
             }
         }
     }
@@ -1185,6 +1241,13 @@ class RoadmapChantiersPage {
      */
     handleCustomDragEnd(e) {
         if (!this.draggedPhase) return;
+
+        const { preview } = this.draggedPhase;
+
+        // Supprimer le preview
+        if (preview && preview.parentNode) {
+            preview.parentNode.removeChild(preview);
+        }
 
         // Trouver la cellule sous le curseur
         const elementsUnder = document.elementsFromPoint(e.clientX, e.clientY);
