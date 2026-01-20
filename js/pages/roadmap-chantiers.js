@@ -1232,6 +1232,7 @@ class RoadmapChantiersPage {
         const typePhase = phase['Type phase'] || '';
         const color = CONFIG.PHASE_COLORS[typePhase] || '#E0E0E0';
         const phaseName = phase['Phase'] || '';
+        const description = phase['Description'] || '';
         const phaseIndex = this.phases.findIndex(p => p['Phase'] === phaseName && p['Chantier'] === phase['Chantier']);
 
         // Marge à gauche de la phase (pour ne pas coller aux bords)
@@ -1246,10 +1247,14 @@ class RoadmapChantiersPage {
         // Cela permet d'interagir avec les phases même quand d'autres phases les chevauchent visuellement
         const zIndex = 10 + startSprintIdx;
 
+        // Tooltip: afficher la description si disponible, sinon le nom de la phase
+        const tooltip = description ? `${phaseName}\n\n${description}` : phaseName;
+
         // Note: width sera calculée dynamiquement par updatePhaseWidths() après le rendu
         return `
             <div class="gantt-phase-block ${hasMultipleLanes ? 'lane-mode' : 'fullwidth'}"
                  style="background-color: ${color}; margin-left: ${PHASE_MARGIN}px; z-index: ${zIndex}; ${hasMultipleLanes ? `height: calc(${heightPercent}% - 2px); top: ${topPercent}%;` : ''}"
+                 title="${escapeHtml(tooltip)}"
                  data-phase-index="${phaseIndex}"
                  data-phase-name="${escapeHtml(phaseName)}"
                  data-chantier="${escapeHtml(phase['Chantier'])}"
