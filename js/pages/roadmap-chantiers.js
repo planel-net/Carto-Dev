@@ -260,6 +260,61 @@ class RoadmapChantiersPage {
     }
 
     /**
+     * Retourne la liste des couples Périmètre-Processus filtrés par les périmètres sélectionnés
+     * Si aucun périmètre n'est sélectionné, retourne tous les couples
+     */
+    getFilteredPerimetreProcessus() {
+        // Si tous les périmètres sont sélectionnés ou aucun filtre actif, retourner tous
+        const allPerimetres = this.getAllPerimetres();
+        const selectedPerimetres = this.filters.perimetres;
+
+        // Périmètres sélectionnés (sans l'option "Non rempli") en lowercase pour comparaison
+        const selectedPerimetresLower = selectedPerimetres
+            .filter(p => p !== CONFIG.EMPTY_FILTER_VALUE)
+            .map(p => p.toLowerCase());
+        const includeEmptyPerimetre = selectedPerimetres.includes(CONFIG.EMPTY_FILTER_VALUE);
+
+        const couples = new Set();
+        let hasEmpty = false;
+
+        this.chantiers.forEach(c => {
+            const perimetre = c['Perimetre'] || '';
+            const processus = c['Processus'] || '';
+
+            // Vérifier si le périmètre du chantier correspond aux périmètres sélectionnés
+            const perimetreMatch = perimetre === ''
+                ? includeEmptyPerimetre
+                : selectedPerimetresLower.includes(perimetre.toLowerCase());
+
+            if (!perimetreMatch) return;
+
+            if (!perimetre && !processus) {
+                hasEmpty = true;
+            } else {
+                let label = '';
+                if (perimetre && processus) {
+                    label = `${perimetre}-${processus}`;
+                } else if (perimetre) {
+                    label = perimetre;
+                } else {
+                    label = processus;
+                }
+                if (label) {
+                    couples.add(label);
+                }
+            }
+        });
+
+        const result = [...couples].sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+
+        if (hasEmpty) {
+            result.push(CONFIG.EMPTY_FILTER_VALUE);
+        }
+
+        return result;
+    }
+
+    /**
      * Parse une date (Excel ou string)
      */
     parseDate(value) {
@@ -320,10 +375,10 @@ class RoadmapChantiersPage {
             return d.toISOString().split('T')[0];
         };
 
-        // Liste unique des périmètres, responsables et couples périmètre-processus
+        // Liste unique des périmètres, responsables et couples périmètre-processus (filtrés par périmètre)
         const perimetresList = this.getAllPerimetres();
         const responsablesList = this.getAllResponsables();
-        const perimetreProcessusList = this.getAllPerimetreProcessus();
+        const perimetreProcessusList = this.getFilteredPerimetreProcessus();
 
         // Calcul des labels
         const perimetreAllSelected = this.filters.perimetres.length === perimetresList.length;
@@ -1130,6 +1185,7 @@ class RoadmapChantiersPage {
         checkboxes.forEach(cb => cb.checked = true);
         this.filters.perimetres = this.getAllPerimetres();
         this.updatePerimetreLabel();
+        this.refreshPerimetreProcessusDropdown();
         this.applyFiltersWithoutRenderingFilters();
     }
 
@@ -1139,6 +1195,7 @@ class RoadmapChantiersPage {
         checkboxes.forEach(cb => cb.checked = false);
         this.filters.perimetres = [];
         this.updatePerimetreLabel();
+        this.refreshPerimetreProcessusDropdown();
         this.applyFiltersWithoutRenderingFilters();
     }
 
@@ -1148,6 +1205,7 @@ class RoadmapChantiersPage {
             .filter(cb => cb.checked)
             .map(cb => cb.value);
         this.updatePerimetreLabel();
+        this.refreshPerimetreProcessusDropdown();
         this.applyFiltersWithoutRenderingFilters();
     }
 
@@ -1159,6 +1217,32 @@ class RoadmapChantiersPage {
             label.textContent = allSelected ? 'Tous' :
                 (this.filters.perimetres.length === 0 ? 'Aucun' : this.filters.perimetres.length + ' sélectionné(s)');
         }
+    }
+
+    /**
+     * Rafraîchit le dropdown Périmètre-Processus en fonction des périmètres sélectionnés
+     * Met à jour les options disponibles et réinitialise la sélection
+     */
+    refreshPerimetreProcessusDropdown() {
+        const optionsContainer = document.querySelector('#perimetreProcessusDropdown .multi-select-options');
+        if (!optionsContainer) return;
+
+        // Obtenir les couples filtrés par les périmètres sélectionnés
+        const filteredList = this.getFilteredPerimetreProcessus();
+
+        // Reconstruire les options
+        optionsContainer.innerHTML = filteredList.map(pp => `
+            <label class="multi-select-option${pp === CONFIG.EMPTY_FILTER_VALUE ? ' empty-option' : ''}">
+                <input type="checkbox" value="${escapeHtml(pp)}"
+                    checked
+                    onchange="roadmapChantiersPageInstance.onPerimetreProcessusCheckChange()">
+                <span>${escapeHtml(pp)}</span>
+            </label>
+        `).join('');
+
+        // Mettre à jour le filtre avec toutes les valeurs filtrées (tout coché par défaut)
+        this.filters.perimetreProcessus = [...filteredList];
+        this.updatePerimetreProcessusLabel();
     }
 
     selectAllResponsables() {
@@ -1201,7 +1285,8 @@ class RoadmapChantiersPage {
     selectAllPerimetreProcessus() {
         const checkboxes = document.querySelectorAll('#perimetreProcessusDropdown input[type="checkbox"]');
         checkboxes.forEach(cb => cb.checked = true);
-        this.filters.perimetreProcessus = this.getAllPerimetreProcessus();
+        // Utiliser la liste filtrée par les périmètres
+        this.filters.perimetreProcessus = this.getFilteredPerimetreProcessus();
         this.updatePerimetreProcessusLabel();
         this.applyFiltersWithoutRenderingFilters();
     }
@@ -1226,8 +1311,9 @@ class RoadmapChantiersPage {
     updatePerimetreProcessusLabel() {
         const label = document.querySelector('#perimetreProcessusFilterWrapper .multi-select-label');
         if (label) {
-            const allPerimetreProcessus = this.getAllPerimetreProcessus();
-            const allSelected = this.filters.perimetreProcessus.length === allPerimetreProcessus.length;
+            // Utiliser la liste filtrée par les périmètres pour le calcul du "Tous"
+            const filteredPerimetreProcessus = this.getFilteredPerimetreProcessus();
+            const allSelected = this.filters.perimetreProcessus.length === filteredPerimetreProcessus.length;
             label.textContent = allSelected ? 'Tous' :
                 (this.filters.perimetreProcessus.length === 0 ? 'Aucun' : this.filters.perimetreProcessus.length + ' sélectionné(s)');
         }
