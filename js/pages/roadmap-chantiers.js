@@ -3174,6 +3174,7 @@ class RoadmapChantiersPage {
 
         const targetChantier = cell.dataset.chantier;
         const targetSprint = cell.dataset.sprint;
+        const targetWeek = cell.dataset.week;
 
         // Ne permettre le drop que sur le même chantier
         if (targetChantier !== this.draggedPhase.chantier) {
@@ -3184,6 +3185,7 @@ class RoadmapChantiersPage {
         // Copier les données avant le traitement async
         const phaseData = { ...this.draggedPhase.phase };
         const rowIndex = this.draggedPhase.phase._rowIndex;
+        const mode = phaseData['Mode'] || 'Sprint';
 
         if (rowIndex === undefined || rowIndex === null) {
             console.error('Row index not found for phase');
@@ -3191,22 +3193,48 @@ class RoadmapChantiersPage {
             return;
         }
 
-        // Calculer le décalage
-        const oldStartIdx = this.getSprintIndex(phaseData['Sprint début']);
-        const oldEndIdx = this.getSprintIndex(phaseData['Sprint fin'] || phaseData['Sprint début']);
-        const duration = Math.max(0, oldEndIdx - oldStartIdx);
-
-        const newStartIdx = this.getSprintIndex(targetSprint);
-        const newEndIdx = newStartIdx + duration;
-
-        if (newEndIdx >= this.sprints.length) {
-            showWarning('La phase dépasse la période visible');
-            return;
-        }
-
         try {
-            phaseData['Sprint début'] = this.sprints[newStartIdx]['Sprint'];
-            phaseData['Sprint fin'] = this.sprints[newEndIdx]['Sprint'];
+            if (mode === 'Semaine') {
+                // Mode Semaine: calculer en semaines
+                const weekCodes = this._allWeeks ? this._allWeeks.map(w => w.weekCode) : [];
+                const oldStartWeek = phaseData['Semaine début'];
+                const oldEndWeek = phaseData['Semaine fin'] || oldStartWeek;
+
+                const oldStartIdx = weekCodes.indexOf(oldStartWeek);
+                const oldEndIdx = weekCodes.indexOf(oldEndWeek);
+                const duration = oldStartIdx >= 0 && oldEndIdx >= 0 ? Math.max(0, oldEndIdx - oldStartIdx) : 0;
+
+                const newStartIdx = weekCodes.indexOf(targetWeek);
+                if (newStartIdx === -1) {
+                    showWarning('Semaine cible non trouvée');
+                    return;
+                }
+
+                const newEndIdx = newStartIdx + duration;
+                if (newEndIdx >= weekCodes.length) {
+                    showWarning('La phase dépasse la période visible');
+                    return;
+                }
+
+                phaseData['Semaine début'] = weekCodes[newStartIdx];
+                phaseData['Semaine fin'] = weekCodes[newEndIdx];
+            } else {
+                // Mode Sprint: calculer en sprints
+                const oldStartIdx = this.getSprintIndex(phaseData['Sprint début']);
+                const oldEndIdx = this.getSprintIndex(phaseData['Sprint fin'] || phaseData['Sprint début']);
+                const duration = Math.max(0, oldEndIdx - oldStartIdx);
+
+                const newStartIdx = this.getSprintIndex(targetSprint);
+                const newEndIdx = newStartIdx + duration;
+
+                if (newEndIdx >= this.sprints.length) {
+                    showWarning('La phase dépasse la période visible');
+                    return;
+                }
+
+                phaseData['Sprint début'] = this.sprints[newStartIdx]['Sprint'];
+                phaseData['Sprint fin'] = this.sprints[newEndIdx]['Sprint'];
+            }
 
             await updateTableRow('tPhases', rowIndex, phaseData);
             invalidateCache('tPhases');
