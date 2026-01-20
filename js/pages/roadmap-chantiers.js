@@ -352,6 +352,20 @@ class RoadmapChantiersPage {
     }
 
     /**
+     * Vérifie si un sprint est le sprint actuel (date du jour entre début et fin)
+     */
+    isCurrentSprint(sprint) {
+        if (!sprint || !sprint['Début'] || !sprint['Fin']) return false;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const sprintStart = this.parseDate(sprint['Début']);
+        sprintStart.setHours(0, 0, 0, 0);
+        const sprintEnd = this.parseDate(sprint['Fin']);
+        sprintEnd.setHours(23, 59, 59, 999);
+        return today >= sprintStart && today <= sprintEnd;
+    }
+
+    /**
      * Formate une date en string court
      */
     formatDate(date) {
@@ -701,13 +715,16 @@ class RoadmapChantiersPage {
         `;
 
         // Générer le HTML des sprints (header de table)
-        const sprintsHeaderHtml = visibleSprints.map(sprint => `
-            <th class="gantt-sprint-header-cell" data-sprint="${escapeHtml(sprint['Sprint'])}">
+        const sprintsHeaderHtml = visibleSprints.map(sprint => {
+            const isCurrentSprintClass = this.isCurrentSprint(sprint) ? ' current-sprint' : '';
+            return `
+            <th class="gantt-sprint-header-cell${isCurrentSprintClass}" data-sprint="${escapeHtml(sprint['Sprint'])}">
                 <div class="sprint-name">${escapeHtml(sprint['Sprint'])}</div>
                 <div class="sprint-date">${this.formatDate(sprint['Début'])}</div>
                 <div class="sprint-date">${this.formatDate(sprint['Fin'])}</div>
             </th>
-        `).join('');
+        `;
+        }).join('');
 
         container.innerHTML = `
             <div class="gantt-body-wrapper">
@@ -2609,9 +2626,6 @@ class RoadmapChantiersPage {
         menu.innerHTML = `
             <div class="context-menu-item" onclick="roadmapChantiersPageInstance.showEditPhaseModal(${phaseIndex})">
                 <span>&#9998;</span> Modifier
-            </div>
-            <div class="context-menu-item" onclick="roadmapChantiersPageInstance.hideContextMenu(); roadmapChantiersPageInstance.showAddPhaseModalForChantier('${escapeJsString(chantierName)}')">
-                <span>&#10133;</span> Ajouter une phase
             </div>
             <div class="context-menu-item danger" onclick="roadmapChantiersPageInstance.showDeletePhaseConfirmation(${phaseIndex})">
                 <span>&#128465;</span> Supprimer

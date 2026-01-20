@@ -1947,6 +1947,11 @@
     line-height: 1.2;
 }
 
+/* Sprint actuel (date du jour entre début et fin) */
+.gantt-sprint-header-cell.current-sprint {
+    background: #E2250C;
+}
+
 /* Anciens styles pour compatibilité */
 .gantt-month-header,
 .gantt-months-row th {
