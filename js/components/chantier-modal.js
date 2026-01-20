@@ -168,6 +168,10 @@ const ChantierModal = {
                         `).join('')}
                     </select>
                 </div>
+                <div class="form-group">
+                    <label class="form-label">Date fin souhaitée</label>
+                    <input type="date" class="form-control" name="Date fin souhaitée">
+                </div>
 
                 <!-- Section Produits -->
                 <div class="assigned-section">
@@ -324,6 +328,10 @@ const ChantierModal = {
                                 </option>
                             `).join('')}
                         </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Date fin souhaitée</label>
+                        <input type="date" class="form-control" name="Date fin souhaitée" value="${this._formatDateForInput(chantier['Date fin souhaitée'])}">
                     </div>
 
                     <!-- Section Produits -->
@@ -740,6 +748,7 @@ const ChantierModal = {
             'Responsable': formData.get('Responsable'),
             'Perimetre': formData.get('Perimetre'),
             'Processus': formData.get('Processus'),
+            'Date fin souhaitée': formData.get('Date fin souhaitée') || '',
             'Archivé': form.querySelector('input[name="Archivé"]').checked ? true : false
         };
 

@@ -870,7 +870,7 @@ class RoadmapChantiersPage {
                             </div>
                         </div>
                     </td>
-                    ${this.renderChantierCells(chantierName, chantierPhases, visibleSprints, phasesByWeekRange, allWeeks)}
+                    ${this.renderChantierCells(chantier, chantierPhases, visibleSprints, phasesByWeekRange, allWeeks)}
                 </tr>
             `;
         }).join('');
@@ -1211,13 +1211,24 @@ class RoadmapChantiersPage {
      * @param {Object} phasesByWeekRange - Mapping weekCode -> phases
      * @param {Array} allWeeks - Liste de toutes les semaines
      */
-    renderChantierCells(chantierName, chantierPhases, visibleSprints, phasesByWeekRange, allWeeks) {
+    renderChantierCells(chantier, chantierPhases, visibleSprints, phasesByWeekRange, allWeeks) {
         const cellsHtml = [];
         const renderedPhases = new Set();
         const weekCodes = allWeeks.map(w => w.weekCode);
+        const chantierName = chantier['Chantier'];
 
         // Calculer les lanes pour ce chantier (basé sur les semaines)
         const { phaseLanes, totalLanes } = this.calculatePhaseLanes(chantierPhases, allWeeks);
+
+        // Déterminer le code semaine de la date fin souhaitée (si définie)
+        let targetEndWeekCode = null;
+        const dateFinSouhaitee = chantier['Date fin souhaitée'];
+        if (dateFinSouhaitee) {
+            const targetDate = this.parseDate(dateFinSouhaitee);
+            if (targetDate && targetDate.getTime() > 0) {
+                targetEndWeekCode = this.formatWeekCode(targetDate);
+            }
+        }
 
         allWeeks.forEach((weekInfo, weekIdx) => {
             const weekCode = weekInfo.weekCode;
@@ -1250,9 +1261,11 @@ class RoadmapChantiersPage {
             const hasPhases = phasesWithColspan.length > 0;
             const cellClass = hasPhases ? 'gantt-phase-cell' : 'gantt-empty-cell';
             const firstWeekClass = isFirstWeek ? ' first-week' : '';
+            // Ajouter la classe target-end-date si cette semaine correspond à la date fin souhaitée
+            const targetEndDateClass = (targetEndWeekCode && weekCode === targetEndWeekCode) ? ' target-end-date' : '';
 
             cellsHtml.push(`
-                <td class="gantt-data-cell gantt-week-cell${firstWeekClass} ${cellClass}"
+                <td class="gantt-data-cell gantt-week-cell${firstWeekClass}${targetEndDateClass} ${cellClass}"
                     data-chantier="${escapeHtml(chantierName)}"
                     data-sprint="${escapeHtml(sprintName)}"
                     data-week="${escapeHtml(weekCode)}"

@@ -1991,6 +1991,12 @@
     border-left: 1px solid #dee2e6;
 }
 
+/* Cellule avec date fin souhaitée - bordure rouge pointillée épaisse */
+.gantt-chantiers-table .gantt-week-cell.target-end-date {
+    border: 3px dashed var(--mh-rouge-erreur) !important;
+    box-sizing: border-box;
+}
+
 /* Anciens styles pour compatibilité */
 .gantt-month-header,
 .gantt-months-row th {
