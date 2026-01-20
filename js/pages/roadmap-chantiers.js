@@ -1060,22 +1060,23 @@ class RoadmapChantiersPage {
         const phaseLanes = new Map(); // phase name -> lane number
         const lanes = []; // lanes[i] = end index of last phase in lane i
 
+        if (weekCodes.length === 0) {
+            return { phaseLanes, totalLanes: 1 };
+        }
+
+        const firstVisibleWeek = weekCodes[0];
+        const lastVisibleWeek = weekCodes[weekCodes.length - 1];
+
         // Calculer les indices de début/fin en semaines pour chaque phase
+        // UNIQUEMENT pour les phases visibles dans la période courante
         const sortedPhases = [...phases].map(phase => {
             const mode = phase['Mode'] || 'Sprint';
-            let startIdx, endIdx;
+            let phaseStartWeek, phaseEndWeek;
 
             if (mode === 'Semaine') {
-                const startWeek = phase['Semaine début'];
-                const endWeek = phase['Semaine fin'] || startWeek;
-                if (!startWeek) return { phase, startIdx: Infinity, endIdx: 0 };
-
-                startIdx = weekCodes.indexOf(startWeek);
-                endIdx = weekCodes.indexOf(endWeek);
-
-                // Ajuster si hors limites
-                if (startIdx === -1) startIdx = 0;
-                if (endIdx === -1) endIdx = weekCodes.length - 1;
+                phaseStartWeek = phase['Semaine début'];
+                phaseEndWeek = phase['Semaine fin'] || phaseStartWeek;
+                if (!phaseStartWeek) return { phase, startIdx: Infinity, endIdx: 0 };
             } else {
                 const startSprint = phase['Sprint début'];
                 const endSprint = phase['Sprint fin'] || startSprint;
@@ -1093,15 +1094,27 @@ class RoadmapChantiersPage {
                 const startSprintWeeks = this.getWeeksForSprint(startSprintObj);
                 const endSprintWeeks = this.getWeeksForSprint(endSprintObj);
 
-                const phaseStartWeek = startSprintWeeks[0];
-                const phaseEndWeek = endSprintWeeks[endSprintWeeks.length - 1];
+                phaseStartWeek = startSprintWeeks[0];
+                phaseEndWeek = endSprintWeeks[endSprintWeeks.length - 1];
+            }
 
-                startIdx = weekCodes.indexOf(phaseStartWeek);
-                endIdx = weekCodes.indexOf(phaseEndWeek);
+            // Vérifier si la phase a une visibilité dans la période courante
+            // Phase invisible si elle finit avant le début OU commence après la fin
+            if (phaseEndWeek < firstVisibleWeek || phaseStartWeek > lastVisibleWeek) {
+                return { phase, startIdx: Infinity, endIdx: 0 }; // Exclure
+            }
 
-                // Ajuster si hors limites
-                if (startIdx === -1) startIdx = 0;
-                if (endIdx === -1) endIdx = weekCodes.length - 1;
+            // Calculer les indices avec clamping approprié
+            let startIdx = weekCodes.indexOf(phaseStartWeek);
+            let endIdx = weekCodes.indexOf(phaseEndWeek);
+
+            // Si la phase commence avant la période visible, clamper à 0
+            if (startIdx === -1 && phaseStartWeek < firstVisibleWeek) {
+                startIdx = 0;
+            }
+            // Si la phase finit après la période visible, clamper à la fin
+            if (endIdx === -1 && phaseEndWeek > lastVisibleWeek) {
+                endIdx = weekCodes.length - 1;
             }
 
             return {
@@ -1109,7 +1122,7 @@ class RoadmapChantiersPage {
                 startIdx: startIdx,
                 endIdx: endIdx
             };
-        }).filter(p => p.startIdx !== Infinity && p.startIdx <= weekCodes.length - 1)
+        }).filter(p => p.startIdx !== Infinity && p.startIdx >= 0 && p.endIdx >= 0)
           .sort((a, b) => a.startIdx - b.startIdx || a.endIdx - b.endIdx);
 
         // Assigner chaque phase à une lane
