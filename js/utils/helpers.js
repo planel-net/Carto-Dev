@@ -5,14 +5,28 @@
 
 /**
  * Formate une date en français
- * @param {Date|string} date - Date à formater
+ * @param {Date|string|number} date - Date à formater (peut être un serial Excel)
  * @param {string} format - Format de sortie ('short', 'long', 'iso')
  * @returns {string} Date formatée
  */
 function formatDate(date, format = 'short') {
-    if (!date) return '';
+    if (!date && date !== 0) return '';
 
-    const d = date instanceof Date ? date : new Date(date);
+    let d;
+
+    // Si c'est un nombre (serial Excel), le convertir
+    // Excel stocke les dates comme nombre de jours depuis le 1/1/1900
+    // Les serials Excel typiques pour des dates récentes sont entre 40000 et 60000
+    if (typeof date === 'number' && date > 1000 && date < 100000) {
+        // Conversion Excel serial vers JavaScript Date
+        // 25569 = nombre de jours entre 1/1/1900 (Excel) et 1/1/1970 (Unix)
+        // 86400000 = millisecondes dans un jour
+        d = new Date((date - 25569) * 86400000);
+    } else if (date instanceof Date) {
+        d = date;
+    } else {
+        d = new Date(date);
+    }
 
     if (isNaN(d.getTime())) return '';
 

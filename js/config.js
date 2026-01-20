@@ -6,7 +6,7 @@
 const CONFIG = {
     // Nom de l'application
     APP_NAME: 'Carto',
-    APP_VERSION: '1.0.109',
+    APP_VERSION: '1.0.110',
 
     // Valeur spéciale pour filtrer les éléments sans valeur (périmètre/responsable vide)
     EMPTY_FILTER_VALUE: '(Non rempli)',
@@ -330,8 +330,8 @@ const CONFIG = {
     // Options de la dialog plein écran
     // Pattern AppExcel : uniquement height et width
     DIALOG_OPTIONS: {
-        height: 80,
-        width: 80
+        height: 100,
+        width: 100
     },
 
     // Navigation de l'application
