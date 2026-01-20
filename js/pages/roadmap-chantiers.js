@@ -255,8 +255,22 @@ class RoadmapChantiersPage {
     /**
      * Retourne la liste des processus uniques (ordonnés par Ordre)
      */
+    /**
+     * Retourne la liste des processus uniques, triés par Ordre (premier Ordre trouvé pour chaque processus)
+     */
     getOrderedProcessus() {
-        return this.processus.map(p => p['Processus']).filter(Boolean);
+        // this.processus est déjà trié par Ordre dans loadData()
+        // On garde juste les valeurs distinctes en préservant l'ordre
+        const seen = new Set();
+        const result = [];
+        for (const p of this.processus) {
+            const processusName = p['Processus'];
+            if (processusName && !seen.has(processusName)) {
+                seen.add(processusName);
+                result.push(processusName);
+            }
+        }
+        return result;
     }
 
     /**
