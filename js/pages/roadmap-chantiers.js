@@ -3085,8 +3085,13 @@ class RoadmapChantiersPage {
                 yPos += 4;
             });
 
-            // Légende des couleurs
+            // Légende des couleurs (uniquement page 1)
             yPos = this.drawPdfLegend(doc, yPos + 2, margin);
+
+            // Calculer la largeur des colonnes (égales pour tous les sprints)
+            const availableWidth = pageWidth - margin * 2;
+            const chantierColWidth = 40;
+            const sprintColWidth = (availableWidth - chantierColWidth) / visibleSprints.length;
 
             // Construire les en-têtes du tableau avec dates des sprints
             const tableHeaders = [
@@ -3099,17 +3104,22 @@ class RoadmapChantiersPage {
                 ],
                 visibleSprints.map(s => ({
                     content: `${this.formatDate(s['Début'])} - ${this.formatDate(s['Fin'])}`,
-                    styles: { halign: 'center', fontSize: 6 }
+                    styles: { halign: 'center', fontSize: 5 }
                 }))
             ];
 
-            // Construire les données du tableau avec les titres des phases
-            const tableData = filteredChantiers.map(chantier => {
+            // Construire les données du tableau avec fusion des cellules adjacentes
+            const tableData = [];
+            const spanInfo = new Map(); // Pour stocker les infos de colSpan
+
+            filteredChantiers.forEach((chantier, rowIdx) => {
                 const chantierName = chantier['Chantier'] || '';
                 const chantierPhases = this.phases.filter(p => p['Chantier'] === chantierName);
+                const row = [chantierName];
 
-                // Pour chaque sprint, trouver les phases actives
-                const sprintsCells = visibleSprints.map(sprint => {
+                let colIdx = 0;
+                while (colIdx < visibleSprints.length) {
+                    const sprint = visibleSprints[colIdx];
                     const sprintName = sprint['Sprint'];
                     const activePhases = chantierPhases.filter(phase => {
                         const phaseStart = phase['Sprint début'];
@@ -3117,59 +3127,125 @@ class RoadmapChantiersPage {
                         return this.isSprintInRange(sprintName, phaseStart, phaseEnd);
                     });
 
-                    if (activePhases.length === 0) return { content: '', phases: [] };
+                    if (activePhases.length === 0) {
+                        row.push({ content: '', phases: [], colSpan: 1 });
+                        colIdx++;
+                        continue;
+                    }
 
-                    // Retourner les titres des phases actives avec leurs types pour le coloriage
+                    // Calculer le colSpan pour les phases qui s'étendent sur plusieurs sprints
                     const phasesInfo = activePhases.map(p => ({
                         title: p['Phase'] || p['Type phase'] || '',
                         type: p['Type phase'] || ''
                     }));
 
-                    return {
-                        content: phasesInfo.map(p => p.title).join('\n'),
-                        phases: phasesInfo
-                    };
-                });
+                    // Vérifier combien de sprints consécutifs ont le même contenu
+                    let colSpan = 1;
+                    const currentContent = phasesInfo.map(p => p.title).sort().join('|');
 
-                return [chantierName, ...sprintsCells];
-            });
+                    for (let nextCol = colIdx + 1; nextCol < visibleSprints.length; nextCol++) {
+                        const nextSprint = visibleSprints[nextCol];
+                        const nextSprintName = nextSprint['Sprint'];
+                        const nextPhases = chantierPhases.filter(phase => {
+                            const phaseStart = phase['Sprint début'];
+                            const phaseEnd = phase['Sprint fin'] || phaseStart;
+                            return this.isSprintInRange(nextSprintName, phaseStart, phaseEnd);
+                        });
 
-            // Préparer les données pour autoTable (avec les phases pour le coloriage)
-            const phasesMap = new Map(); // Pour stocker les infos de phases par cellule
-            const bodyData = tableData.map((row, rowIdx) => {
-                return row.map((cell, colIdx) => {
-                    if (colIdx === 0) return cell; // Colonne chantier
-                    if (typeof cell === 'object') {
-                        phasesMap.set(`${rowIdx}-${colIdx}`, cell.phases);
-                        return cell.content;
+                        const nextPhasesInfo = nextPhases.map(p => ({
+                            title: p['Phase'] || p['Type phase'] || '',
+                            type: p['Type phase'] || ''
+                        }));
+                        const nextContent = nextPhasesInfo.map(p => p.title).sort().join('|');
+
+                        if (nextContent === currentContent && currentContent !== '') {
+                            colSpan++;
+                        } else {
+                            break;
+                        }
                     }
-                    return cell;
-                });
+
+                    row.push({
+                        content: phasesInfo.map(p => p.title).join('\n'),
+                        phases: phasesInfo,
+                        colSpan: colSpan
+                    });
+
+                    // Ajouter des cellules vides pour les colonnes fusionnées
+                    for (let i = 1; i < colSpan; i++) {
+                        row.push({ skip: true });
+                    }
+
+                    colIdx += colSpan;
+                }
+
+                tableData.push(row);
             });
+
+            // Préparer les données pour autoTable avec colSpan
+            const phasesMap = new Map();
+            const colSpanMap = new Map();
+            const bodyData = tableData.map((row, rowIdx) => {
+                const processedRow = [];
+                let actualColIdx = 0;
+
+                row.forEach((cell, colIdx) => {
+                    if (colIdx === 0) {
+                        processedRow.push(cell);
+                        return;
+                    }
+
+                    if (typeof cell === 'object' && cell.skip) {
+                        return; // Ignorer les cellules fusionnées
+                    }
+
+                    if (typeof cell === 'object') {
+                        phasesMap.set(`${rowIdx}-${processedRow.length}`, cell.phases);
+                        if (cell.colSpan > 1) {
+                            colSpanMap.set(`${rowIdx}-${processedRow.length}`, cell.colSpan);
+                        }
+                        processedRow.push({ content: cell.content, colSpan: cell.colSpan || 1 });
+                    } else {
+                        processedRow.push(cell);
+                    }
+                });
+
+                return processedRow;
+            });
+
+            // Générer les colonnes styles avec largeurs égales
+            const columnStyles = { 0: { cellWidth: chantierColWidth, fontStyle: 'bold', valign: 'middle' } };
+            for (let i = 1; i <= visibleSprints.length; i++) {
+                columnStyles[i] = { cellWidth: sprintColWidth, halign: 'center', valign: 'middle' };
+            }
 
             // Générer le tableau avec autoTable
             const self = this;
+            let isFirstPage = true;
+
             doc.autoTable({
                 head: tableHeaders,
                 body: bodyData,
                 startY: yPos + 2,
                 margin: { left: margin, right: margin },
+                tableWidth: availableWidth,
                 styles: {
-                    fontSize: 7,
-                    cellPadding: 1.5,
+                    fontSize: 6,
+                    cellPadding: 1,
                     overflow: 'linebreak',
-                    lineWidth: 0.1
+                    lineWidth: 0.1,
+                    valign: 'middle',
+                    halign: 'center'
                 },
                 headStyles: {
                     fillColor: [0, 51, 102],
                     textColor: 255,
                     fontStyle: 'bold',
                     halign: 'center',
-                    valign: 'middle'
+                    valign: 'middle',
+                    fontSize: 6
                 },
-                columnStyles: {
-                    0: { cellWidth: 35, fontStyle: 'bold', valign: 'middle' }
-                },
+                columnStyles: columnStyles,
                 alternateRowStyles: {
                     fillColor: [250, 250, 250]
                 },
@@ -3178,26 +3254,41 @@ class RoadmapChantiersPage {
                     if (data.section === 'body' && data.column.index > 0) {
                         const phases = phasesMap.get(`${data.row.index}-${data.column.index}`);
                         if (phases && phases.length > 0) {
-                            // Utiliser la couleur de la première phase (ou mélanger si plusieurs)
+                            // Utiliser la couleur de la première phase
                             const firstPhaseType = phases[0].type;
                             const color = CONFIG.PHASE_COLORS[firstPhaseType];
                             if (color) {
                                 const rgb = self.hexToRgb(color);
                                 data.cell.styles.fillColor = rgb;
                                 data.cell.styles.textColor = [0, 0, 0];
+                            } else {
+                                // Gris clair pour les phases sans type standard
+                                data.cell.styles.fillColor = [220, 220, 220];
+                                data.cell.styles.textColor = [0, 0, 0];
                             }
+                        }
+                    }
+
+                    // Réduire la police si le contenu est trop long
+                    if (data.section === 'body' && data.column.index > 0 && data.cell.raw) {
+                        const cellContent = typeof data.cell.raw === 'object' ? data.cell.raw.content : data.cell.raw;
+                        if (cellContent && cellContent.length > 20) {
+                            data.cell.styles.fontSize = 5;
+                        }
+                        if (cellContent && cellContent.length > 40) {
+                            data.cell.styles.fontSize = 4;
                         }
                     }
                 },
                 didDrawPage: function(data) {
-                    // Répéter le titre et la légende sur chaque nouvelle page du tableau
-                    if (data.pageNumber > 1) {
+                    // Titre sur les pages suivantes (sans légende)
+                    if (!isFirstPage) {
                         doc.setFontSize(12);
                         doc.setFont('helvetica', 'bold');
                         doc.setTextColor(0, 51, 102);
                         doc.text('Roadmap Chantiers (suite)', pageWidth / 2, 10, { align: 'center' });
-                        self.drawPdfLegend(doc, 16, margin);
                     }
+                    isFirstPage = false;
                 }
             });
 
@@ -3275,7 +3366,6 @@ class RoadmapChantiersPage {
 
                     // Notes du chantier
                     doc.setFontSize(9);
-                    doc.setFont('helvetica', 'normal');
                     doc.setTextColor(0, 0, 0);
 
                     for (const note of notes) {
@@ -3290,37 +3380,18 @@ class RoadmapChantiersPage {
                         }
 
                         const noteDate = this.formatDateFull(this.parseDate(note['Date']));
-                        const noteContent = this.stripHtml(note['Note'] || '');
+                        const noteHtml = note['Note'] || '';
 
                         // Date de la note
                         doc.setFont('helvetica', 'bold');
-                        doc.setTextColor(80, 80, 80);
+                        doc.setTextColor(0, 51, 102);
                         doc.text(`${noteDate} :`, margin + 2, yPosition);
-
-                        // Contenu de la note (avec retour à la ligne automatique)
-                        doc.setFont('helvetica', 'normal');
-                        doc.setTextColor(0, 0, 0);
-                        const maxWidth = pageWidth - margin * 2 - 4;
-                        const lines = doc.splitTextToSize(noteContent, maxWidth);
-
                         yPosition += 4;
-                        for (const line of lines) {
-                            if (yPosition > pageHeight - 10) {
-                                doc.addPage();
-                                doc.setFontSize(12);
-                                doc.setFont('helvetica', 'bold');
-                                doc.setTextColor(0, 51, 102);
-                                doc.text('Notes des Chantiers (suite)', pageWidth / 2, 10, { align: 'center' });
-                                yPosition = 18;
-                                doc.setFontSize(9);
-                                doc.setFont('helvetica', 'normal');
-                                doc.setTextColor(0, 0, 0);
-                            }
-                            doc.text(line, margin + 4, yPosition);
-                            yPosition += 4;
-                        }
 
-                        yPosition += 2; // Espace entre les notes
+                        // Rendu du contenu avec formatage
+                        yPosition = this.renderFormattedNote(doc, noteHtml, margin + 4, yPosition, pageWidth - margin * 2 - 8, pageHeight);
+
+                        yPosition += 3; // Espace entre les notes
                     }
 
                     yPosition += 4; // Espace entre les chantiers
@@ -3387,6 +3458,155 @@ class RoadmapChantiersPage {
             .replace(/<\/li>/gi, '\n');
         temp.innerHTML = text;
         return temp.textContent || temp.innerText || '';
+    }
+
+    /**
+     * Rend une note formatée dans le PDF (gras, italique, listes)
+     */
+    renderFormattedNote(doc, html, x, y, maxWidth, pageHeight) {
+        if (!html) return y;
+
+        const margin = 10;
+        const lineHeight = 4;
+
+        // Parser le HTML
+        const temp = document.createElement('div');
+        temp.innerHTML = html;
+
+        // Fonction pour vérifier et gérer le saut de page
+        const checkPageBreak = (currentY, needed = lineHeight) => {
+            if (currentY > pageHeight - 15) {
+                doc.addPage();
+                doc.setFontSize(12);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(0, 51, 102);
+                doc.text('Notes des Chantiers (suite)', doc.internal.pageSize.getWidth() / 2, 10, { align: 'center' });
+                return 18;
+            }
+            return currentY;
+        };
+
+        // Fonction récursive pour parcourir les nœuds
+        const processNode = (node, currentY, indent = 0, listCounter = null) => {
+            if (node.nodeType === Node.TEXT_NODE) {
+                const text = node.textContent.trim();
+                if (text) {
+                    doc.setFontSize(9);
+                    doc.setTextColor(0, 0, 0);
+                    const lines = doc.splitTextToSize(text, maxWidth - indent);
+                    for (const line of lines) {
+                        currentY = checkPageBreak(currentY);
+                        doc.text(line, x + indent, currentY);
+                        currentY += lineHeight;
+                    }
+                }
+                return currentY;
+            }
+
+            if (node.nodeType !== Node.ELEMENT_NODE) return currentY;
+
+            const tagName = node.tagName.toLowerCase();
+
+            // Gestion des styles
+            if (tagName === 'b' || tagName === 'strong') {
+                doc.setFont('helvetica', 'bold');
+                for (const child of node.childNodes) {
+                    currentY = processNode(child, currentY, indent, listCounter);
+                }
+                doc.setFont('helvetica', 'normal');
+                return currentY;
+            }
+
+            if (tagName === 'i' || tagName === 'em') {
+                doc.setFont('helvetica', 'italic');
+                for (const child of node.childNodes) {
+                    currentY = processNode(child, currentY, indent, listCounter);
+                }
+                doc.setFont('helvetica', 'normal');
+                return currentY;
+            }
+
+            if (tagName === 'u') {
+                // jsPDF ne supporte pas nativement le souligné, on le simule
+                const text = node.textContent.trim();
+                if (text) {
+                    doc.setFontSize(9);
+                    doc.setTextColor(0, 0, 0);
+                    const lines = doc.splitTextToSize(text, maxWidth - indent);
+                    for (const line of lines) {
+                        currentY = checkPageBreak(currentY);
+                        doc.text(line, x + indent, currentY);
+                        // Dessiner une ligne de soulignement
+                        const textWidth = doc.getTextWidth(line);
+                        doc.setDrawColor(0, 0, 0);
+                        doc.line(x + indent, currentY + 0.5, x + indent + textWidth, currentY + 0.5);
+                        currentY += lineHeight;
+                    }
+                }
+                return currentY;
+            }
+
+            // Liste non ordonnée
+            if (tagName === 'ul') {
+                const listItems = node.querySelectorAll(':scope > li');
+                for (const li of listItems) {
+                    currentY = checkPageBreak(currentY);
+                    doc.setFontSize(9);
+                    doc.setTextColor(0, 0, 0);
+                    doc.text('•', x + indent, currentY);
+                    for (const child of li.childNodes) {
+                        currentY = processNode(child, currentY, indent + 5, null);
+                    }
+                }
+                return currentY;
+            }
+
+            // Liste ordonnée
+            if (tagName === 'ol') {
+                const listItems = node.querySelectorAll(':scope > li');
+                let counter = 1;
+                for (const li of listItems) {
+                    currentY = checkPageBreak(currentY);
+                    doc.setFontSize(9);
+                    doc.setTextColor(0, 0, 0);
+                    doc.text(`${counter}.`, x + indent, currentY);
+                    for (const child of li.childNodes) {
+                        currentY = processNode(child, currentY, indent + 6, null);
+                    }
+                    counter++;
+                }
+                return currentY;
+            }
+
+            // Paragraphe ou div
+            if (tagName === 'p' || tagName === 'div') {
+                for (const child of node.childNodes) {
+                    currentY = processNode(child, currentY, indent, listCounter);
+                }
+                return currentY;
+            }
+
+            // Saut de ligne
+            if (tagName === 'br') {
+                return currentY + lineHeight * 0.5;
+            }
+
+            // Autres éléments : traiter les enfants
+            for (const child of node.childNodes) {
+                currentY = processNode(child, currentY, indent, listCounter);
+            }
+
+            return currentY;
+        };
+
+        // Traiter tous les nœuds enfants
+        doc.setFont('helvetica', 'normal');
+        let currentY = y;
+        for (const child of temp.childNodes) {
+            currentY = processNode(child, currentY, 0, null);
+        }
+
+        return currentY;
     }
 }
 
