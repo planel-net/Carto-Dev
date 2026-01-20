@@ -17,7 +17,8 @@ const ChantierModal = {
         dataAnas: [],
         chantierProduit: [],
         chantierDataAna: [],
-        chantiers: []
+        chantiers: [],
+        chantierNotes: []
     },
 
     // État temporaire pour les modales
@@ -29,7 +30,10 @@ const ChantierModal = {
         mode: null, // 'add' ou 'edit'
         chantierName: null,
         rowIndex: null,
-        onSuccess: null // Callback après succès
+        onSuccess: null, // Callback après succès
+        activeTab: 'general', // 'general' ou 'notes'
+        notes: [], // Notes du chantier en cours d'édition
+        editingNoteIndex: null // Index de la note en cours d'édition
     },
 
     /**
@@ -45,7 +49,8 @@ const ChantierModal = {
                 dataAnasData,
                 chantierProduitData,
                 chantierDataAnaData,
-                chantiersData
+                chantiersData,
+                chantierNotesData
             ] = await Promise.all([
                 readTable('tActeurs'),
                 readTable('tPerimetres'),
@@ -54,7 +59,8 @@ const ChantierModal = {
                 readTable('tDataAnas'),
                 readTable('tChantierProduit'),
                 readTable('tChantierDataAna'),
-                readTable('tChantiers')
+                readTable('tChantiers'),
+                readTable('tChantierNote')
             ]);
 
             this._data.acteurs = acteursData.data || [];
@@ -65,6 +71,7 @@ const ChantierModal = {
             this._data.chantierProduit = chantierProduitData.data || [];
             this._data.chantierDataAna = chantierDataAnaData.data || [];
             this._data.chantiers = chantiersData.data || [];
+            this._data.chantierNotes = chantierNotesData.data || [];
 
             // Trier les processus par ordre
             this._data.processus.sort((a, b) => {
@@ -240,6 +247,8 @@ const ChantierModal = {
         this._state.onSuccess = onSuccess;
         this._state.chantierName = chantierName;
         this._state.rowIndex = rowIndex;
+        this._state.activeTab = 'general';
+        this._state.editingNoteIndex = null;
 
         // Produits et DataAnas associés
         this._state.selectedProduits = this._data.chantierProduit
@@ -250,6 +259,15 @@ const ChantierModal = {
             .filter(cd => cd['Chantier'] === chantierName)
             .map(cd => cd['DataAna']);
 
+        // Notes du chantier (triées par date décroissante)
+        this._state.notes = this._data.chantierNotes
+            .filter(n => n['Chantier'] === chantierName)
+            .sort((a, b) => {
+                const dateA = this._parseDate(a['Date']);
+                const dateB = this._parseDate(b['Date']);
+                return dateB - dateA; // Plus récent en premier
+            });
+
         // Filtrer les acteurs (exclure équipe RPP)
         const acteursFiltered = this._data.acteurs.filter(a => a['Equipe'] !== 'RPP');
 
@@ -257,78 +275,109 @@ const ChantierModal = {
         this._state.renderDataAnas = () => this._renderAssignedDataAnas('Edit');
 
         const content = `
-            <form id="formChantierModal" class="form">
-                <div class="form-group">
-                    <label class="form-label required">Nom du chantier</label>
-                    <input type="text" class="form-control" name="Chantier" value="${escapeHtml(chantier['Chantier'])}" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Responsable</label>
-                    <select class="form-control" name="Responsable">
-                        <option value="">-- Sélectionner --</option>
-                        ${acteursFiltered.map(a => `
-                            <option value="${escapeHtml(a['Mail'])}" ${a['Mail'] === chantier['Responsable'] ? 'selected' : ''}>
-                                ${escapeHtml(a['Prénom'] || '')} ${escapeHtml(a['Nom'] || '')}
-                            </option>
-                        `).join('')}
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Périmètre</label>
-                    <select class="form-control" name="Perimetre">
-                        <option value="">-- Sélectionner --</option>
-                        ${this._data.perimetres.map(p => `
-                            <option value="${escapeHtml(p['Périmetre'])}" ${p['Périmetre'] === chantier['Perimetre'] ? 'selected' : ''}>
-                                ${escapeHtml(p['Périmetre'])}
-                            </option>
-                        `).join('')}
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Processus</label>
-                    <select class="form-control" name="Processus">
-                        <option value="">-- Sélectionner --</option>
-                        ${this.getOrderedProcessus().map(p => `
-                            <option value="${escapeHtml(p)}" ${p === chantier['Processus'] ? 'selected' : ''}>
-                                ${escapeHtml(p)}
-                            </option>
-                        `).join('')}
-                    </select>
-                </div>
+            <!-- Onglets -->
+            <div class="modal-tabs">
+                <button type="button" class="modal-tab active" data-tab="general" onclick="ChantierModal.switchTab('general')">
+                    Général
+                </button>
+                <button type="button" class="modal-tab" data-tab="notes" onclick="ChantierModal.switchTab('notes')">
+                    Notes <span class="tab-badge" id="notesBadge">${this._state.notes.length > 0 ? this._state.notes.length : ''}</span>
+                </button>
+            </div>
 
-                <!-- Section Produits -->
-                <div class="assigned-section">
-                    <div class="assigned-section-header">
-                        <h4>&#128202; Produits associés</h4>
-                        <button type="button" class="btn btn-sm btn-primary" onclick="ChantierModal.showSelectProduitsModal()">
-                            Assigner produit
+            <!-- Contenu onglet Général -->
+            <div class="modal-tab-content active" id="tabGeneral">
+                <form id="formChantierModal" class="form">
+                    <div class="form-group">
+                        <label class="form-label required">Nom du chantier</label>
+                        <input type="text" class="form-control" name="Chantier" value="${escapeHtml(chantier['Chantier'])}" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Responsable</label>
+                        <select class="form-control" name="Responsable">
+                            <option value="">-- Sélectionner --</option>
+                            ${acteursFiltered.map(a => `
+                                <option value="${escapeHtml(a['Mail'])}" ${a['Mail'] === chantier['Responsable'] ? 'selected' : ''}>
+                                    ${escapeHtml(a['Prénom'] || '')} ${escapeHtml(a['Nom'] || '')}
+                                </option>
+                            `).join('')}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Périmètre</label>
+                        <select class="form-control" name="Perimetre">
+                            <option value="">-- Sélectionner --</option>
+                            ${this._data.perimetres.map(p => `
+                                <option value="${escapeHtml(p['Périmetre'])}" ${p['Périmetre'] === chantier['Perimetre'] ? 'selected' : ''}>
+                                    ${escapeHtml(p['Périmetre'])}
+                                </option>
+                            `).join('')}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Processus</label>
+                        <select class="form-control" name="Processus">
+                            <option value="">-- Sélectionner --</option>
+                            ${this.getOrderedProcessus().map(p => `
+                                <option value="${escapeHtml(p)}" ${p === chantier['Processus'] ? 'selected' : ''}>
+                                    ${escapeHtml(p)}
+                                </option>
+                            `).join('')}
+                        </select>
+                    </div>
+
+                    <!-- Section Produits -->
+                    <div class="assigned-section">
+                        <div class="assigned-section-header">
+                            <h4>&#128202; Produits associés</h4>
+                            <button type="button" class="btn btn-sm btn-primary" onclick="ChantierModal.showSelectProduitsModal()">
+                                Assigner produit
+                            </button>
+                        </div>
+                        <div class="assigned-items-list" id="assignedProduitsEdit">
+                            <div class="assigned-items-empty">Aucun produit assigné</div>
+                        </div>
+                    </div>
+
+                    <!-- Section DataAnas -->
+                    <div class="assigned-section">
+                        <div class="assigned-section-header">
+                            <h4>&#128202; DataAnas associés</h4>
+                            <button type="button" class="btn btn-sm btn-primary" onclick="ChantierModal.showSelectDataAnasModal()">
+                                Assigner DataAna
+                            </button>
+                        </div>
+                        <div class="assigned-items-list" id="assignedDataAnasEdit">
+                            <div class="assigned-items-empty">Aucun DataAna assigné</div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="Archivé" ${this.isArchived(chantier) ? 'checked' : ''}>
+                            <span>Archivé</span>
+                        </label>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Contenu onglet Notes -->
+            <div class="modal-tab-content" id="tabNotes">
+                <div class="notes-section">
+                    <div class="notes-header">
+                        <h4>Notes du chantier</h4>
+                        <button type="button" class="btn btn-sm btn-primary" onclick="ChantierModal.showAddNoteForm()">
+                            + Ajouter une note
                         </button>
                     </div>
-                    <div class="assigned-items-list" id="assignedProduitsEdit">
-                        <div class="assigned-items-empty">Aucun produit assigné</div>
+                    <div class="notes-form-container" id="noteFormContainer" style="display: none;">
+                        <!-- Formulaire d'ajout/édition de note -->
+                    </div>
+                    <div class="notes-list" id="notesList">
+                        <!-- Liste des notes -->
                     </div>
                 </div>
-
-                <!-- Section DataAnas -->
-                <div class="assigned-section">
-                    <div class="assigned-section-header">
-                        <h4>&#128202; DataAnas associés</h4>
-                        <button type="button" class="btn btn-sm btn-primary" onclick="ChantierModal.showSelectDataAnasModal()">
-                            Assigner DataAna
-                        </button>
-                    </div>
-                    <div class="assigned-items-list" id="assignedDataAnasEdit">
-                        <div class="assigned-items-empty">Aucun DataAna assigné</div>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label class="checkbox-label">
-                        <input type="checkbox" name="Archivé" ${this.isArchived(chantier) ? 'checked' : ''}>
-                        <span>Archivé</span>
-                    </label>
-                </div>
-            </form>
+            </div>
         `;
 
         showModal({
@@ -340,8 +389,8 @@ const ChantierModal = {
                 {
                     label: 'Enregistrer',
                     class: 'btn-primary',
-                    action: async (modal) => {
-                        return await this._saveChantier(modal, true);
+                    action: async () => {
+                        return await this._saveChantier(null, true);
                     }
                 }
             ]
@@ -351,7 +400,328 @@ const ChantierModal = {
         setTimeout(() => {
             this._state.renderProduits();
             this._state.renderDataAnas();
+            this._renderNotesList();
         }, 100);
+    },
+
+    /**
+     * Parse une date depuis différents formats
+     */
+    _parseDate(dateValue) {
+        if (!dateValue) return new Date(0);
+        if (dateValue instanceof Date) return dateValue;
+        if (typeof dateValue === 'number') {
+            // Excel serial date
+            return new Date((dateValue - 25569) * 86400 * 1000);
+        }
+        // Essayer de parser comme string
+        const parsed = new Date(dateValue);
+        return isNaN(parsed.getTime()) ? new Date(0) : parsed;
+    },
+
+    /**
+     * Formate une date pour l'affichage
+     */
+    _formatDate(dateValue) {
+        const date = this._parseDate(dateValue);
+        if (date.getTime() === 0) return '';
+        return date.toLocaleDateString('fr-FR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        });
+    },
+
+    /**
+     * Formate une date pour un input date
+     */
+    _formatDateForInput(dateValue) {
+        const date = this._parseDate(dateValue);
+        if (date.getTime() === 0) return '';
+        return date.toISOString().split('T')[0];
+    },
+
+    /**
+     * Change d'onglet
+     */
+    switchTab(tabName) {
+        this._state.activeTab = tabName;
+
+        // Mettre à jour les boutons d'onglets
+        document.querySelectorAll('.modal-tab').forEach(tab => {
+            tab.classList.toggle('active', tab.dataset.tab === tabName);
+        });
+
+        // Mettre à jour le contenu des onglets
+        document.getElementById('tabGeneral').classList.toggle('active', tabName === 'general');
+        document.getElementById('tabNotes').classList.toggle('active', tabName === 'notes');
+
+        // Si on passe à l'onglet notes, s'assurer que la liste est à jour
+        if (tabName === 'notes') {
+            this._renderNotesList();
+        }
+    },
+
+    /**
+     * Rend la liste des notes
+     */
+    _renderNotesList() {
+        const container = document.getElementById('notesList');
+        if (!container) return;
+
+        if (this._state.notes.length === 0) {
+            container.innerHTML = '<div class="notes-empty">Aucune note pour ce chantier</div>';
+            return;
+        }
+
+        container.innerHTML = this._state.notes.map((note, index) => {
+            const dateStr = this._formatDate(note['Date']);
+            const noteContent = note['Note'] || '';
+            return `
+                <div class="note-item" data-index="${index}">
+                    <div class="note-header">
+                        <span class="note-date">${escapeHtml(dateStr)}</span>
+                        <div class="note-actions">
+                            <button type="button" class="btn btn-icon btn-xs btn-secondary" title="Modifier" onclick="ChantierModal.showEditNoteForm(${index})">
+                                &#9998;
+                            </button>
+                            <button type="button" class="btn btn-icon btn-xs btn-danger" title="Supprimer" onclick="ChantierModal.confirmDeleteNote(${index})">
+                                &#128465;
+                            </button>
+                        </div>
+                    </div>
+                    <div class="note-content">${noteContent}</div>
+                </div>
+            `;
+        }).join('');
+    },
+
+    /**
+     * Affiche le formulaire d'ajout de note
+     */
+    showAddNoteForm() {
+        this._state.editingNoteIndex = null;
+        this._showNoteForm(null);
+    },
+
+    /**
+     * Affiche le formulaire d'édition de note
+     */
+    showEditNoteForm(index) {
+        this._state.editingNoteIndex = index;
+        const note = this._state.notes[index];
+        this._showNoteForm(note);
+    },
+
+    /**
+     * Affiche le formulaire de note (ajout ou édition)
+     */
+    _showNoteForm(note) {
+        const container = document.getElementById('noteFormContainer');
+        if (!container) return;
+
+        const isEdit = note !== null;
+        const dateValue = isEdit ? this._formatDateForInput(note['Date']) : new Date().toISOString().split('T')[0];
+        const noteContent = isEdit ? (note['Note'] || '') : '';
+
+        container.innerHTML = `
+            <div class="note-form">
+                <div class="note-form-header">
+                    <h5>${isEdit ? 'Modifier la note' : 'Nouvelle note'}</h5>
+                    <button type="button" class="btn btn-icon btn-xs btn-secondary" onclick="ChantierModal.hideNoteForm()">
+                        &#10005;
+                    </button>
+                </div>
+                <div class="form-group">
+                    <label class="form-label required">Date</label>
+                    <input type="date" class="form-control" id="noteDate" value="${dateValue}" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label required">Note</label>
+                    <div class="rich-text-toolbar">
+                        <button type="button" class="rich-text-btn" onclick="ChantierModal.execRichTextCommand('bold')" title="Gras">
+                            <strong>G</strong>
+                        </button>
+                        <button type="button" class="rich-text-btn" onclick="ChantierModal.execRichTextCommand('italic')" title="Italique">
+                            <em>I</em>
+                        </button>
+                        <button type="button" class="rich-text-btn" onclick="ChantierModal.execRichTextCommand('underline')" title="Souligné">
+                            <u>S</u>
+                        </button>
+                        <span class="rich-text-separator"></span>
+                        <button type="button" class="rich-text-btn" onclick="ChantierModal.execRichTextCommand('insertUnorderedList')" title="Liste à puces">
+                            &#8226;
+                        </button>
+                        <button type="button" class="rich-text-btn" onclick="ChantierModal.execRichTextCommand('insertOrderedList')" title="Liste numérotée">
+                            1.
+                        </button>
+                    </div>
+                    <div class="rich-text-editor" id="noteEditor" contenteditable="true">${noteContent}</div>
+                </div>
+                <div class="note-form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="ChantierModal.hideNoteForm()">Annuler</button>
+                    <button type="button" class="btn btn-primary" onclick="ChantierModal.saveNote()">
+                        ${isEdit ? 'Modifier' : 'Ajouter'}
+                    </button>
+                </div>
+            </div>
+        `;
+
+        container.style.display = 'block';
+
+        // Focus sur l'éditeur
+        setTimeout(() => {
+            const editor = document.getElementById('noteEditor');
+            if (editor) editor.focus();
+        }, 100);
+    },
+
+    /**
+     * Cache le formulaire de note
+     */
+    hideNoteForm() {
+        const container = document.getElementById('noteFormContainer');
+        if (container) {
+            container.style.display = 'none';
+            container.innerHTML = '';
+        }
+        this._state.editingNoteIndex = null;
+    },
+
+    /**
+     * Exécute une commande de texte enrichi
+     */
+    execRichTextCommand(command) {
+        document.execCommand(command, false, null);
+        // Remettre le focus sur l'éditeur
+        const editor = document.getElementById('noteEditor');
+        if (editor) editor.focus();
+    },
+
+    /**
+     * Sauvegarde une note (ajout ou modification)
+     */
+    async saveNote() {
+        const dateInput = document.getElementById('noteDate');
+        const editor = document.getElementById('noteEditor');
+
+        if (!dateInput || !editor) return;
+
+        const dateValue = dateInput.value;
+        const noteContent = editor.innerHTML.trim();
+
+        if (!dateValue) {
+            showError('Veuillez saisir une date');
+            return;
+        }
+
+        if (!noteContent || noteContent === '<br>') {
+            showError('Veuillez saisir une note');
+            return;
+        }
+
+        try {
+            const noteData = {
+                'Chantier': this._state.chantierName,
+                'Date': dateValue,
+                'Note': noteContent
+            };
+
+            if (this._state.editingNoteIndex !== null) {
+                // Modification
+                const existingNote = this._state.notes[this._state.editingNoteIndex];
+                if (existingNote._rowIndex !== undefined) {
+                    await updateTableRow('tChantierNote', existingNote._rowIndex, noteData);
+                    invalidateCache('tChantierNote');
+                    showSuccess('Note modifiée');
+                }
+            } else {
+                // Ajout
+                await addTableRow('tChantierNote', noteData);
+                invalidateCache('tChantierNote');
+                showSuccess('Note ajoutée');
+            }
+
+            // Recharger les notes
+            await this._reloadNotes();
+            this.hideNoteForm();
+            this._renderNotesList();
+            this._updateNotesBadge();
+
+        } catch (error) {
+            console.error('Erreur sauvegarde note:', error);
+            showError('Erreur lors de la sauvegarde de la note');
+        }
+    },
+
+    /**
+     * Demande confirmation avant suppression d'une note
+     */
+    confirmDeleteNote(index) {
+        const note = this._state.notes[index];
+        const dateStr = this._formatDate(note['Date']);
+
+        showConfirmModal(
+            'Supprimer la note',
+            `Êtes-vous sûr de vouloir supprimer la note du ${dateStr} ?`,
+            async () => {
+                await this._deleteNote(index);
+            },
+            { confirmText: 'Supprimer', cancelText: 'Annuler' }
+        );
+    },
+
+    /**
+     * Supprime une note
+     */
+    async _deleteNote(index) {
+        try {
+            const note = this._state.notes[index];
+            if (note._rowIndex !== undefined) {
+                await deleteTableRow('tChantierNote', note._rowIndex);
+                invalidateCache('tChantierNote');
+                showSuccess('Note supprimée');
+
+                // Recharger les notes
+                await this._reloadNotes();
+                this._renderNotesList();
+                this._updateNotesBadge();
+            }
+        } catch (error) {
+            console.error('Erreur suppression note:', error);
+            showError('Erreur lors de la suppression de la note');
+        }
+    },
+
+    /**
+     * Recharge les notes depuis Excel
+     */
+    async _reloadNotes() {
+        try {
+            const notesData = await readTable('tChantierNote');
+            this._data.chantierNotes = notesData.data || [];
+
+            // Filtrer et trier pour le chantier courant
+            this._state.notes = this._data.chantierNotes
+                .filter(n => n['Chantier'] === this._state.chantierName)
+                .sort((a, b) => {
+                    const dateA = this._parseDate(a['Date']);
+                    const dateB = this._parseDate(b['Date']);
+                    return dateB - dateA;
+                });
+        } catch (error) {
+            console.error('Erreur rechargement notes:', error);
+        }
+    },
+
+    /**
+     * Met à jour le badge du nombre de notes
+     */
+    _updateNotesBadge() {
+        const badge = document.getElementById('notesBadge');
+        if (badge) {
+            badge.textContent = this._state.notes.length > 0 ? this._state.notes.length : '';
+        }
     },
 
     /**
