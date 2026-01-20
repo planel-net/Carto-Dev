@@ -862,12 +862,11 @@ class RoadmapChantiersPage {
             return `
             <th class="gantt-sprint-header-cell${isCurrentSprintClass}" colspan="${colspan}" data-sprint="${escapeHtml(sprint['Sprint'])}">
                 <div class="sprint-name">${escapeHtml(sprint['Sprint'])}</div>
-                <div class="sprint-date">${this.formatDate(sprint['Début'])} - ${this.formatDate(sprint['Fin'])}</div>
             </th>
         `;
         }).join('');
 
-        // Générer le HTML des semaines (deuxième ligne header)
+        // Générer le HTML des semaines (deuxième ligne header - numéro de semaine)
         const weeksHeaderHtml = allWeeks.map((weekInfo, idx) => {
             const isCurrentWeekClass = this.isCurrentWeek(weekInfo.weekCode) ? ' current-week' : '';
             const isFirstWeekClass = weekInfo.isFirstOfSprint ? ' first-week' : '';
@@ -883,17 +882,36 @@ class RoadmapChantiersPage {
         `;
         }).join('');
 
+        // Générer le HTML des dates (troisième ligne header - date du lundi)
+        const datesHeaderHtml = allWeeks.map((weekInfo, idx) => {
+            const isCurrentWeekClass = this.isCurrentWeek(weekInfo.weekCode) ? ' current-week' : '';
+            const isFirstWeekClass = weekInfo.isFirstOfSprint ? ' first-week' : '';
+            // Obtenir la date du lundi de cette semaine
+            const mondayDate = this.weekCodeToDate(weekInfo.weekCode);
+            const dateLabel = mondayDate ? this.formatDate(mondayDate) : '';
+            return `
+            <th class="gantt-week-header-cell gantt-date-header-cell${isCurrentWeekClass}${isFirstWeekClass}"
+                data-week="${escapeHtml(weekInfo.weekCode)}"
+                data-week-idx="${idx}">
+                ${dateLabel}
+            </th>
+        `;
+        }).join('');
+
         container.innerHTML = `
             <div class="gantt-body-wrapper">
                 <table class="gantt-chantiers-table gantt-fixed-columns">
                     ${colgroupHtml}
                     <thead>
                         <tr class="gantt-header-row gantt-sprint-row">
-                            <th class="gantt-chantier-header" rowspan="2">Chantiers</th>
+                            <th class="gantt-chantier-header" rowspan="3">Chantiers</th>
                             ${sprintsHeaderHtml}
                         </tr>
                         <tr class="gantt-header-row gantt-week-row">
                             ${weeksHeaderHtml}
+                        </tr>
+                        <tr class="gantt-header-row gantt-date-row">
+                            ${datesHeaderHtml}
                         </tr>
                     </thead>
                     <tbody>
