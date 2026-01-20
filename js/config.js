@@ -6,7 +6,7 @@
 const CONFIG = {
     // Nom de l'application
     APP_NAME: 'Carto',
-    APP_VERSION: '1.1.15',
+    APP_VERSION: '1.1.16',
 
     // Valeur spéciale pour filtrer les éléments sans valeur (périmètre/responsable vide)
     EMPTY_FILTER_VALUE: '(Non rempli)',
@@ -267,6 +267,7 @@ const CONFIG = {
             jiraSheet: 'DataAnaJira',
             columns: [
                 { field: 'Clé', label: 'Clé', type: 'text', required: true, linkPattern: 'https://malakoffhumanis.atlassian.net/browse/{value}' },
+                { field: 'Chantier', label: 'Chantier', type: 'select', source: 'CHANTIER', sourceField: 'Chantier' },
                 { field: 'Résumé', label: 'Résumé', type: 'text' },
                 { field: 'Priorité', label: 'Priorité', type: 'text' },
                 { field: 'État', label: 'État', type: 'text' },
