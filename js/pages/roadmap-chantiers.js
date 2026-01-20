@@ -91,6 +91,7 @@ class RoadmapChantiersPage {
                 phasesLienData,
                 chantierProduitData,
                 chantierDataAnaData,
+                chantierNotesData,
                 sprintsData,
                 acteursData,
                 perimetresData,
@@ -103,6 +104,7 @@ class RoadmapChantiersPage {
                 readTable('tPhasesLien'),
                 readTable('tChantierProduit'),
                 readTable('tChantierDataAna'),
+                readTable('tChantierNote'),
                 readTable('tSprints'),
                 readTable('tActeurs'),
                 readTable('tPerimetres'),
@@ -120,6 +122,7 @@ class RoadmapChantiersPage {
             this.phasesLien = phasesLienData.data || [];
             this.chantierProduit = chantierProduitData.data || [];
             this.chantierDataAna = chantierDataAnaData.data || [];
+            this.chantierNotes = chantierNotesData.data || [];
             this.sprints = sprintsData.data || [];
             this.acteurs = acteursData.data || [];
             this.perimetres = perimetresData.data || [];
@@ -164,6 +167,13 @@ class RoadmapChantiersPage {
             return lower === 'true' || lower === 'vrai' || lower === 'oui' || lower === '1';
         }
         return false;
+    }
+
+    /**
+     * Retourne le nombre de notes pour un chantier
+     */
+    getNoteCount(chantierName) {
+        return this.chantierNotes.filter(n => n['Chantier'] === chantierName).length;
     }
 
     /**
@@ -657,12 +667,14 @@ class RoadmapChantiersPage {
             // Calculer les phases par sprint
             const phasesBySprintRange = this.calculatePhasePositions(chantierPhases, visibleSprints);
 
+            const noteCount = this.getNoteCount(chantierName);
             return `
                 <tr class="gantt-chantier-row" data-chantier="${escapeHtml(chantierName)}">
                     <td class="gantt-chantier-cell">
                         <div class="chantier-info">
                             <span class="chantier-name" title="${escapeHtml(chantierName)}">${escapeHtml(chantierName)}</span>
                             <div class="chantier-actions">
+                                ${noteCount > 0 ? `<span class="notes-badge" title="${noteCount} note${noteCount > 1 ? 's' : ''}">${noteCount}</span>` : ''}
                                 <button class="btn btn-icon btn-xs" title="Modifier" onclick="roadmapChantiersPageInstance.showEditChantierModal('${escapeJsString(chantierName)}')">
                                     &#9998;
                                 </button>

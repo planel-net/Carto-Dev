@@ -1247,3 +1247,22 @@ tr.drag-over {
 .rich-text-editor li {
     margin-bottom: var(--spacing-xs);
 }
+
+/* ===========================================
+   NOTES BADGE
+   =========================================== */
+
+.notes-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    background-color: var(--mh-rouge-erreur);
+    color: var(--mh-blanc);
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 9px;
+    margin-right: var(--spacing-sm);
+}
