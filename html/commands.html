@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Carto - Commands</title>
+    <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+    <script>
+        Office.onReady((info) => {
+            // Enregistrer la fonction de commande
+            Office.actions.associate('openApp', openApp);
+        });
+
+        /**
+         * Ouvre l'application Carto en plein écran
+         * @param {Office.AddinCommands.Event} event - Événement de commande
+         */
+        function openApp(event) {
+            // Calculer l'URL de l'application
+            const baseUrl = window.location.href.replace('/html/commands.html', '');
+            const appUrl = baseUrl + '/html/app.html';
+
+            console.log('[Commands] Opening app:', appUrl);
+
+            // Ouvrir l'application en mode dialog plein écran
+            Office.context.ui.displayDialogAsync(
+                appUrl,
+                {
+                    height: 100,
+                    width: 100,
+                    displayInIframe: false,
+                    promptBeforeOpen: false
+                },
+                (asyncResult) => {
+                    if (asyncResult.status === Office.AsyncResultStatus.Failed) {
+                        console.error('[Commands] Dialog failed:', asyncResult.error.message);
+                    } else {
+                        console.log('[Commands] Dialog opened successfully');
+                        const dialog = asyncResult.value;
+
+                        // Gérer la fermeture de la dialog
+                        dialog.addEventHandler(Office.EventType.DialogEventReceived, (args) => {
+                            console.log('[Commands] Dialog event:', args);
+                        });
+                    }
+
+                    // Signaler la fin de la commande
+                    event.completed();
+                }
+            );
+        }
+    </script>
+</head>
+<body>
+    <!-- Ce fichier est utilisé uniquement pour les commandes du ruban -->
+</body>
+</html>

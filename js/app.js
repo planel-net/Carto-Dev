@@ -2,9 +2,8 @@
    APP.JS - Application principale et routing
    Application Carto
 
-   NOTE: Cette app tourne dans un DIALOG et ne peut pas
-   accéder directement à Excel. Elle utilise ExcelBridge
-   pour communiquer avec le taskpane.
+   VERSION 2.0: Accès direct à Excel via Excel.run()
+   Si l'accès direct échoue, fallback sur ExcelBridge
    =========================================== */
 
 /**
@@ -14,23 +13,31 @@ const AppState = {
     currentPage: 'migration',
     currentTable: null,
     isLoading: false,
-    bridgeReady: false
+    bridgeReady: false,
+    directExcelAccess: false  // true si on peut accéder directement à Excel
 };
 
 /**
  * Initialisation de l'application
  */
-Office.onReady((info) => {
+Office.onReady(async (info) => {
     console.log('[App] Office.onReady called, host:', info.host);
-    console.log('[App] Running in DIALOG mode - using ExcelBridge for data');
 
-    // Initialiser ExcelBridge pour la communication avec le taskpane
-    if (typeof ExcelBridge !== 'undefined') {
-        ExcelBridge.init();
-        AppState.bridgeReady = true;
-        console.log('[App] ExcelBridge initialized');
+    // Tester l'accès direct à Excel
+    AppState.directExcelAccess = await testDirectExcelAccess();
+
+    if (AppState.directExcelAccess) {
+        console.log('[App] Direct Excel access available - using excel-utils.js');
     } else {
-        console.error('[App] ExcelBridge not found! Data loading will fail.');
+        console.log('[App] No direct Excel access - trying ExcelBridge');
+        // Initialiser ExcelBridge pour la communication avec le taskpane
+        if (typeof ExcelBridge !== 'undefined') {
+            ExcelBridge.init();
+            AppState.bridgeReady = true;
+            console.log('[App] ExcelBridge initialized');
+        } else {
+            console.error('[App] Neither direct access nor ExcelBridge available!');
+        }
     }
 
     // Initialiser l'application
@@ -38,18 +45,71 @@ Office.onReady((info) => {
 });
 
 /**
+ * Sauvegarder les références aux fonctions de excel-utils.js
+ * avant qu'elles ne soient potentiellement overrides
+ */
+const ExcelDirect = {
+    readTable: typeof readTable === 'function' ? readTable : null,
+    getMigrationStats: typeof getMigrationStats === 'function' ? getMigrationStats : null,
+    addTableRow: typeof addTableRow === 'function' ? addTableRow : null,
+    updateTableRow: typeof updateTableRow === 'function' ? updateTableRow : null,
+    deleteTableRow: typeof deleteTableRow === 'function' ? deleteTableRow : null,
+    getUniqueValues: typeof getUniqueValues === 'function' ? getUniqueValues : null,
+    searchTable: typeof searchTable === 'function' ? searchTable : null,
+    invalidateCache: typeof invalidateCache === 'function' ? invalidateCache : null,
+    copyFromJira: typeof copyFromJira === 'function' ? copyFromJira : null
+};
+
+console.log('[App] ExcelDirect functions saved:', Object.keys(ExcelDirect).filter(k => ExcelDirect[k] !== null));
+
+/**
+ * Teste si on a un accès direct à Excel via Excel.run()
+ * @returns {Promise<boolean>}
+ */
+async function testDirectExcelAccess() {
+    try {
+        await Excel.run(async (context) => {
+            // Simple test: charger le nom du workbook
+            const workbook = context.workbook;
+            workbook.load('name');
+            await context.sync();
+            console.log('[App] Direct Excel test successful, workbook:', workbook.name);
+        });
+        return true;
+    } catch (error) {
+        console.log('[App] Direct Excel test failed:', error.message);
+        return false;
+    }
+}
+
+/**
  * ============================================
- * WRAPPERS EXCEL - Communication via Bridge
- * Ces fonctions remplacent les appels directs
- * à Excel qui ne fonctionnent pas dans un dialog
+ * WRAPPERS EXCEL - Accès direct ou via Bridge
+ * Utilise l'accès direct si disponible, sinon le bridge
  * ============================================
  */
 
-// Override readTable pour utiliser le bridge
+// Vérifie si on peut utiliser l'accès direct
+function canUseDirectAccess() {
+    return AppState.directExcelAccess && ExcelDirect.readTable !== null;
+}
+
+// readTable - utilise excel-utils.js directement ou bridge
 async function readTable(tableName, useCache = true) {
+    if (canUseDirectAccess()) {
+        console.log(`[App] readTable DIRECT: ${tableName}`);
+        try {
+            return await ExcelDirect.readTable(tableName, useCache);
+        } catch (error) {
+            console.error(`[App] readTable direct error: ${error.message}`);
+            return { headers: [], rows: [], data: [] };
+        }
+    }
+
+    // Fallback sur le bridge
     console.log(`[App] readTable via bridge: ${tableName}`);
     if (!AppState.bridgeReady) {
-        console.error('[App] Bridge not ready');
+        console.error('[App] No Excel access available');
         return { headers: [], rows: [], data: [] };
     }
     try {
@@ -60,8 +120,18 @@ async function readTable(tableName, useCache = true) {
     }
 }
 
-// Override getMigrationStats pour utiliser le bridge
+// getMigrationStats
 async function getMigrationStats(tableName, statusField) {
+    if (canUseDirectAccess() && ExcelDirect.getMigrationStats) {
+        console.log(`[App] getMigrationStats DIRECT: ${tableName}`);
+        try {
+            return await ExcelDirect.getMigrationStats(tableName, statusField);
+        } catch (error) {
+            console.error(`[App] getMigrationStats direct error: ${error.message}`);
+            return { total: 0, migre: 0, enCours: 0, nonMigre: 0, bloque: 0, percentMigre: 0 };
+        }
+    }
+
     console.log(`[App] getMigrationStats via bridge: ${tableName}`);
     if (!AppState.bridgeReady) {
         return { total: 0, migre: 0, enCours: 0, nonMigre: 0, bloque: 0, percentMigre: 0 };
@@ -74,66 +144,100 @@ async function getMigrationStats(tableName, statusField) {
     }
 }
 
-// Override addTableRow pour utiliser le bridge
+// addTableRow
 async function addTableRow(tableName, rowData) {
+    if (canUseDirectAccess() && ExcelDirect.addTableRow) {
+        console.log(`[App] addTableRow DIRECT: ${tableName}`);
+        return await ExcelDirect.addTableRow(tableName, rowData);
+    }
     console.log(`[App] addTableRow via bridge: ${tableName}`);
-    if (!AppState.bridgeReady) throw new Error('Bridge not ready');
+    if (!AppState.bridgeReady) throw new Error('No Excel access available');
     return await ExcelBridge.addTableRow(tableName, rowData);
 }
 
-// Override updateTableRow pour utiliser le bridge
+// updateTableRow
 async function updateTableRow(tableName, rowIndex, rowData) {
+    if (canUseDirectAccess() && ExcelDirect.updateTableRow) {
+        console.log(`[App] updateTableRow DIRECT: ${tableName}`);
+        return await ExcelDirect.updateTableRow(tableName, rowIndex, rowData);
+    }
     console.log(`[App] updateTableRow via bridge: ${tableName}`);
-    if (!AppState.bridgeReady) throw new Error('Bridge not ready');
+    if (!AppState.bridgeReady) throw new Error('No Excel access available');
     return await ExcelBridge.updateTableRow(tableName, rowIndex, rowData);
 }
 
-// Override deleteTableRow pour utiliser le bridge
+// deleteTableRow
 async function deleteTableRow(tableName, rowIndex) {
+    if (canUseDirectAccess() && ExcelDirect.deleteTableRow) {
+        console.log(`[App] deleteTableRow DIRECT: ${tableName}`);
+        return await ExcelDirect.deleteTableRow(tableName, rowIndex);
+    }
     console.log(`[App] deleteTableRow via bridge: ${tableName}`);
-    if (!AppState.bridgeReady) throw new Error('Bridge not ready');
+    if (!AppState.bridgeReady) throw new Error('No Excel access available');
     return await ExcelBridge.deleteTableRow(tableName, rowIndex);
 }
 
-// Override getUniqueValues pour utiliser le bridge
+// getUniqueValues
 async function getUniqueValues(tableName, columnName) {
+    if (canUseDirectAccess() && ExcelDirect.getUniqueValues) {
+        console.log(`[App] getUniqueValues DIRECT: ${tableName}.${columnName}`);
+        return await ExcelDirect.getUniqueValues(tableName, columnName);
+    }
     console.log(`[App] getUniqueValues via bridge: ${tableName}.${columnName}`);
     if (!AppState.bridgeReady) return [];
     return await ExcelBridge.getUniqueValues(tableName, columnName);
 }
 
-// Override searchTable pour utiliser le bridge
+// searchTable
 async function searchTable(tableName, searchTerm, searchFields) {
+    if (canUseDirectAccess() && ExcelDirect.searchTable) {
+        console.log(`[App] searchTable DIRECT: ${tableName}`);
+        return await ExcelDirect.searchTable(tableName, searchTerm, searchFields);
+    }
     console.log(`[App] searchTable via bridge: ${tableName}`);
     if (!AppState.bridgeReady) return [];
     return await ExcelBridge.searchTable(tableName, searchTerm, searchFields);
 }
 
-// Invalider le cache (envoie commande au taskpane et attend la réponse)
+// Invalider le cache
 async function invalidateCache(tableName = null) {
-    console.log('[App] invalidateCache - sending to taskpane:', tableName);
+    console.log('[App] invalidateCache:', tableName);
+
+    // Invalider le cache local
+    if (typeof PersistentCache !== 'undefined') {
+        if (tableName) {
+            PersistentCache.invalidate(tableName);
+        } else {
+            PersistentCache.clearAll();
+        }
+    }
+
+    // Si accès direct, utiliser excel-utils
+    if (canUseDirectAccess() && ExcelDirect.invalidateCache) {
+        ExcelDirect.invalidateCache(tableName);
+        console.log('[App] Cache invalidated (direct):', tableName || 'all');
+        return;
+    }
+
+    // Sinon, envoyer au taskpane via bridge
     if (AppState.bridgeReady) {
         try {
             await ExcelBridge.request('INVALIDATE_CACHE', { tableName });
-            // Aussi invalider le cache local du dialog
-            if (typeof PersistentCache !== 'undefined') {
-                if (tableName) {
-                    PersistentCache.invalidate(tableName);
-                } else {
-                    PersistentCache.clearAll();
-                }
-            }
-            console.log('[App] Cache invalidated:', tableName || 'all');
+            console.log('[App] Cache invalidated (bridge):', tableName || 'all');
         } catch (error) {
             console.error('[App] Error invalidating cache:', error);
         }
     }
 }
 
-// Override copyFromJira pour utiliser le bridge
+// copyFromJira
 async function copyFromJira(jiraSheetName, tableName, keyField = 'Clé') {
+    if (canUseDirectAccess() && ExcelDirect.copyFromJira) {
+        console.log(`[App] copyFromJira DIRECT: ${jiraSheetName} -> ${tableName}`);
+        return await ExcelDirect.copyFromJira(jiraSheetName, tableName, keyField);
+    }
     console.log(`[App] copyFromJira via bridge: ${jiraSheetName} -> ${tableName}`);
-    if (!AppState.bridgeReady) throw new Error('Bridge not ready');
+    if (!AppState.bridgeReady) throw new Error('No Excel access available');
     return await ExcelBridge.copyFromJira(jiraSheetName, tableName, keyField);
 }
 
@@ -326,8 +430,151 @@ function attachHeaderEvents() {
         closeBtn.addEventListener('click', closeApp);
     }
 
+    // Bouton Admin
+    const adminBtn = document.getElementById('btnAdmin');
+    if (adminBtn) {
+        adminBtn.addEventListener('click', showAdminModal);
+    }
+
+    // Mettre à jour la version dans le sidebar
+    const versionEl = document.getElementById('sidebarVersion');
+    if (versionEl) {
+        versionEl.textContent = CONFIG.APP_VERSION;
+    }
+
     // Initialiser l'indicateur de connexion
     initConnectionStatusIndicator();
+}
+
+/**
+ * Affiche la modale d'administration
+ */
+async function showAdminModal() {
+    // Vérifier le statut du verrouillage
+    let isLocked = false;
+    try {
+        isLocked = await checkLockStatus();
+    } catch (error) {
+        console.error('[App] Error checking lock status:', error);
+    }
+
+    const modal = new Modal({
+        id: 'admin-modal',
+        title: 'Administration',
+        size: 'sm',
+        closable: true
+    });
+
+    const statusClass = isLocked ? 'locked' : 'unlocked';
+    const statusText = isLocked ? 'Verrouillé' : 'Déverrouillé';
+    const statusColor = isLocked ? 'var(--mh-rouge-erreur)' : 'var(--mh-vert-succes)';
+
+    modal.setContent(`
+        <div class="admin-modal-content">
+            <div class="admin-status-section">
+                <h4>Statut du classeur</h4>
+                <div class="admin-status ${statusClass}">
+                    <span class="status-dot" style="background-color: ${statusColor}"></span>
+                    <span class="status-text">${statusText}</span>
+                </div>
+            </div>
+
+            ${isLocked ? `
+            <div class="admin-unlock-section">
+                <h4>Déverrouiller</h4>
+                <div class="form-group">
+                    <input type="password" id="adminPassword" class="form-control" placeholder="Mot de passe">
+                </div>
+                <button id="btnAdminUnlock" class="btn btn-success btn-block">
+                    Déverrouiller le classeur
+                </button>
+            </div>
+            ` : `
+            <div class="admin-lock-section">
+                <button id="btnAdminLock" class="btn btn-danger btn-block">
+                    Verrouiller le classeur
+                </button>
+            </div>
+            `}
+
+            <div class="admin-info-section">
+                <p class="text-muted text-sm">
+                    Version : ${CONFIG.APP_VERSION}
+                </p>
+            </div>
+        </div>
+    `);
+
+    modal.show();
+
+    // Attacher les événements
+    if (isLocked) {
+        const unlockBtn = document.getElementById('btnAdminUnlock');
+        const passwordInput = document.getElementById('adminPassword');
+
+        if (unlockBtn) {
+            unlockBtn.addEventListener('click', async () => {
+                const password = passwordInput.value;
+                if (!password) {
+                    showNotification('Veuillez saisir le mot de passe', 'warning');
+                    return;
+                }
+
+                unlockBtn.disabled = true;
+                unlockBtn.textContent = 'Déverrouillage...';
+
+                try {
+                    const result = await unlockWorkbook(password);
+                    if (result.success) {
+                        showNotification('Classeur déverrouillé', 'success');
+                        modal.close();
+                    } else {
+                        showNotification(result.message, 'error');
+                        unlockBtn.disabled = false;
+                        unlockBtn.textContent = 'Déverrouiller le classeur';
+                    }
+                } catch (error) {
+                    showNotification('Erreur: ' + error.message, 'error');
+                    unlockBtn.disabled = false;
+                    unlockBtn.textContent = 'Déverrouiller le classeur';
+                }
+            });
+        }
+
+        // Permettre la validation avec Enter
+        if (passwordInput) {
+            passwordInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    document.getElementById('btnAdminUnlock')?.click();
+                }
+            });
+            passwordInput.focus();
+        }
+    } else {
+        const lockBtn = document.getElementById('btnAdminLock');
+        if (lockBtn) {
+            lockBtn.addEventListener('click', async () => {
+                lockBtn.disabled = true;
+                lockBtn.textContent = 'Verrouillage...';
+
+                try {
+                    const result = await lockWorkbook();
+                    if (result.success) {
+                        showNotification('Classeur verrouillé', 'success');
+                        modal.close();
+                    } else {
+                        showNotification(result.message, 'error');
+                        lockBtn.disabled = false;
+                        lockBtn.textContent = 'Verrouiller le classeur';
+                    }
+                } catch (error) {
+                    showNotification('Erreur: ' + error.message, 'error');
+                    lockBtn.disabled = false;
+                    lockBtn.textContent = 'Verrouiller le classeur';
+                }
+            });
+        }
+    }
 }
 
 /**

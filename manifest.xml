@@ -8,7 +8,7 @@
     <!-- ID unique de l'application - GUID généré pour Carto Dev -->
     <Id>a1b2c3d4-e5f6-7890-abcd-ef1234567890</Id>
 
-    <Version>1.0.17.0</Version>
+    <Version>2.0.0.0</Version>
     <ProviderName>Malakoff Humanis</ProviderName>
     <DefaultLocale>fr-FR</DefaultLocale>
     <DisplayName DefaultValue="Carto (DEV)"/>
@@ -54,20 +54,19 @@
                                     <bt:Image size="32" resid="Icon.32x32"/>
                                     <bt:Image size="80" resid="Icon.80x80"/>
                                 </Icon>
-                                <Control xsi:type="Button" id="TaskpaneButton">
-                                    <Label resid="TaskpaneButton.Label"/>
+                                <Control xsi:type="Button" id="OpenAppButton">
+                                    <Label resid="OpenAppButton.Label"/>
                                     <Supertip>
-                                        <Title resid="TaskpaneButton.Label"/>
-                                        <Description resid="TaskpaneButton.Tooltip"/>
+                                        <Title resid="OpenAppButton.Label"/>
+                                        <Description resid="OpenAppButton.Tooltip"/>
                                     </Supertip>
                                     <Icon>
                                         <bt:Image size="16" resid="Icon.16x16"/>
                                         <bt:Image size="32" resid="Icon.32x32"/>
                                         <bt:Image size="80" resid="Icon.80x80"/>
                                     </Icon>
-                                    <Action xsi:type="ShowTaskpane">
-                                        <TaskpaneId>CartoTaskpane</TaskpaneId>
-                                        <SourceLocation resid="Taskpane.Url"/>
+                                    <Action xsi:type="ExecuteFunction">
+                                        <FunctionName>openApp</FunctionName>
                                     </Action>
                                 </Control>
                             </Group>
@@ -85,17 +84,16 @@
             </bt:Images>
             <bt:Urls>
                 <bt:Url id="Commands.Url" DefaultValue="https://planel-net.github.io/Carto-Dev/html/commands.html"/>
-                <bt:Url id="Taskpane.Url" DefaultValue="https://planel-net.github.io/Carto-Dev/html/taskpane.html"/>
                 <bt:Url id="GetStarted.LearnMoreUrl" DefaultValue="https://github.com/planel-net/Carto-Dev"/>
             </bt:Urls>
             <bt:ShortStrings>
                 <bt:String id="GetStarted.Title" DefaultValue="Démarrer avec Carto"/>
                 <bt:String id="CommandsGroup.Label" DefaultValue="Carto"/>
-                <bt:String id="TaskpaneButton.Label" DefaultValue="Carto"/>
+                <bt:String id="OpenAppButton.Label" DefaultValue="Carto"/>
             </bt:ShortStrings>
             <bt:LongStrings>
                 <bt:String id="GetStarted.Description" DefaultValue="Cliquez sur le bouton Carto pour ouvrir l'application de pilotage du parc applicatif."/>
-                <bt:String id="TaskpaneButton.Tooltip" DefaultValue="Ouvrir l'application Carto - Pilotage du parc applicatif"/>
+                <bt:String id="OpenAppButton.Tooltip" DefaultValue="Ouvrir l'application Carto - Pilotage du parc applicatif"/>
             </bt:LongStrings>
         </Resources>
     </VersionOverrides>
