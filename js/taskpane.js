@@ -23,6 +23,12 @@ async function initializeTaskpane() {
     // Afficher le badge d'environnement
     showEnvironmentBadge();
 
+    // Mettre à jour la version
+    const versionEl = document.getElementById('appVersion');
+    if (versionEl && typeof CONFIG !== 'undefined') {
+        versionEl.textContent = CONFIG.APP_VERSION;
+    }
+
     // Attacher les événements
     document.getElementById('btnOpenApp').addEventListener('click', openFullScreenApp);
     document.getElementById('btnUnlock').addEventListener('click', handleUnlock);
@@ -33,6 +39,12 @@ async function initializeTaskpane() {
 
     // Compter les tables
     await countTables();
+
+    // Ouvrir automatiquement l'app en plein écran après un court délai
+    // Cela permet à l'utilisateur de voir brièvement le taskpane si besoin
+    setTimeout(() => {
+        openFullScreenApp();
+    }, 500);
 }
 
 /**
