@@ -129,6 +129,40 @@ const MAEModal = {
         return found ? found.index : 0;
     },
 
+    _isDemandeComplete(d) {
+        const fields = ['Nom', 'Perimetre', 'Demandeur', 'Date demande', 'Date souhaitée', 'Priorité', 'Description', 'Impact'];
+        return fields.every(f => {
+            const val = d[f];
+            return val !== null && val !== undefined && String(val).trim() !== '';
+        });
+    },
+
+    _isDataComplete(d) {
+        const fields = ['Pris en charge par', 'Equipe'];
+        return fields.every(f => {
+            const val = d[f];
+            return val !== null && val !== undefined && String(val).trim() !== '';
+        });
+    },
+
+    _computeEffectiveIndex(storedStatut) {
+        const storedIndex = this._getStatutIndex(storedStatut);
+        // Si le statut stocké est déjà à Validation ou au-delà, on le garde
+        if (storedIndex >= 2) return storedIndex;
+
+        const d = this._state.currentDemande || {};
+
+        // Vérifier si l'onglet Demande est complet
+        if (!this._isDemandeComplete(d)) return storedIndex;
+
+        // Demande complète → au moins index 1 (Infos Data)
+        // Vérifier si l'onglet Data est complet
+        if (!this._isDataComplete(d)) return Math.max(storedIndex, 1);
+
+        // Les deux sont complets → index 2 (Validation)
+        return 2;
+    },
+
     _getStatusBadgeClass(statut) {
         switch (statut) {
             case 'Création': return 'creation';
@@ -145,16 +179,16 @@ const MAEModal = {
     // ---- Rendu du pipeline header ----
 
     _renderPipelineHeader(currentStatut) {
-        const currentIndex = this._getStatutIndex(currentStatut);
+        const effectiveIndex = this._computeEffectiveIndex(currentStatut);
         return `
             <div class="mae-modal-pipeline">
                 ${CONFIG.MAE_STATUTS.map((step, i) => {
                     let stepClass = '';
                     let isDisabled = false;
 
-                    if (i < currentIndex) {
+                    if (i < effectiveIndex) {
                         stepClass = 'completed';
-                    } else if (i === currentIndex) {
+                    } else if (i === effectiveIndex) {
                         stepClass = 'current';
                     }
 
@@ -163,11 +197,11 @@ const MAEModal = {
                         isDisabled = true;
                     }
                     // Étapes futures non-cliquables
-                    else if (i > currentIndex) {
+                    else if (i > effectiveIndex) {
                         isDisabled = true;
                     }
                     // Si on est encore dans les 2 premières étapes, tout désactivé
-                    else if (currentIndex < 2) {
+                    else if (effectiveIndex < 2) {
                         isDisabled = true;
                     }
 
@@ -193,23 +227,23 @@ const MAEModal = {
         if (this._state.mode === 'add') return;
 
         const currentStatut = this._state.currentDemande['Statut'] || 'Création';
-        const currentIndex = this._getStatutIndex(currentStatut);
+        const effectiveIndex = this._computeEffectiveIndex(currentStatut);
 
         // Pas de clic sur les 2 premières étapes
         if (targetIndex <= 1) return;
 
         // Pas de clic si on est encore dans les 2 premières étapes
-        if (currentIndex < 2) return;
+        if (effectiveIndex < 2) return;
 
         // Pas de saut vers une étape future
-        if (targetIndex > currentIndex) return;
+        if (targetIndex > effectiveIndex) return;
 
         let newStatut;
 
-        if (targetIndex === currentIndex) {
+        if (targetIndex === effectiveIndex) {
             // Clic sur l'étape courante (orange) → avancer à la suivante
-            if (currentIndex >= CONFIG.MAE_STATUTS.length - 1) return; // Déjà à la dernière étape
-            newStatut = CONFIG.MAE_STATUTS[currentIndex + 1].value;
+            if (effectiveIndex >= CONFIG.MAE_STATUTS.length - 1) return; // Déjà à la dernière étape
+            newStatut = CONFIG.MAE_STATUTS[effectiveIndex + 1].value;
         } else {
             // Retour à une étape précédente (>= 2) → elle redevient orange, les suivantes transparentes
             newStatut = CONFIG.MAE_STATUTS[targetIndex].value;
@@ -517,8 +551,10 @@ const MAEModal = {
     _renderValidationButton() {
         if (this._state.mode !== 'edit') return '';
         const currentStatut = this._state.currentDemande ? this._state.currentDemande['Statut'] : 'Création';
+        const effectiveIndex = this._computeEffectiveIndex(currentStatut);
 
-        if (currentStatut === 'Création') {
+        // Si l'index effectif est 0, l'onglet Demande n'est pas complet → bouton pour avancer
+        if (effectiveIndex === 0) {
             return `
                 <div class="mae-validation-section">
                     <button type="button" class="btn btn-success btn-validate" onclick="MAEModal.advanceToInfosData()">
@@ -528,7 +564,8 @@ const MAEModal = {
             `;
         }
 
-        if (currentStatut === 'Infos Data') {
+        // Si l'index effectif est 1, l'onglet Data n'est pas complet → bouton pour valider
+        if (effectiveIndex === 1) {
             return `
                 <div class="mae-validation-section">
                     <button type="button" class="btn btn-success btn-validate" onclick="MAEModal.validateMetier()">
@@ -538,6 +575,7 @@ const MAEModal = {
             `;
         }
 
+        // Si effectiveIndex >= 2, pas de bouton (navigation via pipeline)
         return '';
     },
 
@@ -927,6 +965,18 @@ const MAEModal = {
         try {
             const demandeData = this._getSaveData(overrideStatut);
 
+            // Auto-avancement du statut si les formulaires sont complets (étapes 0-1 uniquement)
+            if (!overrideStatut && isEdit) {
+                const storedIndex = this._getStatutIndex(demandeData['Statut']);
+                if (storedIndex < 2) {
+                    if (this._isDemandeComplete(demandeData) && this._isDataComplete(demandeData)) {
+                        demandeData['Statut'] = 'Validation';
+                    } else if (this._isDemandeComplete(demandeData) && storedIndex < 1) {
+                        demandeData['Statut'] = 'Infos Data';
+                    }
+                }
+            }
+
             if (isEdit) {
                 await updateTableRow('tMAE', this._state.rowIndex, demandeData);
                 this._state.currentDemande = { ...this._state.currentDemande, ...demandeData };
@@ -950,6 +1000,14 @@ const MAEModal = {
             await this._saveLiens();
 
             showSuccess(isEdit ? 'Demande mise à jour' : 'Demande créée avec succès');
+
+            // Rafraîchir le pipeline après sauvegarde
+            if (isEdit) {
+                const pipelineContainer = document.querySelector('.mae-modal-pipeline');
+                if (pipelineContainer) {
+                    pipelineContainer.outerHTML = this._renderPipelineHeader(demandeData['Statut']);
+                }
+            }
 
             if (this._state.onSuccess) {
                 await this._state.onSuccess();
