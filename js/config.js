@@ -364,10 +364,11 @@ const CONFIG = {
     MAE_STATUTS: [
         { value: 'Création', label: 'Création', index: 0 },
         { value: 'Infos Data', label: 'Infos Data', index: 1 },
-        { value: 'Prêt pour démarrer', label: 'Prêt pour démarrer', index: 2 },
-        { value: 'En cours', label: 'En cours', index: 3 },
-        { value: 'En recette', label: 'En recette', index: 4 },
-        { value: 'Terminé', label: 'Terminé', index: 5 }
+        { value: 'Validation', label: 'Validation', index: 2 },
+        { value: 'Prêt pour démarrer', label: 'Prêt pour démarrer', index: 3 },
+        { value: 'En cours', label: 'En cours', index: 4 },
+        { value: 'En recette', label: 'En recette', index: 5 },
+        { value: 'Terminé', label: 'Terminé', index: 6 }
     ],
 
     // Priorités MAE

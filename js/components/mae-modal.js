@@ -117,6 +117,13 @@ const MAEModal = {
         return date.toISOString().split('T')[0];
     },
 
+    _formatDateTimeForInput(dateValue) {
+        const date = this._parseDate(dateValue);
+        if (date.getTime() === 0) return '';
+        const pad = n => n.toString().padStart(2, '0');
+        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    },
+
     _getStatutIndex(statut) {
         const found = CONFIG.MAE_STATUTS.find(s => s.value === statut);
         return found ? found.index : 0;
@@ -126,6 +133,7 @@ const MAEModal = {
         switch (statut) {
             case 'Création': return 'creation';
             case 'Infos Data': return 'infos-data';
+            case 'Validation': return 'validation';
             case 'Prêt pour démarrer': return 'pret';
             case 'En cours': return 'en-cours';
             case 'En recette': return 'en-recette';
@@ -150,8 +158,16 @@ const MAEModal = {
                         stepClass = 'current';
                     }
 
-                    // Avant "Prêt pour démarrer", pas de clic libre
-                    if (currentIndex < 2 && i !== currentIndex) {
+                    // Steps 0-1 (Création, Infos Data) toujours non-cliquables
+                    if (i <= 1) {
+                        isDisabled = true;
+                    }
+                    // Étapes futures non-cliquables
+                    else if (i > currentIndex) {
+                        isDisabled = true;
+                    }
+                    // Si on est encore dans les 2 premières étapes, tout désactivé
+                    else if (currentIndex < 2) {
                         isDisabled = true;
                     }
 
@@ -179,27 +195,44 @@ const MAEModal = {
         const currentStatut = this._state.currentDemande['Statut'] || 'Création';
         const currentIndex = this._getStatutIndex(currentStatut);
 
-        // Si meme etape, rien a faire
-        if (targetIndex === currentIndex) return;
+        // Pas de clic sur les 2 premières étapes
+        if (targetIndex <= 1) return;
 
-        // Avant "Prêt pour démarrer" (index 2), pas de clic libre
+        // Pas de clic si on est encore dans les 2 premières étapes
         if (currentIndex < 2) return;
 
-        // A partir de "Prêt pour démarrer", changement libre
-        const targetStatut = CONFIG.MAE_STATUTS[targetIndex].value;
+        // Pas de saut vers une étape future
+        if (targetIndex > currentIndex) return;
+
+        let newStatut;
+
+        if (targetIndex === currentIndex) {
+            // Clic sur l'étape courante (orange) → avancer à la suivante
+            if (currentIndex >= CONFIG.MAE_STATUTS.length - 1) return; // Déjà à la dernière étape
+            newStatut = CONFIG.MAE_STATUTS[currentIndex + 1].value;
+        } else {
+            // Retour à une étape précédente (>= 2) → elle redevient orange, les suivantes transparentes
+            newStatut = CONFIG.MAE_STATUTS[targetIndex].value;
+        }
 
         try {
-            this._state.currentDemande['Statut'] = targetStatut;
+            this._state.currentDemande['Statut'] = newStatut;
             await updateTableRow('tMAE', this._state.rowIndex, this._getSaveData());
             invalidateCache('tMAE');
 
             // Mettre a jour le pipeline dans la modale
             const pipelineContainer = document.querySelector('.mae-modal-pipeline');
             if (pipelineContainer) {
-                pipelineContainer.outerHTML = this._renderPipelineHeader(targetStatut);
+                pipelineContainer.outerHTML = this._renderPipelineHeader(newStatut);
             }
 
-            showSuccess(`Statut mis à jour : ${targetStatut}`);
+            // Mettre à jour le bouton validation si nécessaire
+            const validationSection = document.querySelector('.mae-validation-section');
+            if (validationSection) {
+                validationSection.outerHTML = this._renderValidationButton();
+            }
+
+            showSuccess(`Statut mis à jour : ${newStatut}`);
 
             if (this._state.onSuccess) {
                 await this._state.onSuccess();
@@ -229,7 +262,7 @@ const MAEModal = {
         showModal({
             title: 'Nouvelle demande MAE',
             content: content,
-            size: 'lg',
+            size: 'xl',
             buttons: [
                 { label: 'Annuler', class: 'btn-secondary', action: 'close' },
                 {
@@ -280,7 +313,7 @@ const MAEModal = {
         showModal({
             title: `Demande ${escapeHtml(numero)}`,
             content: content,
-            size: 'lg',
+            size: 'xl',
             buttons: [
                 { label: 'Fermer', class: 'btn-secondary', action: 'close' },
                 {
@@ -447,15 +480,15 @@ const MAEModal = {
                     <div class="mae-form-row">
                         <div class="form-group">
                             <label class="form-label">JH DE</label>
-                            <input type="number" class="form-control" name="JH DE" step="0.01" min="0" value="${d['JH DE'] || ''}">
+                            <input type="number" class="form-control" name="JH DE" step="0.01" min="0" value="${d['JH DE'] != null && d['JH DE'] !== '' ? d['JH DE'] : ''}">
                         </div>
                         <div class="form-group">
                             <label class="form-label">JH DA</label>
-                            <input type="number" class="form-control" name="JH DA" step="0.01" min="0" value="${d['JH DA'] || ''}">
+                            <input type="number" class="form-control" name="JH DA" step="0.01" min="0" value="${d['JH DA'] != null && d['JH DA'] !== '' ? d['JH DA'] : ''}">
                         </div>
                         <div class="form-group">
                             <label class="form-label">JH DATA VIZ</label>
-                            <input type="number" class="form-control" name="JH DATA VIZ" step="0.01" min="0" value="${d['JH DATA VIZ'] || ''}">
+                            <input type="number" class="form-control" name="JH DATA VIZ" step="0.01" min="0" value="${d['JH DATA VIZ'] != null && d['JH DATA VIZ'] !== '' ? d['JH DATA VIZ'] : ''}">
                         </div>
                     </div>
 
@@ -499,7 +532,7 @@ const MAEModal = {
             return `
                 <div class="mae-validation-section">
                     <button type="button" class="btn btn-success btn-validate" onclick="MAEModal.validateMetier()">
-                        Validation Métier
+                        Passer à Validation
                     </button>
                 </div>
             `;
@@ -548,9 +581,9 @@ const MAEModal = {
             }
         }
 
-        const saved = await this._saveDemande(true, 'Prêt pour démarrer');
+        const saved = await this._saveDemande(true, 'Validation');
         if (saved) {
-            showSuccess('Validation Métier effectuée - Statut : Prêt pour démarrer');
+            showSuccess('Statut mis à jour : Validation');
         }
     },
 
@@ -680,7 +713,8 @@ const MAEModal = {
 
         const isEdit = note !== null;
         const now = new Date();
-        const dateValue = isEdit ? this._formatDateForInput(note['Date']) : now.toISOString().split('T')[0];
+        const pad = n => n.toString().padStart(2, '0');
+        const dateValue = isEdit ? this._formatDateTimeForInput(note['Date']) : `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
         const noteContent = isEdit ? (note['Note'] || '') : '';
         const redacteur = isEdit ? (note['Redacteur'] || '') : '';
 
@@ -693,7 +727,7 @@ const MAEModal = {
                 <div class="mae-form-row">
                     <div class="form-group">
                         <label class="form-label required">Date</label>
-                        <input type="date" class="form-control" id="maeNoteDate" value="${dateValue}" required>
+                        <input type="datetime-local" class="form-control" id="maeNoteDate" value="${dateValue}" required>
                     </div>
                     <div class="form-group">
                         <label class="form-label required">Rédacteur</label>
@@ -883,9 +917,9 @@ const MAEModal = {
             'Gold': formDataData.get('Gold') || '',
             'Date livraison estimée': formDataData.get('Date livraison estimée') || '',
             'Equipe': formDataData.get('Equipe') || '',
-            'JH DE': formDataData.get('JH DE') || '',
-            'JH DA': formDataData.get('JH DA') || '',
-            'JH DATA VIZ': formDataData.get('JH DATA VIZ') || ''
+            'JH DE': formDataData.get('JH DE') ?? '',
+            'JH DA': formDataData.get('JH DA') ?? '',
+            'JH DATA VIZ': formDataData.get('JH DATA VIZ') ?? ''
         };
     },
 
