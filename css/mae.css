@@ -1,0 +1,609 @@
+/* ===========================================
+   MAE.CSS - Styles section MAE
+   Application Carto
+   =========================================== */
+
+/* ---- Pipeline / Processus visuel ---- */
+.mae-pipeline {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin-bottom: var(--spacing-lg);
+    padding: var(--spacing-md);
+    background: var(--mh-blanc);
+    border-radius: var(--border-radius-md);
+    box-shadow: var(--shadow-sm);
+    overflow-x: auto;
+}
+
+.mae-pipeline-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    min-width: 120px;
+    position: relative;
+    cursor: default;
+}
+
+.mae-pipeline-step-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 16px;
+    border-radius: var(--border-radius-sm);
+    border: 2px solid #555;
+    background: transparent;
+    min-width: 110px;
+    min-height: 60px;
+    text-align: center;
+    transition: all var(--transition-normal);
+}
+
+.mae-pipeline-step-box .step-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #555;
+    line-height: 1.3;
+}
+
+.mae-pipeline-step-box .step-count {
+    font-size: 18px;
+    font-weight: 700;
+    color: #555;
+    margin-top: 2px;
+}
+
+/* Etape validee (terminee) */
+.mae-pipeline-step.completed .mae-pipeline-step-box {
+    background: #1B5E20;
+    border-color: #1B5E20;
+}
+
+.mae-pipeline-step.completed .mae-pipeline-step-box .step-label,
+.mae-pipeline-step.completed .mae-pipeline-step-box .step-count {
+    color: #fff;
+}
+
+/* Etape en cours */
+.mae-pipeline-step.current .mae-pipeline-step-box {
+    background: var(--mh-orange);
+    border-color: var(--mh-orange);
+}
+
+.mae-pipeline-step.current .mae-pipeline-step-box .step-label,
+.mae-pipeline-step.current .mae-pipeline-step-box .step-count {
+    color: #fff;
+}
+
+/* Fleche entre les etapes */
+.mae-pipeline-arrow {
+    display: flex;
+    align-items: center;
+    padding: 0 6px;
+    color: #999;
+    font-size: 20px;
+    flex-shrink: 0;
+}
+
+/* ---- Pipeline dans la modale (header fiche) ---- */
+.mae-modal-pipeline {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    padding: 12px 16px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+    overflow-x: auto;
+}
+
+.mae-modal-pipeline .mae-pipeline-step {
+    min-width: 100px;
+    cursor: pointer;
+}
+
+.mae-modal-pipeline .mae-pipeline-step.disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+.mae-modal-pipeline .mae-pipeline-step-box {
+    min-width: 90px;
+    min-height: 44px;
+    padding: 8px 10px;
+    font-size: 11px;
+}
+
+.mae-modal-pipeline .mae-pipeline-step-box .step-label {
+    font-size: 11px;
+}
+
+.mae-modal-pipeline .mae-pipeline-step-box:hover {
+    transform: scale(1.05);
+    box-shadow: var(--shadow-sm);
+}
+
+.mae-modal-pipeline .mae-pipeline-step.disabled .mae-pipeline-step-box:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+.mae-modal-pipeline .mae-pipeline-arrow {
+    font-size: 16px;
+    padding: 0 4px;
+}
+
+/* ---- Filtres MAE ---- */
+.mae-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+    padding: var(--spacing-md);
+    background: var(--mh-blanc);
+    border-radius: var(--border-radius-md);
+    box-shadow: var(--shadow-sm);
+    align-items: center;
+}
+
+.mae-filter-group {
+    position: relative;
+    min-width: 160px;
+}
+
+.mae-filter-group label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--mh-gris-moyen);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.mae-filter-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 12px;
+    border: 1px solid #ddd;
+    border-radius: var(--border-radius-sm);
+    background: #fff;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--mh-gris-fonce);
+    min-width: 150px;
+    gap: 8px;
+}
+
+.mae-filter-trigger:hover {
+    border-color: var(--mh-bleu-clair);
+}
+
+.mae-filter-trigger .arrow {
+    font-size: 10px;
+    transition: transform var(--transition-fast);
+}
+
+.mae-filter-trigger.open .arrow {
+    transform: rotate(180deg);
+}
+
+.mae-filter-dropdown {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    min-width: 200px;
+    max-height: 250px;
+    overflow-y: auto;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: var(--border-radius-sm);
+    box-shadow: var(--shadow-md);
+    z-index: 1000;
+    padding: 4px 0;
+}
+
+.mae-filter-dropdown.open {
+    display: block;
+}
+
+.mae-filter-dropdown-actions {
+    display: flex;
+    gap: 4px;
+    padding: 4px 8px;
+    border-bottom: 1px solid #eee;
+}
+
+.mae-filter-dropdown-actions button {
+    font-size: 11px;
+    padding: 2px 8px;
+    border: none;
+    background: none;
+    color: var(--mh-bleu-clair);
+    cursor: pointer;
+}
+
+.mae-filter-dropdown-actions button:hover {
+    text-decoration: underline;
+}
+
+.mae-filter-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.mae-filter-option:hover {
+    background: #f5f5f5;
+}
+
+.mae-filter-option input[type="checkbox"] {
+    margin: 0;
+}
+
+.mae-filters-actions {
+    display: flex;
+    gap: 8px;
+    margin-left: auto;
+    align-items: flex-end;
+}
+
+/* ---- Bouton ajouter demande ---- */
+.mae-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-md);
+}
+
+.mae-result-count {
+    font-size: 13px;
+    color: var(--mh-gris-moyen);
+}
+
+/* ---- Tableau des demandes ---- */
+.mae-table-container {
+    background: var(--mh-blanc);
+    border-radius: var(--border-radius-md);
+    box-shadow: var(--shadow-sm);
+    overflow-x: auto;
+}
+
+.mae-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.mae-table thead th {
+    position: sticky;
+    top: 0;
+    background: var(--mh-bleu-fonce);
+    color: #fff;
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+    border-bottom: 2px solid #002244;
+}
+
+.mae-table thead th:hover {
+    background: #004488;
+}
+
+.mae-table thead th .sort-icon {
+    margin-left: 4px;
+    font-size: 10px;
+    opacity: 0.5;
+}
+
+.mae-table thead th.sorted .sort-icon {
+    opacity: 1;
+}
+
+.mae-table tbody tr {
+    cursor: pointer;
+    transition: background var(--transition-fast);
+    border-bottom: 1px solid #eee;
+}
+
+.mae-table tbody tr:hover {
+    background: #e8f0fe;
+}
+
+.mae-table tbody td {
+    padding: 10px 14px;
+    color: var(--mh-gris-fonce);
+    vertical-align: middle;
+}
+
+/* Badges de statut dans le tableau */
+.mae-status-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.mae-status-badge.creation {
+    background: #E3F2FD;
+    color: #1565C0;
+}
+
+.mae-status-badge.infos-data {
+    background: #FFF3E0;
+    color: #E65100;
+}
+
+.mae-status-badge.pret {
+    background: #F3E5F5;
+    color: #6A1B9A;
+}
+
+.mae-status-badge.en-cours {
+    background: #FFF8E1;
+    color: #F57F17;
+}
+
+.mae-status-badge.en-recette {
+    background: #E8F5E9;
+    color: #2E7D32;
+}
+
+.mae-status-badge.termine {
+    background: #E8F5E9;
+    color: #1B5E20;
+    border: 1px solid #1B5E20;
+}
+
+/* Badge de priorite */
+.mae-priority-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.mae-priority-badge.elevee {
+    background: #FFEBEE;
+    color: #C62828;
+}
+
+.mae-priority-badge.moyenne {
+    background: #FFF8E1;
+    color: #F57F17;
+}
+
+.mae-priority-badge.faible {
+    background: #E8F5E9;
+    color: #2E7D32;
+}
+
+/* ---- Tableau vide ---- */
+.mae-empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--mh-gris-moyen);
+}
+
+.mae-empty-state-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+}
+
+.mae-empty-state-text {
+    font-size: 16px;
+    margin-bottom: 8px;
+}
+
+/* ---- Modale MAE : onglets ---- */
+.mae-modal-tabs {
+    display: flex;
+    border-bottom: 2px solid #dee2e6;
+    padding: 0 16px;
+    background: #f8f9fa;
+}
+
+.mae-modal-tab {
+    padding: 10px 20px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--mh-gris-moyen);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: all var(--transition-fast);
+}
+
+.mae-modal-tab:hover {
+    color: var(--mh-bleu-clair);
+}
+
+.mae-modal-tab.active {
+    color: var(--mh-bleu-fonce);
+    border-bottom-color: var(--mh-bleu-fonce);
+    font-weight: 600;
+}
+
+.mae-modal-tab .tab-badge {
+    display: inline-block;
+    background: var(--mh-bleu-clair);
+    color: #fff;
+    border-radius: 10px;
+    padding: 1px 6px;
+    font-size: 10px;
+    margin-left: 4px;
+    min-width: 16px;
+    text-align: center;
+}
+
+.mae-modal-tab-content {
+    display: none;
+    padding: 16px;
+}
+
+.mae-modal-tab-content.active {
+    display: block;
+}
+
+/* ---- Liens dynamiques (onglet Data) ---- */
+.mae-liens-section {
+    margin-bottom: var(--spacing-md);
+}
+
+.mae-liens-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-sm);
+}
+
+.mae-liens-header h4 {
+    font-size: 14px;
+    color: var(--mh-bleu-fonce);
+    margin: 0;
+}
+
+.mae-lien-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+    align-items: center;
+}
+
+.mae-lien-row input {
+    flex: 1;
+}
+
+.mae-lien-row .btn-remove-lien {
+    padding: 4px 8px;
+    font-size: 14px;
+    color: var(--mh-rouge-erreur);
+    background: none;
+    border: 1px solid var(--mh-rouge-erreur);
+    border-radius: var(--border-radius-sm);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.mae-lien-row .btn-remove-lien:hover {
+    background: var(--mh-rouge-erreur);
+    color: #fff;
+}
+
+.mae-liens-empty {
+    color: var(--mh-gris-moyen);
+    font-size: 13px;
+    font-style: italic;
+    padding: 8px 0;
+}
+
+/* ---- Bouton validation metier ---- */
+.mae-validation-section {
+    margin-top: var(--spacing-lg);
+    padding-top: var(--spacing-md);
+    border-top: 2px solid #dee2e6;
+    text-align: center;
+}
+
+.mae-validation-section .btn-validate {
+    padding: 12px 32px;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+/* ---- Section formulaire dans modale ---- */
+.mae-form-section {
+    margin-bottom: var(--spacing-md);
+}
+
+.mae-form-section-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--mh-bleu-fonce);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: var(--spacing-sm);
+    padding-bottom: 4px;
+    border-bottom: 1px solid #eee;
+}
+
+/* ---- Form row (2 colonnes) ---- */
+.mae-form-row {
+    display: flex;
+    gap: var(--spacing-md);
+}
+
+.mae-form-row .form-group {
+    flex: 1;
+}
+
+/* ---- Notes MAE (reutilise pattern ChantierModal) ---- */
+.mae-notes-section .note-item {
+    border: 1px solid #eee;
+    border-radius: var(--border-radius-sm);
+    padding: 12px;
+    margin-bottom: 8px;
+}
+
+.mae-notes-section .note-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.mae-notes-section .note-meta {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.mae-notes-section .note-date {
+    font-size: 12px;
+    color: var(--mh-gris-moyen);
+    font-weight: 600;
+}
+
+.mae-notes-section .note-author {
+    font-size: 12px;
+    color: var(--mh-bleu-clair);
+    font-weight: 500;
+}
+
+.mae-notes-section .note-content {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--mh-gris-fonce);
+}
+
+.mae-notes-section .notes-empty {
+    text-align: center;
+    padding: 20px;
+    color: var(--mh-gris-moyen);
+    font-style: italic;
+}
+
+/* ---- Champ lecture seule ---- */
+.form-control-readonly {
+    background: #f0f0f0;
+    border: 1px solid #ddd;
+    padding: 6px 12px;
+    border-radius: var(--border-radius-sm);
+    font-size: 14px;
+    color: var(--mh-gris-fonce);
+    font-weight: 600;
+}

@@ -239,6 +239,10 @@ async function navigateTo(page, table = null) {
                 await renderParcPage(container);
                 break;
 
+            case 'mae':
+                await renderMAEPage(container);
+                break;
+
             case 'roadmap':
                 await renderRoadmapPage(container);
                 break;
@@ -286,6 +290,7 @@ function updatePageTitle(page, table) {
         parc: { title: 'Parc Applicatif', subtitle: 'Cartographie des rapports et applications' },
         'roadmap-gantt': { title: 'Roadmap', subtitle: 'Visualisation des projets et phases' },
         'roadmap-chantiers': { title: 'Roadmap', subtitle: 'Visualisation des projets et phases' },
+        mae: { title: 'MAE', subtitle: 'Suivi des demandes Data' },
         roadmap: { title: 'Ancienne Roadmap', subtitle: '' }
     };
 
@@ -427,6 +432,9 @@ async function refreshCurrentPage() {
                 break;
             case 'parc':
                 await refreshParcPage();
+                break;
+            case 'mae':
+                await refreshMAEPage();
                 break;
             case 'roadmap':
                 await refreshRoadmapPage();
