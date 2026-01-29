@@ -1,5 +1,5 @@
 /* ===========================================
-   MIGRATION.JS - Page Backlog (anciennement Cartographie)
+   MIGRATION.JS - Page Cartographie
    Application Carto
    =========================================== */
 

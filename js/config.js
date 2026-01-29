@@ -284,21 +284,6 @@ const CONFIG = {
                 { field: 'Chantier', label: 'Chantier', type: 'select', source: 'CHANTIER', sourceField: 'Chantier' },
                 { field: 'DataAna', label: 'DataAna', type: 'select', source: 'DATAANA', sourceField: 'Clé' }
             ]
-        },
-        BACKLOGS: {
-            name: 'tBacklogs',
-            sheet: 'Backlogs',
-            displayName: 'Backlog',
-            icon: '&#128203;',
-            columns: [
-                { field: 'Numéro', label: 'Numéro', type: 'text', readonly: true },
-                { field: 'Titre', label: 'Titre', type: 'text', required: true },
-                { field: 'Description', label: 'Description', type: 'textarea' },
-                { field: 'Périmètre', label: 'Périmètre', type: 'select', source: 'PERIMETRES', sourceField: 'Périmetre' },
-                { field: 'Responsable', label: 'Responsable', type: 'select', source: 'ACTEURS', sourceField: 'Mail' },
-                { field: 'Date estimée', label: 'Date estimée', type: 'date' },
-                { field: 'Charge estimée', label: 'Charge estimée (j/h)', type: 'number' }
-            ]
         }
     },
 
@@ -344,8 +329,7 @@ const CONFIG = {
         FONCTIONNEL: [
             { id: 'migration', label: 'Cartographie', icon: '&#128640;', page: 'migration' },
             { id: 'parc', label: 'Parc Applicatif', icon: '&#128202;', page: 'parc' },
-            { id: 'roadmap-chantiers', label: 'Roadmap', icon: '&#128197;', page: 'roadmap-chantiers' },
-            { id: 'backlog', label: 'Backlog', icon: '&#128203;', page: 'backlog' }
+            { id: 'roadmap-chantiers', label: 'Roadmap', icon: '&#128197;', page: 'roadmap-chantiers' }
         ],
         PARAMETRES: [
             { id: 'flux', label: 'Flux Migration', icon: '&#128640;', table: 'FLUX' },

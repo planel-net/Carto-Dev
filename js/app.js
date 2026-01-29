@@ -243,10 +243,6 @@ async function navigateTo(page, table = null) {
                 await renderRoadmapPage(container);
                 break;
 
-            case 'backlog':
-                await renderBacklogPage(container);
-                break;
-
             case 'params':
                 if (table) {
                     await renderParamsPage(container, table);
@@ -290,8 +286,7 @@ function updatePageTitle(page, table) {
         parc: { title: 'Parc Applicatif', subtitle: 'Cartographie des rapports et applications' },
         'roadmap-gantt': { title: 'Roadmap', subtitle: 'Visualisation des projets et phases' },
         'roadmap-chantiers': { title: 'Roadmap', subtitle: 'Visualisation des projets et phases' },
-        roadmap: { title: 'Ancienne Roadmap', subtitle: '' },
-        backlog: { title: 'Backlog', subtitle: 'Gestion du backlog avec filtres et tri' }
+        roadmap: { title: 'Ancienne Roadmap', subtitle: '' }
     };
 
     if (page === 'params' && table) {
@@ -435,9 +430,6 @@ async function refreshCurrentPage() {
                 break;
             case 'roadmap':
                 await refreshRoadmapPage();
-                break;
-            case 'backlog':
-                await refreshBacklogPage();
                 break;
             case 'params':
                 await refreshParamsPage();

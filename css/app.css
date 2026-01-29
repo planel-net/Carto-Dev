@@ -698,7 +698,6 @@
 /* Page wrappers communs */
 .migration-page,
 .parc-page,
-.backlog-page,
 .params-page {
     display: flex;
     flex-direction: column;
@@ -720,4 +719,3 @@
     justify-content: space-between;
 }
 
-/* Backlog toolbar - déjà stylé dans backlog styles */
