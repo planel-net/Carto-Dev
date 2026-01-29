@@ -15,25 +15,34 @@ const ChantierModal = {
         processus: [],
         produits: [],
         dataAnas: [],
+        mae: [],
         chantierProduit: [],
         chantierDataAna: [],
+        chantierLien: [],
         chantiers: [],
-        chantierNotes: []
+        chantierNotes: [],
+        phases: [],
+        phasesLien: [],
+        sprints: []
     },
 
     // État temporaire pour les modales
     _state: {
         selectedProduits: [],
         selectedDataAnas: [],
+        selectedMAE: [],
+        liens: [],
         renderProduits: null,
         renderDataAnas: null,
+        renderMAE: null,
+        renderLiens: null,
         mode: null, // 'add' ou 'edit'
         chantierName: null,
         rowIndex: null,
-        onSuccess: null, // Callback après succès
-        activeTab: 'general', // 'general' ou 'notes'
-        notes: [], // Notes du chantier en cours d'édition
-        editingNoteIndex: null // Index de la note en cours d'édition
+        onSuccess: null,
+        activeTab: 'general', // 'general', 'phases' ou 'notes'
+        notes: [],
+        editingNoteIndex: null
     },
 
     /**
@@ -47,20 +56,30 @@ const ChantierModal = {
                 processusData,
                 produitsData,
                 dataAnasData,
+                maeData,
                 chantierProduitData,
                 chantierDataAnaData,
+                chantierLienData,
                 chantiersData,
-                chantierNotesData
+                chantierNotesData,
+                phasesData,
+                phasesLienData,
+                sprintsData
             ] = await Promise.all([
                 readTable('tActeurs'),
                 readTable('tPerimetres'),
                 readTable('tProcessus'),
                 readTable('tProduits'),
                 readTable('tDataAnas'),
+                readTable('tMAE'),
                 readTable('tChantierProduit'),
                 readTable('tChantierDataAna'),
+                readTable('tChantierLien'),
                 readTable('tChantiers'),
-                readTable('tChantierNote')
+                readTable('tChantierNote'),
+                readTable('tPhases'),
+                readTable('tPhasesLien'),
+                readTable('tSprints')
             ]);
 
             this._data.acteurs = acteursData.data || [];
@@ -68,16 +87,28 @@ const ChantierModal = {
             this._data.processus = processusData.data || [];
             this._data.produits = produitsData.data || [];
             this._data.dataAnas = dataAnasData.data || [];
+            this._data.mae = maeData.data || [];
             this._data.chantierProduit = chantierProduitData.data || [];
             this._data.chantierDataAna = chantierDataAnaData.data || [];
+            this._data.chantierLien = chantierLienData.data || [];
             this._data.chantiers = chantiersData.data || [];
             this._data.chantierNotes = chantierNotesData.data || [];
+            this._data.phases = phasesData.data || [];
+            this._data.phasesLien = phasesLienData.data || [];
+            this._data.sprints = sprintsData.data || [];
 
             // Trier les processus par ordre
             this._data.processus.sort((a, b) => {
                 const ordreA = a['Ordre'] || 999;
                 const ordreB = b['Ordre'] || 999;
                 return ordreA - ordreB;
+            });
+
+            // Trier les sprints par date de début
+            this._data.sprints.sort((a, b) => {
+                const dateA = this._parseDate(a['Début']);
+                const dateB = this._parseDate(b['Début']);
+                return dateA - dateB;
             });
 
             return true;
@@ -116,24 +147,30 @@ const ChantierModal = {
         return false;
     },
 
+    // ==========================================
+    // MODALE D'AJOUT
+    // ==========================================
+
     /**
      * Affiche la modale d'ajout de chantier
      * @param {Function} onSuccess - Callback appelé après succès
      */
     async showAddModal(onSuccess = null) {
-        // Charger les données
         await this.loadData();
 
         this._state.mode = 'add';
         this._state.onSuccess = onSuccess;
         this._state.selectedProduits = [];
         this._state.selectedDataAnas = [];
+        this._state.selectedMAE = [];
+        this._state.liens = [];
 
-        // Filtrer les acteurs (exclure équipe RPP)
         const acteursFiltered = this._data.acteurs.filter(a => a['Equipe'] !== 'RPP');
 
         this._state.renderProduits = () => this._renderAssignedProduits('Add');
         this._state.renderDataAnas = () => this._renderAssignedDataAnas('Add');
+        this._state.renderMAE = () => this._renderAssignedMAE('Add');
+        this._state.renderLiens = () => this._renderLiensList('Add');
 
         const content = `
             <form id="formChantierModal" class="form">
@@ -173,6 +210,19 @@ const ChantierModal = {
                     <input type="date" class="form-control" name="Date fin souhaitée">
                 </div>
 
+                <!-- Enjeux -->
+                <div class="form-group">
+                    <label class="form-label">Enjeux</label>
+                    <div class="rich-text-toolbar">
+                        <button type="button" class="rich-text-btn" onclick="ChantierModal.execEnjeuxCommand('bold')" title="Gras"><strong>G</strong></button>
+                        <button type="button" class="rich-text-btn" onclick="ChantierModal.execEnjeuxCommand('italic')" title="Italique"><em>I</em></button>
+                        <span class="rich-text-separator"></span>
+                        <button type="button" class="rich-text-btn" onclick="ChantierModal.execEnjeuxCommand('insertUnorderedList')" title="Liste">&#8226;</button>
+                        <button type="button" class="rich-text-btn" onclick="ChantierModal.execEnjeuxCommand('insertOrderedList')" title="Liste numérotée">1.</button>
+                    </div>
+                    <div class="rich-text-editor" id="enjeuxEditor" contenteditable="true" style="min-height: 80px;"></div>
+                </div>
+
                 <!-- Section Produits -->
                 <div class="assigned-section">
                     <div class="assigned-section-header">
@@ -196,6 +246,32 @@ const ChantierModal = {
                     </div>
                     <div class="assigned-items-list" id="assignedDataAnasAdd">
                         <div class="assigned-items-empty">Aucun DataAna assigné</div>
+                    </div>
+                </div>
+
+                <!-- Section MAE -->
+                <div class="assigned-section">
+                    <div class="assigned-section-header">
+                        <h4>&#128203; MAE associés</h4>
+                        <button type="button" class="btn btn-sm btn-primary" onclick="ChantierModal.showSelectMAEModal()">
+                            Assigner MAE
+                        </button>
+                    </div>
+                    <div class="assigned-items-list" id="assignedMAEAdd">
+                        <div class="assigned-items-empty">Aucun MAE assigné</div>
+                    </div>
+                </div>
+
+                <!-- Section Liens -->
+                <div class="assigned-section">
+                    <div class="assigned-section-header">
+                        <h4>&#128279; Liens</h4>
+                        <button type="button" class="btn btn-sm btn-primary" onclick="ChantierModal.addLienRow()">
+                            + Ajouter un lien
+                        </button>
+                    </div>
+                    <div id="chantierLiensAdd">
+                        <div class="assigned-items-empty">Aucun lien</div>
                     </div>
                 </div>
 
@@ -225,13 +301,16 @@ const ChantierModal = {
         });
     },
 
+    // ==========================================
+    // MODALE D'ÉDITION (REFONTE)
+    // ==========================================
+
     /**
      * Affiche la modale d'édition de chantier
      * @param {string} chantierName - Nom du chantier à modifier
      * @param {Function} onSuccess - Callback appelé après succès
      */
     async showEditModal(chantierName, onSuccess = null) {
-        // Charger les données
         await this.loadData();
 
         const chantier = this._data.chantiers.find(c => c['Chantier'] === chantierName);
@@ -254,15 +333,25 @@ const ChantierModal = {
         this._state.activeTab = 'general';
         this._state.editingNoteIndex = null;
 
-        // Produits et DataAnas associés
+        // Produits associés
         this._state.selectedProduits = this._data.chantierProduit
             .filter(cp => cp['Chantier'] === chantierName)
             .map(cp => cp['Produit']);
 
-        // DataAnas associés : on filtre directement tDataAnas par le champ Chantier
+        // DataAnas associés
         this._state.selectedDataAnas = this._data.dataAnas
             .filter(d => d['Chantier'] === chantierName)
             .map(d => d['Clé']);
+
+        // MAE associés
+        this._state.selectedMAE = this._data.mae
+            .filter(m => m['Chantier'] === chantierName)
+            .map(m => m['Numero']);
+
+        // Liens du chantier
+        this._state.liens = this._data.chantierLien
+            .filter(l => l['Chantier'] === chantierName)
+            .map(l => ({ 'Nom lien': l['Nom lien'] || '', 'Lien': l['Lien'] || '' }));
 
         // Notes du chantier (triées par date décroissante)
         this._state.notes = this._data.chantierNotes
@@ -270,20 +359,30 @@ const ChantierModal = {
             .sort((a, b) => {
                 const dateA = this._parseDate(a['Date']);
                 const dateB = this._parseDate(b['Date']);
-                return dateB - dateA; // Plus récent en premier
+                return dateB - dateA;
             });
 
-        // Filtrer les acteurs (exclure équipe RPP)
         const acteursFiltered = this._data.acteurs.filter(a => a['Equipe'] !== 'RPP');
 
         this._state.renderProduits = () => this._renderAssignedProduits('Edit');
         this._state.renderDataAnas = () => this._renderAssignedDataAnas('Edit');
+        this._state.renderMAE = () => this._renderAssignedMAE('Edit');
+        this._state.renderLiens = () => this._renderLiensList('Edit');
+
+        // Phases du chantier (tri croissant par début)
+        const chantierPhases = this._data.phases
+            .filter(p => p['Chantier'] === chantierName);
+
+        const phasesCount = chantierPhases.length;
 
         const content = `
             <!-- Onglets -->
             <div class="modal-tabs">
                 <button type="button" class="modal-tab active" data-tab="general" onclick="ChantierModal.switchTab('general')">
                     Général
+                </button>
+                <button type="button" class="modal-tab" data-tab="phases" onclick="ChantierModal.switchTab('phases')">
+                    Phases <span class="tab-badge" id="phasesBadge">${phasesCount > 0 ? phasesCount : ''}</span>
                 </button>
                 <button type="button" class="modal-tab" data-tab="notes" onclick="ChantierModal.switchTab('notes')">
                     Notes <span class="tab-badge" id="notesBadge">${this._state.notes.length > 0 ? this._state.notes.length : ''}</span>
@@ -293,81 +392,147 @@ const ChantierModal = {
             <!-- Contenu onglet Général -->
             <div class="modal-tab-content active" id="tabGeneral">
                 <form id="formChantierModal" class="form">
-                    <div class="form-group">
-                        <label class="form-label required">Nom du chantier</label>
-                        <input type="text" class="form-control" name="Chantier" value="${escapeHtml(chantier['Chantier'])}" required>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Responsable</label>
-                        <select class="form-control" name="Responsable">
-                            <option value="">-- Sélectionner --</option>
-                            ${acteursFiltered.map(a => `
-                                <option value="${escapeHtml(a['Mail'])}" ${a['Mail'] === chantier['Responsable'] ? 'selected' : ''}>
-                                    ${escapeHtml(a['Prénom'] || '')} ${escapeHtml(a['Nom'] || '')}
-                                </option>
-                            `).join('')}
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Périmètre</label>
-                        <select class="form-control" name="Perimetre">
-                            <option value="">-- Sélectionner --</option>
-                            ${this._data.perimetres.map(p => `
-                                <option value="${escapeHtml(p['Périmetre'])}" ${p['Périmetre'] === chantier['Perimetre'] ? 'selected' : ''}>
-                                    ${escapeHtml(p['Périmetre'])}
-                                </option>
-                            `).join('')}
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Processus</label>
-                        <select class="form-control" name="Processus">
-                            <option value="">-- Sélectionner --</option>
-                            ${this.getOrderedProcessus().map(p => `
-                                <option value="${escapeHtml(p)}" ${p === chantier['Processus'] ? 'selected' : ''}>
-                                    ${escapeHtml(p)}
-                                </option>
-                            `).join('')}
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Date fin souhaitée</label>
-                        <input type="date" class="form-control" name="Date fin souhaitée" value="${this._formatDateForInput(chantier['Date fin souhaitée'])}">
-                    </div>
+                    <div class="chantier-modal-columns">
+                        <!-- Colonne gauche : Infos -->
+                        <div class="chantier-modal-left">
+                            <div class="form-group">
+                                <label class="form-label required">Nom du chantier</label>
+                                <input type="text" class="form-control" name="Chantier" value="${escapeHtml(chantier['Chantier'])}" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Responsable</label>
+                                <select class="form-control" name="Responsable">
+                                    <option value="">-- Sélectionner --</option>
+                                    ${acteursFiltered.map(a => `
+                                        <option value="${escapeHtml(a['Mail'])}" ${a['Mail'] === chantier['Responsable'] ? 'selected' : ''}>
+                                            ${escapeHtml(a['Prénom'] || '')} ${escapeHtml(a['Nom'] || '')}
+                                        </option>
+                                    `).join('')}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Périmètre</label>
+                                <select class="form-control" name="Perimetre">
+                                    <option value="">-- Sélectionner --</option>
+                                    ${this._data.perimetres.map(p => `
+                                        <option value="${escapeHtml(p['Périmetre'])}" ${p['Périmetre'] === chantier['Perimetre'] ? 'selected' : ''}>
+                                            ${escapeHtml(p['Périmetre'])}
+                                        </option>
+                                    `).join('')}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Processus</label>
+                                <select class="form-control" name="Processus">
+                                    <option value="">-- Sélectionner --</option>
+                                    ${this.getOrderedProcessus().map(p => `
+                                        <option value="${escapeHtml(p)}" ${p === chantier['Processus'] ? 'selected' : ''}>
+                                            ${escapeHtml(p)}
+                                        </option>
+                                    `).join('')}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Date fin souhaitée</label>
+                                <input type="date" class="form-control" name="Date fin souhaitée" value="${this._formatDateForInput(chantier['Date fin souhaitée'])}">
+                            </div>
+                            <div class="form-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" name="Archivé" ${this.isArchived(chantier) ? 'checked' : ''}>
+                                    <span>Archivé</span>
+                                </label>
+                            </div>
+                        </div>
 
-                    <!-- Section Produits -->
-                    <div class="assigned-section">
-                        <div class="assigned-section-header">
-                            <h4>&#128202; Produits associés</h4>
-                            <button type="button" class="btn btn-sm btn-primary" onclick="ChantierModal.showSelectProduitsModal()">
-                                Assigner produit
-                            </button>
-                        </div>
-                        <div class="assigned-items-list" id="assignedProduitsEdit">
-                            <div class="assigned-items-empty">Aucun produit assigné</div>
-                        </div>
-                    </div>
+                        <!-- Colonne droite : Enjeux + associations -->
+                        <div class="chantier-modal-right">
+                            <!-- Enjeux -->
+                            <div class="form-group">
+                                <label class="form-label">Enjeux</label>
+                                <div class="rich-text-toolbar">
+                                    <button type="button" class="rich-text-btn" onclick="ChantierModal.execEnjeuxCommand('bold')" title="Gras"><strong>G</strong></button>
+                                    <button type="button" class="rich-text-btn" onclick="ChantierModal.execEnjeuxCommand('italic')" title="Italique"><em>I</em></button>
+                                    <span class="rich-text-separator"></span>
+                                    <button type="button" class="rich-text-btn" onclick="ChantierModal.execEnjeuxCommand('insertUnorderedList')" title="Liste">&#8226;</button>
+                                    <button type="button" class="rich-text-btn" onclick="ChantierModal.execEnjeuxCommand('insertOrderedList')" title="Liste numérotée">1.</button>
+                                </div>
+                                <div class="rich-text-editor" id="enjeuxEditor" contenteditable="true" style="min-height: 80px;">${chantier['Enjeux'] || ''}</div>
+                            </div>
 
-                    <!-- Section DataAnas -->
-                    <div class="assigned-section">
-                        <div class="assigned-section-header">
-                            <h4>&#128202; DataAnas associés</h4>
-                            <button type="button" class="btn btn-sm btn-primary" onclick="ChantierModal.showSelectDataAnasModal()">
-                                Assigner DataAna
-                            </button>
-                        </div>
-                        <div class="assigned-items-list" id="assignedDataAnasEdit">
-                            <div class="assigned-items-empty">Aucun DataAna assigné</div>
-                        </div>
-                    </div>
+                            <!-- Section Produits -->
+                            <div class="assigned-section">
+                                <div class="assigned-section-header">
+                                    <h4>&#128202; Produits associés</h4>
+                                    <button type="button" class="btn btn-sm btn-primary" onclick="ChantierModal.showSelectProduitsModal()">
+                                        Assigner
+                                    </button>
+                                </div>
+                                <div class="assigned-items-list" id="assignedProduitsEdit">
+                                    <div class="assigned-items-empty">Aucun produit assigné</div>
+                                </div>
+                            </div>
 
-                    <div class="form-group">
-                        <label class="checkbox-label">
-                            <input type="checkbox" name="Archivé" ${this.isArchived(chantier) ? 'checked' : ''}>
-                            <span>Archivé</span>
-                        </label>
+                            <!-- Section DataAnas -->
+                            <div class="assigned-section">
+                                <div class="assigned-section-header">
+                                    <h4>&#128202; DataAnas associés</h4>
+                                    <button type="button" class="btn btn-sm btn-primary" onclick="ChantierModal.showSelectDataAnasModal()">
+                                        Assigner
+                                    </button>
+                                </div>
+                                <div class="assigned-items-list" id="assignedDataAnasEdit">
+                                    <div class="assigned-items-empty">Aucun DataAna assigné</div>
+                                </div>
+                            </div>
+
+                            <!-- Section MAE -->
+                            <div class="assigned-section">
+                                <div class="assigned-section-header">
+                                    <h4>&#128203; MAE associés</h4>
+                                    <button type="button" class="btn btn-sm btn-primary" onclick="ChantierModal.showSelectMAEModal()">
+                                        Assigner
+                                    </button>
+                                </div>
+                                <div class="assigned-items-list" id="assignedMAEEdit">
+                                    <div class="assigned-items-empty">Aucun MAE assigné</div>
+                                </div>
+                            </div>
+
+                            <!-- Section Liens -->
+                            <div class="assigned-section">
+                                <div class="assigned-section-header">
+                                    <h4>&#128279; Liens</h4>
+                                    <button type="button" class="btn btn-sm btn-primary" onclick="ChantierModal.addLienRow()">
+                                        + Ajouter
+                                    </button>
+                                </div>
+                                <div id="chantierLiensEdit">
+                                    <div class="assigned-items-empty">Aucun lien</div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </form>
+
+                <!-- Mini Roadmap -->
+                <div class="chantier-mini-roadmap" id="chantierMiniRoadmap">
+                    <!-- Généré dynamiquement -->
+                </div>
+            </div>
+
+            <!-- Contenu onglet Phases -->
+            <div class="modal-tab-content" id="tabPhases">
+                <div class="phases-section">
+                    <div class="phases-header">
+                        <h4>Phases du chantier</h4>
+                        <button type="button" class="btn btn-sm btn-primary" onclick="ChantierModal.showAddPhaseModal()">
+                            + Ajouter une phase
+                        </button>
+                    </div>
+                    <div id="phasesTableContainer">
+                        <!-- Tableau des phases -->
+                    </div>
+                </div>
             </div>
 
             <!-- Contenu onglet Notes -->
@@ -379,12 +544,8 @@ const ChantierModal = {
                             + Ajouter une note
                         </button>
                     </div>
-                    <div class="notes-form-container" id="noteFormContainer" style="display: none;">
-                        <!-- Formulaire d'ajout/édition de note -->
-                    </div>
-                    <div class="notes-list" id="notesList">
-                        <!-- Liste des notes -->
-                    </div>
+                    <div class="notes-form-container" id="noteFormContainer" style="display: none;"></div>
+                    <div class="notes-list" id="notesList"></div>
                 </div>
             </div>
         `;
@@ -392,7 +553,7 @@ const ChantierModal = {
         showModal({
             title: 'Modifier le chantier',
             content: content,
-            size: 'lg',
+            size: 'xl',
             buttons: [
                 { label: 'Annuler', class: 'btn-secondary', action: 'close' },
                 {
@@ -409,28 +570,28 @@ const ChantierModal = {
         setTimeout(() => {
             this._state.renderProduits();
             this._state.renderDataAnas();
+            this._state.renderMAE();
+            this._state.renderLiens();
             this._renderNotesList();
+            this._renderPhasesTable();
+            this._renderMiniRoadmap();
         }, 100);
     },
 
-    /**
-     * Parse une date depuis différents formats
-     */
+    // ==========================================
+    // UTILITAIRES DATE
+    // ==========================================
+
     _parseDate(dateValue) {
         if (!dateValue) return new Date(0);
         if (dateValue instanceof Date) return dateValue;
         if (typeof dateValue === 'number') {
-            // Excel serial date
             return new Date((dateValue - 25569) * 86400 * 1000);
         }
-        // Essayer de parser comme string
         const parsed = new Date(dateValue);
         return isNaN(parsed.getTime()) ? new Date(0) : parsed;
     },
 
-    /**
-     * Formate une date pour l'affichage
-     */
     _formatDate(dateValue) {
         const date = this._parseDate(dateValue);
         if (date.getTime() === 0) return '';
@@ -441,39 +602,664 @@ const ChantierModal = {
         });
     },
 
-    /**
-     * Formate une date pour un input date
-     */
+    _formatDateShort(dateValue) {
+        const date = this._parseDate(dateValue);
+        if (date.getTime() === 0) return '';
+        return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+    },
+
     _formatDateForInput(dateValue) {
         const date = this._parseDate(dateValue);
         if (date.getTime() === 0) return '';
         return date.toISOString().split('T')[0];
     },
 
-    /**
-     * Change d'onglet
-     */
+    // ==========================================
+    // GESTION DES ONGLETS
+    // ==========================================
+
     switchTab(tabName) {
         this._state.activeTab = tabName;
 
-        // Mettre à jour les boutons d'onglets
         document.querySelectorAll('.modal-tab').forEach(tab => {
             tab.classList.toggle('active', tab.dataset.tab === tabName);
         });
 
-        // Mettre à jour le contenu des onglets
-        document.getElementById('tabGeneral').classList.toggle('active', tabName === 'general');
-        document.getElementById('tabNotes').classList.toggle('active', tabName === 'notes');
+        const tabGeneral = document.getElementById('tabGeneral');
+        const tabPhases = document.getElementById('tabPhases');
+        const tabNotes = document.getElementById('tabNotes');
 
-        // Si on passe à l'onglet notes, s'assurer que la liste est à jour
+        if (tabGeneral) tabGeneral.classList.toggle('active', tabName === 'general');
+        if (tabPhases) tabPhases.classList.toggle('active', tabName === 'phases');
+        if (tabNotes) tabNotes.classList.toggle('active', tabName === 'notes');
+
         if (tabName === 'notes') {
             this._renderNotesList();
         }
+        if (tabName === 'phases') {
+            this._renderPhasesTable();
+        }
+    },
+
+    // ==========================================
+    // ONGLET PHASES
+    // ==========================================
+
+    _renderPhasesTable() {
+        const container = document.getElementById('phasesTableContainer');
+        if (!container) return;
+
+        const chantierPhases = this._data.phases
+            .filter(p => p['Chantier'] === this._state.chantierName)
+            .sort((a, b) => {
+                // Tri par début (sprint ou semaine)
+                const modeA = a['Mode'] || 'Sprint';
+                const modeB = b['Mode'] || 'Sprint';
+                let startA, startB;
+
+                if (modeA === 'Semaine') {
+                    startA = a['Semaine début'] || '';
+                } else {
+                    const sIdx = this._data.sprints.findIndex(s => s['Sprint'] === a['Sprint début']);
+                    startA = sIdx >= 0 ? String(sIdx).padStart(5, '0') : '';
+                }
+                if (modeB === 'Semaine') {
+                    startB = b['Semaine début'] || '';
+                } else {
+                    const sIdx = this._data.sprints.findIndex(s => s['Sprint'] === b['Sprint début']);
+                    startB = sIdx >= 0 ? String(sIdx).padStart(5, '0') : '';
+                }
+                return startA.localeCompare(startB);
+            });
+
+        if (chantierPhases.length === 0) {
+            container.innerHTML = '<div class="phases-empty">Aucune phase pour ce chantier</div>';
+            return;
+        }
+
+        container.innerHTML = `
+            <table class="phases-table">
+                <thead>
+                    <tr>
+                        <th>Phase</th>
+                        <th>Type</th>
+                        <th>Mode</th>
+                        <th>Début</th>
+                        <th>Fin</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${chantierPhases.map((phase, idx) => {
+                        const mode = phase['Mode'] || 'Sprint';
+                        const debut = mode === 'Semaine' ? (phase['Semaine début'] || '') : (phase['Sprint début'] || '');
+                        const fin = mode === 'Semaine' ? (phase['Semaine fin'] || '') : (phase['Sprint fin'] || '');
+                        const color = phase['Couleur'] || CONFIG.PHASE_COLORS[phase['Type phase']] || '#ccc';
+                        const phaseIndex = this._data.phases.indexOf(phase);
+
+                        return `
+                            <tr class="phase-row" data-phase-index="${phaseIndex}" ondblclick="ChantierModal.openEditPhase(${phaseIndex})">
+                                <td>
+                                    <span class="phase-color-dot" style="background:${color}"></span>
+                                    ${escapeHtml(phase['Phase'])}
+                                </td>
+                                <td>${escapeHtml(phase['Type phase'] || '')}</td>
+                                <td>${escapeHtml(mode)}</td>
+                                <td>${escapeHtml(debut)}</td>
+                                <td>${escapeHtml(fin)}</td>
+                            </tr>
+                        `;
+                    }).join('')}
+                </tbody>
+            </table>
+        `;
     },
 
     /**
-     * Rend la liste des notes
+     * Ouvre PhaseModal pour ajouter une phase
      */
+    showAddPhaseModal() {
+        const firstSprint = this._data.sprints.length > 0 ? this._data.sprints[0]['Sprint'] : '';
+        PhaseModal.showAddModal({
+            chantierName: this._state.chantierName,
+            sprintName: firstSprint,
+            sprints: this._data.sprints,
+            onSuccess: async () => {
+                await this._reloadPhases();
+                this._renderPhasesTable();
+                this._renderMiniRoadmap();
+                this._updatePhasesBadge();
+            }
+        });
+    },
+
+    /**
+     * Ouvre PhaseModal pour éditer une phase (double-clic)
+     */
+    openEditPhase(phaseIndex) {
+        const phase = this._data.phases[phaseIndex];
+        if (!phase) return;
+
+        PhaseModal.showEditModal({
+            phase: phase,
+            sprints: this._data.sprints,
+            phasesLien: this._data.phasesLien,
+            onSuccess: async () => {
+                await this._reloadPhases();
+                this._renderPhasesTable();
+                this._renderMiniRoadmap();
+                this._updatePhasesBadge();
+            }
+        });
+    },
+
+    async _reloadPhases() {
+        try {
+            const [phasesData, phasesLienData] = await Promise.all([
+                readTable('tPhases'),
+                readTable('tPhasesLien')
+            ]);
+            this._data.phases = phasesData.data || [];
+            this._data.phasesLien = phasesLienData.data || [];
+        } catch (error) {
+            console.error('Erreur rechargement phases:', error);
+        }
+    },
+
+    _updatePhasesBadge() {
+        const badge = document.getElementById('phasesBadge');
+        if (badge) {
+            const count = this._data.phases.filter(p => p['Chantier'] === this._state.chantierName).length;
+            badge.textContent = count > 0 ? count : '';
+        }
+    },
+
+    // ==========================================
+    // MINI ROADMAP (GANTT LECTURE SEULE)
+    // ==========================================
+
+    _renderMiniRoadmap() {
+        const container = document.getElementById('chantierMiniRoadmap');
+        if (!container) return;
+
+        const chantierPhases = this._data.phases
+            .filter(p => p['Chantier'] === this._state.chantierName);
+
+        if (chantierPhases.length === 0 || this._data.sprints.length === 0) {
+            container.innerHTML = '';
+            return;
+        }
+
+        // Trouver les sprints couverts par les phases
+        const coveredSprintNames = new Set();
+        chantierPhases.forEach(phase => {
+            const mode = phase['Mode'] || 'Sprint';
+            if (mode === 'Sprint') {
+                const startIdx = this._data.sprints.findIndex(s => s['Sprint'] === phase['Sprint début']);
+                const endIdx = this._data.sprints.findIndex(s => s['Sprint'] === phase['Sprint fin']);
+                if (startIdx >= 0 && endIdx >= 0) {
+                    for (let i = startIdx; i <= endIdx; i++) {
+                        coveredSprintNames.add(this._data.sprints[i]['Sprint']);
+                    }
+                }
+            } else {
+                // Semaine mode: find sprints that cover these weeks
+                this._data.sprints.forEach(s => coveredSprintNames.add(s['Sprint']));
+            }
+        });
+
+        // Ajouter une marge d'un sprint avant/après
+        const allNames = this._data.sprints.map(s => s['Sprint']);
+        let minIdx = Infinity, maxIdx = -1;
+        coveredSprintNames.forEach(name => {
+            const idx = allNames.indexOf(name);
+            if (idx < minIdx) minIdx = idx;
+            if (idx > maxIdx) maxIdx = idx;
+        });
+
+        // Étendre d'un sprint avant/après
+        minIdx = Math.max(0, minIdx - 1);
+        maxIdx = Math.min(allNames.length - 1, maxIdx + 1);
+
+        const visibleSprints = this._data.sprints.slice(minIdx, maxIdx + 1);
+        if (visibleSprints.length === 0) {
+            container.innerHTML = '';
+            return;
+        }
+
+        // Construire les semaines
+        const allWeeks = [];
+        visibleSprints.forEach(sprint => {
+            const weeks = this._getWeeksForSprint(sprint);
+            weeks.forEach((weekCode, idx) => {
+                allWeeks.push({
+                    weekCode,
+                    sprintName: sprint['Sprint'],
+                    sprint: sprint,
+                    isFirstOfSprint: idx === 0
+                });
+            });
+        });
+
+        if (allWeeks.length === 0) {
+            container.innerHTML = '';
+            return;
+        }
+
+        const weekCodes = allWeeks.map(w => w.weekCode);
+        const todayCode = this._formatWeekCode(new Date());
+
+        // Date fin souhaitée
+        const form = document.getElementById('formChantierModal');
+        const dateFinStr = form ? form.querySelector('[name="Date fin souhaitée"]')?.value : '';
+        const dateFin = dateFinStr ? new Date(dateFinStr) : null;
+        let dateFinWeekCode = null;
+        if (dateFin && !isNaN(dateFin.getTime())) {
+            dateFinWeekCode = this._formatWeekCode(dateFin);
+        }
+
+        // Calculer les positions de chaque phase
+        const phasePositions = [];
+        chantierPhases.forEach(phase => {
+            const mode = phase['Mode'] || 'Sprint';
+            let startWeekIdx, endWeekIdx;
+
+            if (mode === 'Semaine') {
+                startWeekIdx = weekCodes.indexOf(phase['Semaine début']);
+                endWeekIdx = weekCodes.indexOf(phase['Semaine fin']);
+            } else {
+                const startSprint = this._data.sprints.find(s => s['Sprint'] === phase['Sprint début']);
+                const endSprint = this._data.sprints.find(s => s['Sprint'] === phase['Sprint fin']);
+                if (startSprint && endSprint) {
+                    const startWeeks = this._getWeeksForSprint(startSprint);
+                    const endWeeks = this._getWeeksForSprint(endSprint);
+                    startWeekIdx = weekCodes.indexOf(startWeeks[0]);
+                    endWeekIdx = weekCodes.indexOf(endWeeks[endWeeks.length - 1]);
+                }
+            }
+
+            if (startWeekIdx === undefined || startWeekIdx === -1) startWeekIdx = 0;
+            if (endWeekIdx === undefined || endWeekIdx === -1) endWeekIdx = weekCodes.length - 1;
+
+            phasePositions.push({
+                phase,
+                startIdx: startWeekIdx,
+                endIdx: endWeekIdx,
+                color: phase['Couleur'] || CONFIG.PHASE_COLORS[phase['Type phase']] || '#ccc'
+            });
+        });
+
+        // Calculer les lanes (voies) pour éviter les chevauchements
+        const sorted = [...phasePositions].sort((a, b) => a.startIdx - b.startIdx || a.endIdx - b.endIdx);
+        const lanes = [];
+        sorted.forEach(pp => {
+            let lane = -1;
+            for (let i = 0; i < lanes.length; i++) {
+                if (lanes[i] < pp.startIdx) { lane = i; break; }
+            }
+            if (lane === -1) { lane = lanes.length; lanes.push(pp.endIdx); }
+            else { lanes[lane] = pp.endIdx; }
+            pp.lane = lane;
+        });
+        const totalLanes = Math.max(lanes.length, 1);
+
+        // Entête sprints
+        const sprintsHeaderHtml = visibleSprints.map(sprint => {
+            const weeksInSprint = this._getWeeksForSprint(sprint);
+            const colspan = weeksInSprint.length;
+            const isCurrent = this._isCurrentSprint(sprint);
+            return `<th class="mini-gantt-sprint${isCurrent ? ' current-sprint' : ''}" colspan="${colspan}">${escapeHtml(sprint['Sprint'])}</th>`;
+        }).join('');
+
+        // Entête semaines
+        const weeksHeaderHtml = allWeeks.map(w => {
+            const isCurrent = w.weekCode === todayCode;
+            const isDateFin = w.weekCode === dateFinWeekCode;
+            return `<th class="mini-gantt-week${isCurrent ? ' current-week' : ''}${isDateFin ? ' date-fin-week' : ''}">${'S' + w.weekCode.slice(-2)}</th>`;
+        }).join('');
+
+        // Entête dates
+        const datesHeaderHtml = allWeeks.map(w => {
+            const monday = this._weekCodeToDate(w.weekCode);
+            const isCurrent = w.weekCode === todayCode;
+            const isDateFin = w.weekCode === dateFinWeekCode;
+            return `<th class="mini-gantt-date${isCurrent ? ' current-week' : ''}${isDateFin ? ' date-fin-week' : ''}">${monday ? this._formatDateShort(monday) : ''}</th>`;
+        }).join('');
+
+        // Lignes de phases (une seule ligne avec lanes empilées)
+        const cellWidth = 36; // px
+        const laneHeight = 18;
+        const rowHeight = totalLanes * laneHeight + 8;
+
+        const phaseBarsHtml = allWeeks.map((w, colIdx) => {
+            const isDateFin = w.weekCode === dateFinWeekCode;
+            let cellContent = '';
+            phasePositions.forEach(pp => {
+                if (colIdx === pp.startIdx) {
+                    const width = (pp.endIdx - pp.startIdx + 1);
+                    const top = pp.lane * laneHeight + 2;
+                    cellContent += `<div class="mini-gantt-bar" style="
+                        position:absolute; left:1px; top:${top}px;
+                        width:calc(${width * 100}% + ${(width - 1)}px - 2px);
+                        height:${laneHeight - 2}px;
+                        background:${pp.color};
+                        border-radius:3px;
+                        font-size:9px;
+                        line-height:${laneHeight - 2}px;
+                        padding:0 3px;
+                        overflow:hidden;
+                        white-space:nowrap;
+                        text-overflow:ellipsis;
+                        z-index:1;
+                    " title="${escapeHtml(pp.phase['Phase'])}">${escapeHtml(pp.phase['Phase'])}</div>`;
+                }
+            });
+            return `<td class="mini-gantt-cell${isDateFin ? ' date-fin-week' : ''}" style="position:relative;height:${rowHeight}px;">${cellContent}</td>`;
+        }).join('');
+
+        container.innerHTML = `
+            <div class="mini-gantt-label">Roadmap</div>
+            <div class="mini-gantt-wrapper">
+                <table class="mini-gantt-table">
+                    <thead>
+                        <tr>${sprintsHeaderHtml}</tr>
+                        <tr>${weeksHeaderHtml}</tr>
+                        <tr>${datesHeaderHtml}</tr>
+                    </thead>
+                    <tbody>
+                        <tr>${phaseBarsHtml}</tr>
+                    </tbody>
+                </table>
+            </div>
+        `;
+    },
+
+    // ==========================================
+    // HELPERS SEMAINES (pour mini roadmap)
+    // ==========================================
+
+    _getISOWeekNumber(date) {
+        const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+        const dayNum = d.getUTCDay() || 7;
+        d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+        const year = d.getUTCFullYear();
+        const yearStart = new Date(Date.UTC(year, 0, 1));
+        const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+        return { year, week: weekNo };
+    },
+
+    _formatWeekCode(date) {
+        const { year, week } = this._getISOWeekNumber(date);
+        return `${year}S${String(week).padStart(2, '0')}`;
+    },
+
+    _weekCodeToDate(weekCode) {
+        if (!weekCode || typeof weekCode !== 'string') return null;
+        const match = weekCode.match(/^(\d{4})S(\d{2})$/);
+        if (!match) return null;
+        const year = parseInt(match[1]);
+        const week = parseInt(match[2]);
+        const jan4 = new Date(year, 0, 4);
+        const dayOfWeek = jan4.getDay() || 7;
+        const firstThursday = new Date(jan4);
+        firstThursday.setDate(jan4.getDate() - dayOfWeek + 4);
+        const firstMonday = new Date(firstThursday);
+        firstMonday.setDate(firstThursday.getDate() - 3);
+        const targetMonday = new Date(firstMonday);
+        targetMonday.setDate(firstMonday.getDate() + (week - 1) * 7);
+        return targetMonday;
+    },
+
+    _getWeeksForSprint(sprint) {
+        const weeks = [];
+        const startDate = this._parseDate(sprint['Début']);
+        const endDate = this._parseDate(sprint['Fin']);
+        if (!startDate || !endDate) return weeks;
+
+        startDate.setHours(12, 0, 0, 0);
+        endDate.setHours(12, 0, 0, 0);
+
+        let currentDate = new Date(startDate);
+        currentDate.setHours(12, 0, 0, 0);
+        const dayOfWeek = currentDate.getDay();
+        if (dayOfWeek === 0) {
+            currentDate.setDate(currentDate.getDate() + 1);
+        } else if (dayOfWeek !== 1) {
+            currentDate.setDate(currentDate.getDate() + (8 - dayOfWeek));
+        }
+
+        while (currentDate < endDate) {
+            weeks.push(this._formatWeekCode(currentDate));
+            currentDate.setDate(currentDate.getDate() + 7);
+        }
+        return weeks;
+    },
+
+    _isCurrentSprint(sprint) {
+        if (!sprint || !sprint['Début'] || !sprint['Fin']) return false;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const start = this._parseDate(sprint['Début']);
+        start.setHours(0, 0, 0, 0);
+        const end = this._parseDate(sprint['Fin']);
+        end.setHours(23, 59, 59, 999);
+        return today >= start && today <= end;
+    },
+
+    // ==========================================
+    // ENJEUX - ÉDITEUR RICHE
+    // ==========================================
+
+    execEnjeuxCommand(command) {
+        document.execCommand(command, false, null);
+        const editor = document.getElementById('enjeuxEditor');
+        if (editor) editor.focus();
+    },
+
+    // ==========================================
+    // SECTION LIENS
+    // ==========================================
+
+    _renderLiensList(suffix) {
+        const container = document.getElementById(`chantierLiens${suffix}`);
+        if (!container) return;
+
+        if (this._state.liens.length === 0) {
+            container.innerHTML = '<div class="assigned-items-empty">Aucun lien</div>';
+            return;
+        }
+
+        container.innerHTML = this._state.liens.map((lien, index) => `
+            <div class="mae-lien-row" data-index="${index}">
+                <input type="text" class="form-control" placeholder="Nom du lien"
+                       value="${escapeHtml(lien['Nom lien'] || '')}"
+                       data-field="nom"
+                       onchange="ChantierModal.updateLien(${index}, 'nom', this.value)">
+                <input type="text" class="form-control" placeholder="URL"
+                       value="${escapeHtml(lien['Lien'] || '')}"
+                       data-field="url"
+                       onchange="ChantierModal.updateLien(${index}, 'url', this.value)">
+                <button type="button" class="btn-remove-lien"
+                        onclick="ChantierModal.removeLien(${index})"
+                        title="Supprimer">&#10005;</button>
+            </div>
+        `).join('');
+    },
+
+    addLienRow() {
+        this._state.liens.push({ 'Nom lien': '', 'Lien': '' });
+        const suffix = this._state.mode === 'edit' ? 'Edit' : 'Add';
+        this._renderLiensList(suffix);
+    },
+
+    updateLien(index, field, value) {
+        if (field === 'nom') {
+            this._state.liens[index]['Nom lien'] = value;
+        } else {
+            this._state.liens[index]['Lien'] = value;
+        }
+    },
+
+    removeLien(index) {
+        this._state.liens.splice(index, 1);
+        const suffix = this._state.mode === 'edit' ? 'Edit' : 'Add';
+        this._renderLiensList(suffix);
+    },
+
+    _collectLiens() {
+        const suffix = this._state.mode === 'edit' ? 'Edit' : 'Add';
+        const rows = document.querySelectorAll(`#chantierLiens${suffix} .mae-lien-row`);
+        const liens = [];
+        rows.forEach(row => {
+            const nom = row.querySelector('[data-field="nom"]')?.value || '';
+            const url = row.querySelector('[data-field="url"]')?.value || '';
+            if (nom || url) {
+                liens.push({ 'Nom lien': nom, 'Lien': url });
+            }
+        });
+        return liens;
+    },
+
+    // ==========================================
+    // SECTION MAE
+    // ==========================================
+
+    _renderAssignedMAE(suffix) {
+        const container = document.getElementById(`assignedMAE${suffix}`);
+        if (!container) return;
+
+        if (this._state.selectedMAE.length === 0) {
+            container.innerHTML = '<div class="assigned-items-empty">Aucun MAE assigné</div>';
+            return;
+        }
+
+        container.innerHTML = this._state.selectedMAE.map(numero => {
+            const mae = this._data.mae.find(m => m['Numero'] === numero);
+            const nomDisplay = mae ? (mae['Nom'] || '') : '';
+            return `
+                <div class="assigned-item" data-mae="${escapeHtml(numero)}">
+                    <div class="assigned-item-info">
+                        <div class="assigned-item-name">${escapeHtml(numero)}</div>
+                        ${nomDisplay ? `<div class="assigned-item-detail">${escapeHtml(nomDisplay)}</div>` : ''}
+                    </div>
+                    <div class="assigned-item-actions">
+                        <button type="button" class="btn btn-icon btn-xs btn-danger" title="Enlever" onclick="ChantierModal.removeAssignedMAE('${escapeJsString(numero)}')">&#10005;</button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    },
+
+    removeAssignedMAE(numero) {
+        const idx = this._state.selectedMAE.indexOf(numero);
+        if (idx > -1) {
+            this._state.selectedMAE.splice(idx, 1);
+            if (this._state.renderMAE) {
+                this._state.renderMAE();
+            }
+        }
+    },
+
+    showSelectMAEModal() {
+        const selectedMAE = this._state.selectedMAE;
+
+        const selectedMAEData = this._data.mae.filter(m => selectedMAE.includes(m['Numero']));
+        const unselectedMAEData = this._data.mae.filter(m => !selectedMAE.includes(m['Numero']));
+
+        selectedMAEData.sort((a, b) => (a['Numero'] || '').localeCompare(b['Numero'] || ''));
+        unselectedMAEData.sort((a, b) => (a['Numero'] || '').localeCompare(b['Numero'] || ''));
+
+        const renderList = (searchTerm = '') => {
+            const list = document.getElementById('selectionMAEList');
+            if (!list) return;
+
+            const term = searchTerm.toLowerCase();
+            const filteredSelected = selectedMAEData.filter(m =>
+                (m['Numero'] || '').toLowerCase().includes(term) ||
+                (m['Nom'] || '').toLowerCase().includes(term)
+            );
+            const filteredUnselected = unselectedMAEData.filter(m =>
+                (m['Numero'] || '').toLowerCase().includes(term) ||
+                (m['Nom'] || '').toLowerCase().includes(term)
+            );
+
+            let html = '';
+
+            if (filteredSelected.length > 0) {
+                html += '<div class="selection-separator">Sélectionnés</div>';
+                html += filteredSelected.map(m => `
+                    <label class="selection-item selected">
+                        <input type="checkbox" value="${escapeHtml(m['Numero'])}" checked>
+                        <div class="selection-item-info">
+                            <div class="selection-item-name">${escapeHtml(m['Numero'])}</div>
+                            ${m['Nom'] ? `<div class="selection-item-detail">${escapeHtml(m['Nom'])}</div>` : ''}
+                        </div>
+                    </label>
+                `).join('');
+            }
+
+            if (filteredUnselected.length > 0) {
+                html += '<div class="selection-separator">Disponibles</div>';
+                html += filteredUnselected.map(m => `
+                    <label class="selection-item">
+                        <input type="checkbox" value="${escapeHtml(m['Numero'])}">
+                        <div class="selection-item-info">
+                            <div class="selection-item-name">${escapeHtml(m['Numero'])}</div>
+                            ${m['Nom'] ? `<div class="selection-item-detail">${escapeHtml(m['Nom'])}</div>` : ''}
+                        </div>
+                    </label>
+                `).join('');
+            }
+
+            if (html === '') {
+                html = '<div class="selection-empty">Aucun MAE trouvé</div>';
+            }
+
+            list.innerHTML = html;
+        };
+
+        const content = `
+            <div class="selection-modal">
+                <div class="selection-search">
+                    <input type="text" class="form-control" id="searchMAEInput" placeholder="Rechercher un MAE...">
+                </div>
+                <div class="selection-list" id="selectionMAEList"></div>
+            </div>
+        `;
+
+        showModal({
+            title: 'Sélectionner des MAE',
+            content: content,
+            size: 'md',
+            buttons: [
+                { label: 'Annuler', class: 'btn-secondary', action: 'close' },
+                {
+                    label: 'Valider',
+                    class: 'btn-primary',
+                    action: (modal) => {
+                        const checkboxes = document.querySelectorAll('#selectionMAEList input[type="checkbox"]:checked');
+                        this._state.selectedMAE = Array.from(checkboxes).map(cb => cb.value);
+                        if (this._state.renderMAE) {
+                            this._state.renderMAE();
+                        }
+                        return true;
+                    }
+                }
+            ]
+        });
+
+        setTimeout(() => {
+            renderList();
+            const searchInput = document.getElementById('searchMAEInput');
+            if (searchInput) {
+                searchInput.addEventListener('input', (e) => renderList(e.target.value));
+            }
+        }, 100);
+    },
+
+    // ==========================================
+    // ONGLET NOTES (inchangé)
+    // ==========================================
+
     _renderNotesList() {
         const container = document.getElementById('notesList');
         if (!container) return;
@@ -505,26 +1291,17 @@ const ChantierModal = {
         }).join('');
     },
 
-    /**
-     * Affiche le formulaire d'ajout de note
-     */
     showAddNoteForm() {
         this._state.editingNoteIndex = null;
         this._showNoteForm(null);
     },
 
-    /**
-     * Affiche le formulaire d'édition de note
-     */
     showEditNoteForm(index) {
         this._state.editingNoteIndex = index;
         const note = this._state.notes[index];
         this._showNoteForm(note);
     },
 
-    /**
-     * Affiche le formulaire de note (ajout ou édition)
-     */
     _showNoteForm(note) {
         const container = document.getElementById('noteFormContainer');
         if (!container) return;
@@ -578,16 +1355,12 @@ const ChantierModal = {
 
         container.style.display = 'block';
 
-        // Focus sur l'éditeur
         setTimeout(() => {
             const editor = document.getElementById('noteEditor');
             if (editor) editor.focus();
         }, 100);
     },
 
-    /**
-     * Cache le formulaire de note
-     */
     hideNoteForm() {
         const container = document.getElementById('noteFormContainer');
         if (container) {
@@ -597,19 +1370,12 @@ const ChantierModal = {
         this._state.editingNoteIndex = null;
     },
 
-    /**
-     * Exécute une commande de texte enrichi
-     */
     execRichTextCommand(command) {
         document.execCommand(command, false, null);
-        // Remettre le focus sur l'éditeur
         const editor = document.getElementById('noteEditor');
         if (editor) editor.focus();
     },
 
-    /**
-     * Sauvegarde une note (ajout ou modification)
-     */
     async saveNote() {
         const dateInput = document.getElementById('noteDate');
         const editor = document.getElementById('noteEditor');
@@ -637,7 +1403,6 @@ const ChantierModal = {
             };
 
             if (this._state.editingNoteIndex !== null) {
-                // Modification
                 const existingNote = this._state.notes[this._state.editingNoteIndex];
                 if (existingNote._rowIndex !== undefined) {
                     await updateTableRow('tChantierNote', existingNote._rowIndex, noteData);
@@ -645,27 +1410,21 @@ const ChantierModal = {
                     showSuccess('Note modifiée');
                 }
             } else {
-                // Ajout
                 await addTableRow('tChantierNote', noteData);
                 invalidateCache('tChantierNote');
                 showSuccess('Note ajoutée');
             }
 
-            // Recharger les notes
             await this._reloadNotes();
             this.hideNoteForm();
             this._renderNotesList();
             this._updateNotesBadge();
-
         } catch (error) {
             console.error('Erreur sauvegarde note:', error);
             showError('Erreur lors de la sauvegarde de la note');
         }
     },
 
-    /**
-     * Demande confirmation avant suppression d'une note
-     */
     confirmDeleteNote(index) {
         const note = this._state.notes[index];
         const dateStr = this._formatDate(note['Date']);
@@ -680,9 +1439,6 @@ const ChantierModal = {
         );
     },
 
-    /**
-     * Supprime une note
-     */
     async _deleteNote(index) {
         try {
             const note = this._state.notes[index];
@@ -691,7 +1447,6 @@ const ChantierModal = {
                 invalidateCache('tChantierNote');
                 showSuccess('Note supprimée');
 
-                // Recharger les notes
                 await this._reloadNotes();
                 this._renderNotesList();
                 this._updateNotesBadge();
@@ -702,15 +1457,11 @@ const ChantierModal = {
         }
     },
 
-    /**
-     * Recharge les notes depuis Excel
-     */
     async _reloadNotes() {
         try {
             const notesData = await readTable('tChantierNote');
             this._data.chantierNotes = notesData.data || [];
 
-            // Filtrer et trier pour le chantier courant
             this._state.notes = this._data.chantierNotes
                 .filter(n => n['Chantier'] === this._state.chantierName)
                 .sort((a, b) => {
@@ -723,9 +1474,6 @@ const ChantierModal = {
         }
     },
 
-    /**
-     * Met à jour le badge du nombre de notes
-     */
     _updateNotesBadge() {
         const badge = document.getElementById('notesBadge');
         if (badge) {
@@ -733,9 +1481,10 @@ const ChantierModal = {
         }
     },
 
-    /**
-     * Sauvegarde le chantier (ajout ou modification)
-     */
+    // ==========================================
+    // SAUVEGARDE
+    // ==========================================
+
     async _saveChantier(modal, isEdit) {
         const form = document.getElementById('formChantierModal');
         if (!form.checkValidity()) {
@@ -744,13 +1493,21 @@ const ChantierModal = {
         }
 
         const formData = new FormData(form);
+
+        // Récupérer le contenu Enjeux depuis l'éditeur riche
+        const enjeuxEditor = document.getElementById('enjeuxEditor');
+        const enjeuxContent = enjeuxEditor ? enjeuxEditor.innerHTML.trim() : '';
+        // Nettoyer le contenu vide
+        const enjeuxValue = (enjeuxContent === '<br>' || enjeuxContent === '<br/>' || enjeuxContent === '') ? '' : enjeuxContent;
+
         const chantierData = {
             'Chantier': formData.get('Chantier'),
             'Responsable': formData.get('Responsable'),
             'Perimetre': formData.get('Perimetre'),
             'Processus': formData.get('Processus'),
             'Date fin souhaitée': formData.get('Date fin souhaitée') || '',
-            'Archivé': form.querySelector('input[name="Archivé"]').checked ? true : false
+            'Archivé': form.querySelector('input[name="Archivé"]').checked ? true : false,
+            'Enjeux': enjeuxValue
         };
 
         try {
@@ -775,13 +1532,37 @@ const ChantierModal = {
                     .filter(d => d['Chantier'] === this._state.chantierName);
 
                 for (const dataAna of previouslySelectedDataAnas) {
-                    // Si ce DataAna n'est plus dans la sélection, vider son champ Chantier
                     if (!this._state.selectedDataAnas.includes(dataAna['Clé'])) {
                         if (dataAna._rowIndex !== undefined && dataAna._rowIndex !== null) {
                             const updatedData = { ...dataAna, 'Chantier': '' };
                             delete updatedData._rowIndex;
                             await updateTableRow('tDataAnas', dataAna._rowIndex, updatedData);
                         }
+                    }
+                }
+
+                // Mettre à jour les MAE : vider le champ Chantier pour ceux qui ne sont plus sélectionnés
+                const previouslySelectedMAE = this._data.mae
+                    .filter(m => m['Chantier'] === this._state.chantierName);
+
+                for (const mae of previouslySelectedMAE) {
+                    if (!this._state.selectedMAE.includes(mae['Numero'])) {
+                        if (mae._rowIndex !== undefined && mae._rowIndex !== null) {
+                            const updatedData = { ...mae, 'Chantier': '' };
+                            delete updatedData._rowIndex;
+                            await updateTableRow('tMAE', mae._rowIndex, updatedData);
+                        }
+                    }
+                }
+
+                // Supprimer les anciens liens chantier (en ordre inverse)
+                const oldLiens = this._data.chantierLien
+                    .filter(l => l['Chantier'] === this._state.chantierName)
+                    .sort((a, b) => (b._rowIndex ?? 0) - (a._rowIndex ?? 0));
+
+                for (const lien of oldLiens) {
+                    if (lien._rowIndex !== undefined && lien._rowIndex !== null) {
+                        await deleteTableRow('tChantierLien', lien._rowIndex);
                     }
                 }
             } else {
@@ -803,7 +1584,6 @@ const ChantierModal = {
             for (const dataAnaKey of this._state.selectedDataAnas) {
                 const dataAna = this._data.dataAnas.find(d => d['Clé'] === dataAnaKey);
                 if (dataAna && dataAna._rowIndex !== undefined && dataAna._rowIndex !== null) {
-                    // Mettre à jour uniquement si le chantier est différent
                     if (dataAna['Chantier'] !== chantierData['Chantier']) {
                         const updatedData = { ...dataAna, 'Chantier': chantierData['Chantier'] };
                         delete updatedData._rowIndex;
@@ -813,9 +1593,32 @@ const ChantierModal = {
             }
             invalidateCache('tDataAnas');
 
+            // Mettre à jour le champ Chantier des MAE sélectionnés
+            for (const maeNumero of this._state.selectedMAE) {
+                const mae = this._data.mae.find(m => m['Numero'] === maeNumero);
+                if (mae && mae._rowIndex !== undefined && mae._rowIndex !== null) {
+                    if (mae['Chantier'] !== chantierData['Chantier']) {
+                        const updatedData = { ...mae, 'Chantier': chantierData['Chantier'] };
+                        delete updatedData._rowIndex;
+                        await updateTableRow('tMAE', mae._rowIndex, updatedData);
+                    }
+                }
+            }
+            invalidateCache('tMAE');
+
+            // Ajouter les nouveaux liens du chantier
+            const currentLiens = this._collectLiens();
+            for (const lien of currentLiens) {
+                await addTableRow('tChantierLien', {
+                    'Chantier': chantierData['Chantier'],
+                    'Nom lien': lien['Nom lien'],
+                    'Lien': lien['Lien']
+                });
+            }
+            invalidateCache('tChantierLien');
+
             showSuccess(isEdit ? 'Chantier modifié avec succès' : 'Chantier ajouté avec succès');
 
-            // Appeler le callback de succès
             if (this._state.onSuccess) {
                 await this._state.onSuccess();
             }
@@ -828,9 +1631,10 @@ const ChantierModal = {
         }
     },
 
-    /**
-     * Rendu des produits assignés
-     */
+    // ==========================================
+    // SECTIONS PRODUITS ET DATAANAS (existantes)
+    // ==========================================
+
     _renderAssignedProduits(suffix) {
         const container = document.getElementById(`assignedProduits${suffix}`);
         if (!container) return;
@@ -861,9 +1665,6 @@ const ChantierModal = {
         }).join('');
     },
 
-    /**
-     * Rendu des DataAnas assignés
-     */
     _renderAssignedDataAnas(suffix) {
         const container = document.getElementById(`assignedDataAnas${suffix}`);
         if (!container) return;
@@ -890,9 +1691,6 @@ const ChantierModal = {
         }).join('');
     },
 
-    /**
-     * Supprime un produit assigné
-     */
     removeAssignedProduit(produitName) {
         const idx = this._state.selectedProduits.indexOf(produitName);
         if (idx > -1) {
@@ -903,9 +1701,6 @@ const ChantierModal = {
         }
     },
 
-    /**
-     * Supprime un DataAna assigné
-     */
     removeAssignedDataAna(dataAnaKey) {
         const idx = this._state.selectedDataAnas.indexOf(dataAnaKey);
         if (idx > -1) {
@@ -916,17 +1711,12 @@ const ChantierModal = {
         }
     },
 
-    /**
-     * Affiche la modale de sélection de produits
-     */
     showSelectProduitsModal() {
         const selectedProduits = this._state.selectedProduits;
 
-        // Séparer les produits sélectionnés et non sélectionnés
         const selectedProduitsData = this._data.produits.filter(p => selectedProduits.includes(p['Nom']));
         const unselectedProduitsData = this._data.produits.filter(p => !selectedProduits.includes(p['Nom']));
 
-        // Trier alphabétiquement
         selectedProduitsData.sort((a, b) => (a['Nom'] || '').localeCompare(b['Nom'] || ''));
         unselectedProduitsData.sort((a, b) => (a['Nom'] || '').localeCompare(b['Nom'] || ''));
 
@@ -1012,17 +1802,12 @@ const ChantierModal = {
         }, 100);
     },
 
-    /**
-     * Affiche la modale de sélection de DataAnas
-     */
     showSelectDataAnasModal() {
         const selectedDataAnas = this._state.selectedDataAnas;
 
-        // Séparer les DataAnas sélectionnés et non sélectionnés
         const selectedDataAnasData = this._data.dataAnas.filter(d => selectedDataAnas.includes(d['Clé']));
         const unselectedDataAnasData = this._data.dataAnas.filter(d => !selectedDataAnas.includes(d['Clé']));
 
-        // Trier alphabétiquement
         selectedDataAnasData.sort((a, b) => (a['Clé'] || '').localeCompare(b['Clé'] || ''));
         unselectedDataAnasData.sort((a, b) => (a['Clé'] || '').localeCompare(b['Clé'] || ''));
 

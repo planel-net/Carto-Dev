@@ -216,7 +216,8 @@ const CONFIG = {
                 { field: 'Archivé', label: 'Archivé', type: 'checkbox' },
                 { field: 'Perimetre', label: 'Périmètre', type: 'select', source: 'PERIMETRES', sourceField: 'Périmetre' },
                 { field: 'Processus', label: 'Processus', type: 'select', source: 'PROCESSUS', sourceField: 'Processus' },
-                { field: 'Date fin souhaitée', label: 'Date fin souhaitée', type: 'date' }
+                { field: 'Date fin souhaitée', label: 'Date fin souhaitée', type: 'date' },
+                { field: 'Enjeux', label: 'Enjeux', type: 'textarea' }
             ]
         },
         PHASES: {
@@ -285,6 +286,17 @@ const CONFIG = {
                 { field: 'DataAna', label: 'DataAna', type: 'select', source: 'DATAANA', sourceField: 'Clé' }
             ]
         },
+        CHANTIER_LIEN: {
+            name: 'tChantierLien',
+            sheet: 'ChantierLien',
+            displayName: 'Liens Chantiers',
+            icon: '&#128279;',
+            columns: [
+                { field: 'Chantier', label: 'Chantier', type: 'select', source: 'CHANTIER', sourceField: 'Chantier' },
+                { field: 'Nom lien', label: 'Nom du lien', type: 'text' },
+                { field: 'Lien', label: 'URL', type: 'text' }
+            ]
+        },
         // Tables MAE (Demandes Data)
         MAE: {
             name: 'tMAE',
@@ -308,7 +320,8 @@ const CONFIG = {
                 { field: 'Equipe', label: 'Équipe', type: 'select', options: ['DE', 'DA', 'DATA VIZ'] },
                 { field: 'JH DE', label: 'JH DE', type: 'number' },
                 { field: 'JH DA', label: 'JH DA', type: 'number' },
-                { field: 'JH DATA VIZ', label: 'JH DATA VIZ', type: 'number' }
+                { field: 'JH DATA VIZ', label: 'JH DATA VIZ', type: 'number' },
+                { field: 'Chantier', label: 'Chantier', type: 'select', source: 'CHANTIER', sourceField: 'Chantier' }
             ]
         },
         MAE_NOTE: {

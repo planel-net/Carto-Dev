@@ -1266,3 +1266,229 @@ tr.drag-over {
     border-radius: 9px;
     margin-right: var(--spacing-sm);
 }
+
+/* ===========================================
+   CHANTIER MODAL - Layout 2 colonnes
+   =========================================== */
+
+.chantier-modal-columns {
+    display: flex;
+    gap: var(--spacing-lg);
+}
+
+.chantier-modal-left {
+    flex: 55;
+    min-width: 0;
+}
+
+.chantier-modal-right {
+    flex: 45;
+    min-width: 0;
+}
+
+@media (max-width: 900px) {
+    .chantier-modal-columns {
+        flex-direction: column;
+    }
+}
+
+/* ===========================================
+   CHANTIER MODAL - Onglet Phases
+   =========================================== */
+
+.phases-section {
+    padding: 0;
+}
+
+.phases-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-md);
+}
+
+.phases-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.phases-table thead th {
+    background: var(--mh-bleu-fonce);
+    color: #fff;
+    padding: 8px 12px;
+    text-align: left;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.phases-table tbody tr.phase-row {
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+    transition: background var(--transition-fast);
+}
+
+.phases-table tbody tr.phase-row:hover {
+    background: #e8f0fe;
+}
+
+.phases-table tbody td {
+    padding: 8px 12px;
+    color: var(--mh-gris-fonce);
+    vertical-align: middle;
+}
+
+.phase-color-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: middle;
+}
+
+.phases-empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--mh-gris-moyen);
+    font-style: italic;
+}
+
+/* ===========================================
+   CHANTIER MODAL - Mini Roadmap (Gantt)
+   =========================================== */
+
+.chantier-mini-roadmap {
+    margin-top: var(--spacing-lg);
+    padding-top: var(--spacing-md);
+    border-top: 2px solid #dee2e6;
+}
+
+.mini-gantt-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--mh-bleu-fonce);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: var(--spacing-sm);
+}
+
+.mini-gantt-wrapper {
+    overflow-x: auto;
+    border: 1px solid #dee2e6;
+    border-radius: var(--border-radius-sm);
+}
+
+.mini-gantt-table {
+    border-collapse: collapse;
+    font-size: 11px;
+    min-width: 100%;
+}
+
+.mini-gantt-table th,
+.mini-gantt-table td {
+    border: 1px solid #dee2e6;
+    text-align: center;
+    white-space: nowrap;
+}
+
+/* Sprint header row */
+.mini-gantt-sprint {
+    background: var(--mh-bleu-fonce);
+    color: #fff;
+    padding: 4px 6px;
+    font-weight: 600;
+    font-size: 11px;
+}
+
+.mini-gantt-sprint.current-sprint {
+    background: var(--mh-rouge-erreur);
+}
+
+/* Week number row */
+.mini-gantt-week {
+    background: #e9ecef;
+    color: var(--mh-gris-fonce);
+    padding: 3px 4px;
+    font-weight: 600;
+    font-size: 10px;
+    min-width: 36px;
+}
+
+.mini-gantt-week.current-week {
+    background: #ffcdd2;
+    color: var(--mh-rouge-erreur);
+    font-weight: 700;
+}
+
+/* Date row */
+.mini-gantt-date {
+    background: #f8f9fa;
+    color: var(--mh-gris-moyen);
+    padding: 2px 4px;
+    font-size: 9px;
+}
+
+.mini-gantt-date.current-week {
+    background: #ffebee;
+}
+
+/* Data cells */
+.mini-gantt-cell {
+    padding: 0;
+    height: 28px;
+    position: relative;
+    background: #fff;
+}
+
+/* Phase bars */
+.mini-gantt-bar {
+    position: absolute;
+    top: 3px;
+    bottom: 3px;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    padding: 0 4px;
+    font-size: 9px;
+    font-weight: 600;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    z-index: 1;
+}
+
+/* Date fin souhaitée indicator */
+.date-fin-week {
+    border-right: 2px dashed var(--mh-rouge-erreur) !important;
+}
+
+/* ===========================================
+   SELECTION MODAL - Empty state
+   =========================================== */
+
+.selection-empty {
+    text-align: center;
+    padding: 20px;
+    color: var(--mh-gris-moyen);
+    font-style: italic;
+    font-size: 13px;
+}
+
+/* ===========================================
+   CHECKBOX LABEL
+   =========================================== */
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--mh-gris-fonce);
+}
+
+.checkbox-label input[type="checkbox"] {
+    margin: 0;
+}
