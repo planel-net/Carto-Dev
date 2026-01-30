@@ -211,6 +211,7 @@ const CONFIG = {
             displayName: 'Chantiers',
             icon: '&#128736;',
             columns: [
+                { field: 'NumChantier', label: 'N° Chantier', type: 'text' },
                 { field: 'Chantier', label: 'Chantier', type: 'text', required: true },
                 { field: 'Responsable', label: 'Responsable', type: 'select', source: 'ACTEURS', sourceField: 'Mail' },
                 { field: 'Archivé', label: 'Archivé', type: 'checkbox' },

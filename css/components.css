@@ -782,6 +782,18 @@ textarea.form-control {
     min-width: 0;
 }
 
+.assigned-item-clickable {
+    cursor: pointer;
+    border-radius: var(--border-radius-sm);
+    padding: 2px 4px;
+    margin: -2px -4px;
+    transition: background-color var(--transition-fast);
+}
+
+.assigned-item-clickable:hover {
+    background-color: var(--mh-gris-clair);
+}
+
 .assigned-item-name {
     font-weight: 500;
     color: var(--mh-gris-fonce);

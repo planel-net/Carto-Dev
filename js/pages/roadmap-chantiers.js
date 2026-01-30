@@ -845,6 +845,8 @@ class RoadmapChantiersPage {
         // Construire les lignes de chantiers
         const rowsHtml = filteredChantiers.map((chantier, chantierIndex) => {
             const chantierName = chantier['Chantier'];
+            const numChantier = chantier['NumChantier'] || '';
+            const chantierDisplayName = numChantier ? `${numChantier} - ${chantierName}` : chantierName;
             const chantierPhases = this.getPhasesForChantier(chantierName);
 
             // Calculer les phases par position (semaine)
@@ -855,7 +857,7 @@ class RoadmapChantiersPage {
                 <tr class="gantt-chantier-row" data-chantier="${escapeHtml(chantierName)}">
                     <td class="gantt-chantier-cell">
                         <div class="chantier-info">
-                            <span class="chantier-name" title="${escapeHtml(chantierName)}">${escapeHtml(chantierName)}</span>
+                            <span class="chantier-name" title="${escapeHtml(chantierDisplayName)}">${escapeHtml(chantierDisplayName)}</span>
                             <div class="chantier-actions">
                                 ${noteCount > 0 ? `<span class="notes-badge" title="${noteCount} note${noteCount > 1 ? 's' : ''}">${noteCount}</span>` : ''}
                                 <button class="btn btn-icon btn-xs" title="Modifier" onclick="roadmapChantiersPageInstance.showEditChantierModal('${escapeJsString(chantierName)}')">
@@ -2379,9 +2381,11 @@ class RoadmapChantiersPage {
     }
 
     async showArchiveConfirmation(chantierName) {
+        const chantierObj = this.chantiers.find(c => c['Chantier'] === chantierName);
+        const numCh = chantierObj && chantierObj['NumChantier'] ? `${chantierObj['NumChantier']} - ` : '';
         showConfirmModal(
             'Archiver le chantier',
-            `Êtes-vous sûr de vouloir archiver le chantier "${chantierName}" ?`,
+            `Êtes-vous sûr de vouloir archiver le chantier "${numCh}${chantierName}" ?`,
             async () => {
                 try {
                     const chantierIndex = this.chantiers.findIndex(c => c['Chantier'] === chantierName);
@@ -2426,9 +2430,11 @@ class RoadmapChantiersPage {
     }
 
     async showDeleteChantierConfirmation(chantierName) {
+        const chantierObj = this.chantiers.find(c => c['Chantier'] === chantierName);
+        const numCh = chantierObj && chantierObj['NumChantier'] ? `${chantierObj['NumChantier']} - ` : '';
         showConfirmModal(
             'Supprimer le chantier',
-            `Êtes-vous sûr de vouloir supprimer définitivement le chantier "${chantierName}" et toutes ses phases ?`,
+            `Êtes-vous sûr de vouloir supprimer définitivement le chantier "${numCh}${chantierName}" et toutes ses phases ?`,
             async () => {
                 try {
                     // Supprimer les phases du chantier (en ordre inverse pour éviter les décalages d'index)
@@ -2495,7 +2501,11 @@ class RoadmapChantiersPage {
 
             if (searchTerm) {
                 const term = searchTerm.toLowerCase();
-                filtered = filtered.filter(c => c['Chantier'].toLowerCase().includes(term));
+                filtered = filtered.filter(c => {
+                    const num = c['NumChantier'] || '';
+                    const name = c['Chantier'] || '';
+                    return name.toLowerCase().includes(term) || num.toLowerCase().includes(term);
+                });
             }
             if (filterPerimetre) {
                 filtered = filtered.filter(c => c['Perimetre'] === filterPerimetre);
@@ -2506,17 +2516,20 @@ class RoadmapChantiersPage {
 
             return filtered.length === 0 ?
                 '<p class="text-muted">Aucun chantier archivé trouvé</p>' :
-                filtered.map(c => `
+                filtered.map(c => {
+                    const num = c['NumChantier'] || '';
+                    const displayName = num ? `${num} - ${c['Chantier']}` : c['Chantier'];
+                    return `
                     <div class="archived-chantier-item">
                         <div class="archived-chantier-info">
-                            <strong>${escapeHtml(c['Chantier'])}</strong>
+                            <strong>${escapeHtml(displayName)}</strong>
                             <span class="text-muted">${this.formatActorName(c['Responsable'])}</span>
                         </div>
                         <button class="btn btn-sm btn-success" onclick="roadmapChantiersPageInstance.unarchiveChantier('${escapeJsString(c['Chantier'])}')">
                             Réafficher
                         </button>
                     </div>
-                `).join('');
+                `;}).join('');
         };
 
         const perimList = [...new Set(this.chantiersArchives.map(c => c['Perimetre']).filter(Boolean))];
@@ -3386,8 +3399,10 @@ class RoadmapChantiersPage {
 
             filteredChantiers.forEach((chantier, rowIdx) => {
                 const chantierName = chantier['Chantier'] || '';
+                const numChantier = chantier['NumChantier'] || '';
+                const chantierDisplayName = numChantier ? `${numChantier} - ${chantierName}` : chantierName;
                 const chantierPhases = this.phases.filter(p => p['Chantier'] === chantierName);
-                const row = [chantierName];
+                const row = [chantierDisplayName];
 
                 let weekIdx = 0;
                 while (weekIdx < allWeeks.length) {

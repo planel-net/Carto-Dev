@@ -499,8 +499,11 @@ const ChantierModal = {
             </div>
         `;
 
+        const numChantier = chantier['NumChantier'] || '';
+        const modalTitle = numChantier ? `${numChantier} - ${chantierName}` : chantierName;
+
         showModal({
-            title: 'Modifier le chantier',
+            title: modalTitle,
             content: content,
             size: 'xl',
             buttons: [
@@ -519,6 +522,32 @@ const ChantierModal = {
         setTimeout(() => {
             this._renderMiniRoadmap();
         }, 100);
+    },
+
+    // ==========================================
+    // AUTO-NUMBERING
+    // ==========================================
+
+    /**
+     * Génère un numéro de chantier au format C-YYYY-NNN
+     */
+    _generateNumChantier() {
+        const year = new Date().getFullYear();
+        const prefix = `C-${year}-`;
+
+        let maxNum = 0;
+        for (const c of this._data.chantiers) {
+            const num = c['NumChantier'] || '';
+            if (num.startsWith(prefix)) {
+                const n = parseInt(num.slice(prefix.length), 10);
+                if (!isNaN(n) && n > maxNum) {
+                    maxNum = n;
+                }
+            }
+        }
+
+        const next = String(maxNum + 1).padStart(3, '0');
+        return `${prefix}${next}`;
     },
 
     // ==========================================
@@ -641,6 +670,8 @@ const ChantierModal = {
                         <th>Mode</th>
                         <th>Début</th>
                         <th>Fin</th>
+                        <th>Date début</th>
+                        <th>Date fin</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -650,6 +681,24 @@ const ChantierModal = {
                         const fin = mode === 'Semaine' ? (phase['Semaine fin'] || '') : (phase['Sprint fin'] || '');
                         const color = phase['Couleur'] || CONFIG.PHASE_COLORS[phase['Type phase']] || '#ccc';
                         const phaseIndex = this._data.phases.indexOf(phase);
+
+                        // Calculer les dates réelles
+                        let dateDebut = '', dateFin = '';
+                        if (mode === 'Semaine') {
+                            const dStart = this._weekCodeToDate(phase['Semaine début']);
+                            const dEnd = this._weekCodeToDate(phase['Semaine fin']);
+                            if (dStart) dateDebut = this._formatDate(dStart);
+                            if (dEnd) {
+                                const endFriday = new Date(dEnd);
+                                endFriday.setDate(endFriday.getDate() + 4);
+                                dateFin = this._formatDate(endFriday);
+                            }
+                        } else {
+                            const sprintDebut = this._data.sprints.find(s => s['Sprint'] === phase['Sprint début']);
+                            const sprintFin = this._data.sprints.find(s => s['Sprint'] === phase['Sprint fin']);
+                            if (sprintDebut) dateDebut = this._formatDate(sprintDebut['Début']);
+                            if (sprintFin) dateFin = this._formatDate(sprintFin['Fin']);
+                        }
 
                         return `
                             <tr class="phase-row" data-phase-index="${phaseIndex}" ondblclick="ChantierModal.openEditPhase(${phaseIndex})">
@@ -661,6 +710,8 @@ const ChantierModal = {
                                 <td>${escapeHtml(mode)}</td>
                                 <td>${escapeHtml(debut)}</td>
                                 <td>${escapeHtml(fin)}</td>
+                                <td>${escapeHtml(dateDebut)}</td>
+                                <td>${escapeHtml(dateFin)}</td>
                             </tr>
                         `;
                     }).join('')}
@@ -739,45 +790,54 @@ const ChantierModal = {
         const chantierPhases = this._data.phases
             .filter(p => p['Chantier'] === this._state.chantierName);
 
-        if (chantierPhases.length === 0 || this._data.sprints.length === 0) {
+        if (this._data.sprints.length === 0) {
             containers.forEach(c => c.innerHTML = '');
             return;
         }
 
-        // Trouver les sprints couverts par les phases
-        const coveredSprintNames = new Set();
-        chantierPhases.forEach(phase => {
-            const mode = phase['Mode'] || 'Sprint';
-            if (mode === 'Sprint') {
-                const startIdx = this._data.sprints.findIndex(s => s['Sprint'] === phase['Sprint début']);
-                const endIdx = this._data.sprints.findIndex(s => s['Sprint'] === phase['Sprint fin']);
-                if (startIdx >= 0 && endIdx >= 0) {
-                    for (let i = startIdx; i <= endIdx; i++) {
-                        coveredSprintNames.add(this._data.sprints[i]['Sprint']);
-                    }
+        let visibleSprints;
+
+        if (chantierPhases.length === 0) {
+            // Fallback: sprint courant + 5 suivants
+            const currentIdx = this._data.sprints.findIndex(s => this._isCurrentSprint(s));
+            const startIdx = Math.max(0, currentIdx >= 0 ? currentIdx : 0);
+            const endIdx = Math.min(this._data.sprints.length - 1, startIdx + 5);
+            visibleSprints = this._data.sprints.slice(startIdx, endIdx + 1);
+        } else {
+            // Trouver les indices de sprint min/max couverts par les phases
+            const allNames = this._data.sprints.map(s => s['Sprint']);
+            let minIdx = Infinity, maxIdx = -1;
+
+            chantierPhases.forEach(phase => {
+                const mode = phase['Mode'] || 'Sprint';
+                if (mode === 'Sprint') {
+                    const sIdx = allNames.indexOf(phase['Sprint début']);
+                    const eIdx = allNames.indexOf(phase['Sprint fin']);
+                    if (sIdx >= 0 && sIdx < minIdx) minIdx = sIdx;
+                    if (eIdx >= 0 && eIdx > maxIdx) maxIdx = eIdx;
+                } else {
+                    // Semaine mode: trouver les sprints correspondants
+                    const wStart = phase['Semaine début'] || '';
+                    const wEnd = phase['Semaine fin'] || '';
+                    this._data.sprints.forEach((s, idx) => {
+                        const weeks = this._getWeeksForSprint(s);
+                        if (weeks.length > 0 && weeks.some(w => w >= wStart && w <= wEnd)) {
+                            if (idx < minIdx) minIdx = idx;
+                            if (idx > maxIdx) maxIdx = idx;
+                        }
+                    });
                 }
-            } else {
-                // Semaine mode: find sprints that cover these weeks
-                this._data.sprints.forEach(s => coveredSprintNames.add(s['Sprint']));
+            });
+
+            if (minIdx === Infinity || maxIdx === -1) {
+                containers.forEach(c => c.innerHTML = '');
+                return;
             }
-        });
 
-        // Ajouter une marge d'un sprint avant/après
-        const allNames = this._data.sprints.map(s => s['Sprint']);
-        let minIdx = Infinity, maxIdx = -1;
-        coveredSprintNames.forEach(name => {
-            const idx = allNames.indexOf(name);
-            if (idx < minIdx) minIdx = idx;
-            if (idx > maxIdx) maxIdx = idx;
-        });
-
-        // Étendre d'un sprint avant/après
-        minIdx = Math.max(0, minIdx - 1);
-        maxIdx = Math.min(allNames.length - 1, maxIdx + 1);
-
-        const visibleSprints = this._data.sprints.slice(minIdx, maxIdx + 1);
+            visibleSprints = this._data.sprints.slice(minIdx, maxIdx + 1);
+        }
         if (visibleSprints.length === 0) {
-            container.innerHTML = '';
+            containers.forEach(c => c.innerHTML = '');
             return;
         }
 
@@ -796,7 +856,7 @@ const ChantierModal = {
         });
 
         if (allWeeks.length === 0) {
-            container.innerHTML = '';
+            containers.forEach(c => c.innerHTML = '');
             return;
         }
 
@@ -1093,7 +1153,7 @@ const ChantierModal = {
             const nomDisplay = mae ? (mae['Nom'] || '') : '';
             return `
                 <div class="assigned-item" data-mae="${escapeHtml(numero)}">
-                    <div class="assigned-item-info">
+                    <div class="assigned-item-info assigned-item-clickable" onclick="ChantierModal.openMAEModal('${escapeJsString(numero)}')" title="Ouvrir la fiche">
                         <div class="assigned-item-name">${escapeHtml(numero)}</div>
                         ${nomDisplay ? `<div class="assigned-item-detail">${escapeHtml(nomDisplay)}</div>` : ''}
                     </div>
@@ -1438,6 +1498,70 @@ const ChantierModal = {
     },
 
     // ==========================================
+    // OUVERTURE MODALES ASSOCIATIONS
+    // ==========================================
+
+    openProduitModal(produitName) {
+        const produit = this._data.produits.find(p => p['Nom'] === produitName);
+        if (!produit || produit._rowIndex === undefined) return;
+
+        const fields = CONFIG.TABLES.PRODUITS.columns;
+        const initialData = { ...produit };
+        delete initialData._rowIndex;
+
+        showFormModal('Modifier le produit', fields, async (formData) => {
+            try {
+                await updateTableRow('tProduits', produit._rowIndex, formData);
+                invalidateCache('tProduits');
+                showSuccess('Produit modifié');
+                const produitsData = await readTable('tProduits');
+                this._data.produits = produitsData.data || [];
+                if (this._state.renderProduits) this._state.renderProduits();
+                return true;
+            } catch (error) {
+                console.error('Erreur modification produit:', error);
+                showError('Erreur lors de la modification du produit');
+                return false;
+            }
+        }, initialData);
+    },
+
+    openDataAnaModal(dataAnaKey) {
+        const dataAna = this._data.dataAnas.find(d => d['Clé'] === dataAnaKey);
+        if (!dataAna || dataAna._rowIndex === undefined) return;
+
+        const fields = CONFIG.TABLES.DATAANA.columns;
+        const initialData = { ...dataAna };
+        delete initialData._rowIndex;
+
+        showFormModal('Modifier le DataAna', fields, async (formData) => {
+            try {
+                await updateTableRow('tDataAnas', dataAna._rowIndex, formData);
+                invalidateCache('tDataAnas');
+                showSuccess('DataAna modifié');
+                const dataAnasData = await readTable('tDataAnas');
+                this._data.dataAnas = dataAnasData.data || [];
+                if (this._state.renderDataAnas) this._state.renderDataAnas();
+                return true;
+            } catch (error) {
+                console.error('Erreur modification DataAna:', error);
+                showError('Erreur lors de la modification du DataAna');
+                return false;
+            }
+        }, initialData);
+    },
+
+    openMAEModal(numero) {
+        if (typeof MAEModal !== 'undefined' && MAEModal.showEditModal) {
+            MAEModal.showEditModal(numero, async () => {
+                const maeData = await readTable('tMAE');
+                this._data.mae = maeData.data || [];
+                if (this._state.renderMAE) this._state.renderMAE();
+            });
+        }
+    },
+
+    // ==========================================
     // SAUVEGARDE
     // ==========================================
 
@@ -1465,6 +1589,11 @@ const ChantierModal = {
             'Archivé': form.querySelector('input[name="Archivé"]').checked ? true : false,
             'Enjeux': enjeuxValue
         };
+
+        // Pour un nouveau chantier, générer le NumChantier
+        if (!isEdit) {
+            chantierData['NumChantier'] = this._generateNumChantier();
+        }
 
         try {
             if (isEdit) {
@@ -1609,7 +1738,7 @@ const ChantierModal = {
             }
             return `
                 <div class="assigned-item" data-produit="${escapeHtml(produitName)}">
-                    <div class="assigned-item-info">
+                    <div class="assigned-item-info assigned-item-clickable" onclick="ChantierModal.openProduitModal('${escapeJsString(produitName)}')" title="Ouvrir la fiche">
                         <div class="assigned-item-name">${escapeHtml(produitName)}</div>
                         ${responsableDisplay ? `<div class="assigned-item-detail">${escapeHtml(responsableDisplay)}</div>` : ''}
                     </div>
@@ -1635,8 +1764,8 @@ const ChantierModal = {
             const jiraUrl = `https://malakoffhumanis.atlassian.net/browse/${dataAnaKey}`;
             return `
                 <div class="assigned-item" data-dataana="${escapeHtml(dataAnaKey)}">
-                    <div class="assigned-item-info">
-                        <a href="${escapeHtml(jiraUrl)}" target="_blank" rel="noopener noreferrer" class="assigned-item-link">${escapeHtml(dataAnaKey)}</a>
+                    <div class="assigned-item-info assigned-item-clickable" onclick="ChantierModal.openDataAnaModal('${escapeJsString(dataAnaKey)}')" title="Ouvrir la fiche">
+                        <a href="${escapeHtml(jiraUrl)}" target="_blank" rel="noopener noreferrer" class="assigned-item-link" onclick="event.stopPropagation()">${escapeHtml(dataAnaKey)}</a>
                         ${dataAna && dataAna['Résumé'] ? `<div class="assigned-item-detail">${escapeHtml(dataAna['Résumé'])}</div>` : ''}
                     </div>
                     <div class="assigned-item-actions">
