@@ -597,7 +597,7 @@ class MAEPage {
                             const statut = d['État'] || 'À FAIRE';
                             return `
                                 <tr onclick="maePageInstance.openDemande('${escapeJsString(d['Clé'])}')">
-                                    <td><strong>${escapeHtml(d['Clé'] || '')}</strong></td>
+                                    <td><strong>${d['Clé'] ? `<a href="https://malakoffhumanis.atlassian.net/browse/${encodeURIComponent(d['Clé'])}" target="_blank" rel="noopener noreferrer" class="table-link" title="Ouvrir dans Jira" onclick="event.stopPropagation()">${escapeHtml(d['Clé'])}</a>` : ''}</strong></td>
                                     <td>${escapeHtml(d['Résumé'] || '')}</td>
                                     <td>${escapeHtml(d['Périmètre - MAE'] || '')}</td>
                                     <td>${escapeHtml(d['Rapporteur'] || '')}</td>

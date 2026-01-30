@@ -818,6 +818,15 @@ class RoadmapChantiersPage {
      */
     renderGantt() {
         const container = document.getElementById('ganttContainer');
+
+        // Sauvegarder les positions de scroll avant le re-rendu
+        const mainBody = document.querySelector('.main-body');
+        const savedScroll = {
+            mainBodyTop: mainBody ? mainBody.scrollTop : 0,
+            ganttLeft: container ? container.scrollLeft : 0,
+            ganttTop: container ? container.scrollTop : 0
+        };
+
         const visibleSprints = this.getVisibleSprints();
         const filteredChantiers = this.getFilteredChantiers();
 
@@ -966,6 +975,15 @@ class RoadmapChantiersPage {
 
         // Calculer les largeurs des phases après le rendu (basé sur la largeur réelle des colonnes)
         this.updatePhaseWidths();
+
+        // Restaurer les positions de scroll après le rendu
+        requestAnimationFrame(() => {
+            if (mainBody) mainBody.scrollTop = savedScroll.mainBodyTop;
+            if (container) {
+                container.scrollLeft = savedScroll.ganttLeft;
+                container.scrollTop = savedScroll.ganttTop;
+            }
+        });
     }
 
     /**
@@ -3117,6 +3135,15 @@ class RoadmapChantiersPage {
     }
 
     async refresh() {
+        // Sauvegarder la position de scroll de la page avant tout re-rendu
+        const mainBody = document.querySelector('.main-body');
+        const ganttContainer = document.getElementById('ganttContainer');
+        const savedScroll = {
+            mainBodyTop: mainBody ? mainBody.scrollTop : 0,
+            ganttLeft: ganttContainer ? ganttContainer.scrollLeft : 0,
+            ganttTop: ganttContainer ? ganttContainer.scrollTop : 0
+        };
+
         // Invalider les caches (taskpane + dialog) pour forcer le rechargement depuis Excel
         await Promise.all([
             invalidateCache('tChantiers'),
@@ -3131,6 +3158,15 @@ class RoadmapChantiersPage {
         this.attachFilterEvents();
         this.renderGantt();
         // attachCellEvents est appelé dans renderGantt, pas besoin de l'appeler ici
+
+        // Restaurer la position de scroll (couvre le cas où renderFilters modifie le layout)
+        requestAnimationFrame(() => {
+            if (mainBody) mainBody.scrollTop = savedScroll.mainBodyTop;
+            if (ganttContainer) {
+                ganttContainer.scrollLeft = savedScroll.ganttLeft;
+                ganttContainer.scrollTop = savedScroll.ganttTop;
+            }
+        });
     }
 
     /**
