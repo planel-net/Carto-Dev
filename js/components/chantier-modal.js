@@ -403,6 +403,11 @@ const ChantierModal = {
                         <div class="rich-text-editor" id="enjeuxEditor" contenteditable="true" style="min-height: 100px; resize: vertical; overflow: auto;">${chantier['Enjeux'] || ''}</div>
                     </div>
                 </form>
+
+                <!-- Mini Roadmap -->
+                <div class="chantier-mini-roadmap" id="chantierMiniRoadmapGeneral">
+                    <!-- Généré dynamiquement -->
+                </div>
             </div>
 
             <!-- Contenu onglet Phases -->
@@ -510,6 +515,10 @@ const ChantierModal = {
             ]
         });
 
+        // Rendre la mini roadmap sur l'onglet Général (actif par défaut)
+        setTimeout(() => {
+            this._renderMiniRoadmap();
+        }, 100);
     },
 
     // ==========================================
@@ -569,6 +578,9 @@ const ChantierModal = {
         if (tabAssociations) tabAssociations.classList.toggle('active', tabName === 'associations');
         if (tabNotes) tabNotes.classList.toggle('active', tabName === 'notes');
 
+        if (tabName === 'general') {
+            this._renderMiniRoadmap();
+        }
         if (tabName === 'phases') {
             this._renderPhasesTable();
             this._renderMiniRoadmap();
@@ -721,14 +733,14 @@ const ChantierModal = {
     // ==========================================
 
     _renderMiniRoadmap() {
-        const container = document.getElementById('chantierMiniRoadmap');
-        if (!container) return;
+        const containers = document.querySelectorAll('#chantierMiniRoadmap, #chantierMiniRoadmapGeneral');
+        if (containers.length === 0) return;
 
         const chantierPhases = this._data.phases
             .filter(p => p['Chantier'] === this._state.chantierName);
 
         if (chantierPhases.length === 0 || this._data.sprints.length === 0) {
-            container.innerHTML = '';
+            containers.forEach(c => c.innerHTML = '');
             return;
         }
 
@@ -899,7 +911,7 @@ const ChantierModal = {
             return `<td class="mini-gantt-cell${isDateFin ? ' date-fin-week' : ''}" style="position:relative;height:${rowHeight}px;">${cellContent}</td>`;
         }).join('');
 
-        container.innerHTML = `
+        const html = `
             <div class="mini-gantt-label">Roadmap</div>
             <div class="mini-gantt-wrapper">
                 <table class="mini-gantt-table">
@@ -914,6 +926,7 @@ const ChantierModal = {
                 </table>
             </div>
         `;
+        containers.forEach(c => c.innerHTML = html);
     },
 
     // ==========================================
