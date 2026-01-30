@@ -1609,9 +1609,12 @@ const ChantierModal = {
             'Enjeux': enjeuxValue
         };
 
-        // Pour un nouveau chantier, générer le NumChantier
+        // NumChantier : générer pour un nouveau chantier, préserver pour un existant
         if (!isEdit) {
             chantierData['NumChantier'] = this._generateNumChantier();
+        } else {
+            const existingChantier = this._data.chantiers.find(c => c['Chantier'] === this._state.chantierName);
+            chantierData['NumChantier'] = (existingChantier && existingChantier['NumChantier']) || '';
         }
 
         try {
