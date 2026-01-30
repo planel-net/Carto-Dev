@@ -431,46 +431,48 @@ const ChantierModal = {
 
             <!-- Contenu onglet Associations -->
             <div class="modal-tab-content" id="tabAssociations">
-                <!-- Section Produits -->
-                <div class="assigned-section">
-                    <div class="assigned-section-header">
-                        <h4>&#128202; Produits associés</h4>
-                        <button type="button" class="btn btn-sm btn-primary" onclick="ChantierModal.showSelectProduitsModal()">
-                            Assigner
-                        </button>
+                <div class="associations-grid">
+                    <!-- Section Produits -->
+                    <div class="assigned-section">
+                        <div class="assigned-section-header">
+                            <h4>&#128202; Produits associés</h4>
+                            <button type="button" class="btn btn-sm btn-primary" onclick="ChantierModal.showSelectProduitsModal()">
+                                Assigner
+                            </button>
+                        </div>
+                        <div class="assigned-items-list" id="assignedProduitsEdit">
+                            <div class="assigned-items-empty">Aucun produit assigné</div>
+                        </div>
                     </div>
-                    <div class="assigned-items-list" id="assignedProduitsEdit">
-                        <div class="assigned-items-empty">Aucun produit assigné</div>
+
+                    <!-- Section DataAnas -->
+                    <div class="assigned-section">
+                        <div class="assigned-section-header">
+                            <h4>&#128202; DataAnas associés</h4>
+                            <button type="button" class="btn btn-sm btn-primary" onclick="ChantierModal.showSelectDataAnasModal()">
+                                Assigner
+                            </button>
+                        </div>
+                        <div class="assigned-items-list" id="assignedDataAnasEdit">
+                            <div class="assigned-items-empty">Aucun DataAna assigné</div>
+                        </div>
+                    </div>
+
+                    <!-- Section MAE -->
+                    <div class="assigned-section">
+                        <div class="assigned-section-header">
+                            <h4>&#128203; MAE associés</h4>
+                            <button type="button" class="btn btn-sm btn-primary" onclick="ChantierModal.showSelectMAEModal()">
+                                Assigner
+                            </button>
+                        </div>
+                        <div class="assigned-items-list" id="assignedMAEEdit">
+                            <div class="assigned-items-empty">Aucun MAE assigné</div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Section DataAnas -->
-                <div class="assigned-section">
-                    <div class="assigned-section-header">
-                        <h4>&#128202; DataAnas associés</h4>
-                        <button type="button" class="btn btn-sm btn-primary" onclick="ChantierModal.showSelectDataAnasModal()">
-                            Assigner
-                        </button>
-                    </div>
-                    <div class="assigned-items-list" id="assignedDataAnasEdit">
-                        <div class="assigned-items-empty">Aucun DataAna assigné</div>
-                    </div>
-                </div>
-
-                <!-- Section MAE -->
-                <div class="assigned-section">
-                    <div class="assigned-section-header">
-                        <h4>&#128203; MAE associés</h4>
-                        <button type="button" class="btn btn-sm btn-primary" onclick="ChantierModal.showSelectMAEModal()">
-                            Assigner
-                        </button>
-                    </div>
-                    <div class="assigned-items-list" id="assignedMAEEdit">
-                        <div class="assigned-items-empty">Aucun MAE assigné</div>
-                    </div>
-                </div>
-
-                <!-- Section Liens -->
+                <!-- Section Liens (pleine largeur) -->
                 <div class="assigned-section">
                     <div class="assigned-section-header">
                         <h4>&#128279; Liens</h4>

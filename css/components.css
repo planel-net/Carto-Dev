@@ -762,6 +762,17 @@ textarea.form-control {
     margin-bottom: var(--spacing-sm);
 }
 
+.associations-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+}
+
+.associations-grid .assigned-section {
+    margin-bottom: 0;
+}
+
 .assigned-item {
     display: flex;
     align-items: center;
