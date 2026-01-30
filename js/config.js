@@ -377,10 +377,10 @@ const CONFIG = {
 
     // Statuts MAE (dans l'ordre du processus)
     MAE_STATUTS: [
-        { value: 'À FAIRE', label: 'À faire', index: 0 },
-        { value: 'EN COURS', label: 'En cours', index: 1 },
-        { value: 'LIVRÉ', label: 'Livré', index: 2 },
-        { value: 'VALIDÉ', label: 'Validé', index: 3 }
+        { value: 'À faire', label: 'À faire', index: 0 },
+        { value: 'En cours', label: 'En cours', index: 1 },
+        { value: 'Livré', label: 'Livré', index: 2 },
+        { value: 'Validé', label: 'Validé', index: 3 }
     ],
 
     // Capacité par défaut (jours par sprint par acteur)

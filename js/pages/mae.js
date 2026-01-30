@@ -85,8 +85,12 @@ class MAEPage {
             allPerimetres.push(CONFIG.EMPTY_FILTER_VALUE);
         }
 
-        // Statuts : tous les statuts possibles
-        const allStatuts = CONFIG.MAE_STATUTS.map(s => s.value);
+        // Statuts : config + valeurs réelles des données
+        const statutSet = new Set(CONFIG.MAE_STATUTS.map(s => s.value));
+        this.demandes.forEach(d => {
+            if (d['État']) statutSet.add(d['État']);
+        });
+        const allStatuts = [...statutSet];
 
         // Priorites : extraites des donnees (texte libre)
         const prioSet = new Set();
@@ -141,14 +145,22 @@ class MAEPage {
         });
     }
 
-    _getStatusBadgeClass(statut) {
-        switch (statut) {
-            case 'À FAIRE': return 'a-faire';
-            case 'EN COURS': return 'en-cours';
-            case 'LIVRÉ': return 'livre';
-            case 'VALIDÉ': return 'valide';
-            default: return 'a-faire';
+    _normalizeStatut(statut) {
+        if (!statut) return '';
+        const lower = statut.toLowerCase().trim();
+        for (const s of CONFIG.MAE_STATUTS) {
+            if (s.value.toLowerCase() === lower) return s.value;
         }
+        return statut;
+    }
+
+    _getStatusBadgeClass(statut) {
+        const normalized = (statut || '').toLowerCase().trim();
+        if (normalized.includes('faire')) return 'a-faire';
+        if (normalized.includes('cours')) return 'en-cours';
+        if (normalized.includes('livr')) return 'livre';
+        if (normalized.includes('valid')) return 'valide';
+        return 'a-faire';
     }
 
     // ---- Pipeline / Processus visuel ----
@@ -160,7 +172,7 @@ class MAEPage {
         const counts = {};
         CONFIG.MAE_STATUTS.forEach(s => { counts[s.value] = 0; });
         this.demandes.forEach(d => {
-            const statut = d['État'] || 'À FAIRE';
+            const statut = this._normalizeStatut(d['État']) || CONFIG.MAE_STATUTS[0].value;
             if (counts[statut] !== undefined) {
                 counts[statut]++;
             }

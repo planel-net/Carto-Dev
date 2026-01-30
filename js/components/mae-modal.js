@@ -104,18 +104,19 @@ const MAEModal = {
     },
 
     _getStatutIndex(statut) {
-        const found = CONFIG.MAE_STATUTS.find(s => s.value === statut);
+        if (!statut) return 0;
+        const lower = statut.toLowerCase().trim();
+        const found = CONFIG.MAE_STATUTS.find(s => s.value.toLowerCase() === lower);
         return found ? found.index : 0;
     },
 
     _getStatusBadgeClass(statut) {
-        switch (statut) {
-            case 'À FAIRE': return 'a-faire';
-            case 'EN COURS': return 'en-cours';
-            case 'LIVRÉ': return 'livre';
-            case 'VALIDÉ': return 'valide';
-            default: return 'a-faire';
-        }
+        const normalized = (statut || '').toLowerCase().trim();
+        if (normalized.includes('faire')) return 'a-faire';
+        if (normalized.includes('cours')) return 'en-cours';
+        if (normalized.includes('livr')) return 'livre';
+        if (normalized.includes('valid')) return 'valide';
+        return 'a-faire';
     },
 
     // ---- Rendu du pipeline header (read-only) ----
