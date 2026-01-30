@@ -108,10 +108,17 @@ async function lockWorkbook() {
 
             const password = passwordCell.values[0][0];
 
-            // Masquer toutes les feuilles SAUF 'Home' (Intro)
+            // Feuilles qui restent visibles après verrouillage
+            const visibleSheets = [
+                CONFIG.SHEETS.HOME,  // Intro
+                'DataAnaJira',
+                'MAEJiras'
+            ].map(s => s.toLowerCase());
+
+            // Masquer toutes les feuilles sauf celles listées ci-dessus
             for (const ws of sheets.items) {
                 const name = ws.name.toLowerCase();
-                if (name === CONFIG.SHEETS.HOME.toLowerCase()) {
+                if (visibleSheets.includes(name)) {
                     ws.visibility = Excel.SheetVisibility.visible;
                 } else {
                     ws.visibility = Excel.SheetVisibility.hidden;
