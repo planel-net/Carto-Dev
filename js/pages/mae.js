@@ -10,18 +10,18 @@ class MAEPage {
         this.container = null;
         this.demandes = [];
         this.acteurs = [];
-        this.perimetres = [];
         this.notes = [];
         this.liens = [];
 
         this.filters = {
             perimetres: [],
             statuts: [],
-            priorites: []
+            priorites: [],
+            assignees: []
         };
 
         this.sort = {
-            field: 'Date demande',
+            field: 'Start Date',
             direction: 'desc'
         };
     }
@@ -54,17 +54,15 @@ class MAEPage {
 
     async loadData() {
         try {
-            const [demandesData, acteursData, perimetresData, notesData, liensData] = await Promise.all([
+            const [demandesData, acteursData, notesData, liensData] = await Promise.all([
                 readTable('tMAE'),
                 readTable('tActeurs'),
-                readTable('tPerimetres'),
                 readTable('tMAENote'),
                 readTable('tMAELien')
             ]);
 
             this.demandes = demandesData.data || [];
             this.acteurs = acteursData.data || [];
-            this.perimetres = (perimetresData.data || []).map(p => p['Périmetre']).filter(Boolean);
             this.notes = notesData.data || [];
             this.liens = liensData.data || [];
 
@@ -77,41 +75,51 @@ class MAEPage {
     }
 
     _initFilters() {
-        // Perimetres : depuis les demandes + table perimetres
-        const perimSet = new Set(this.perimetres);
+        // Perimetres : extraits des donnees
+        const perimSet = new Set();
         this.demandes.forEach(d => {
-            if (d['Perimetre']) perimSet.add(d['Perimetre']);
+            if (d['Périmètre - MAE']) perimSet.add(d['Périmètre - MAE']);
         });
         const allPerimetres = [...perimSet].sort();
-        if (this.demandes.some(d => !d['Perimetre'])) {
+        if (this.demandes.some(d => !d['Périmètre - MAE'])) {
             allPerimetres.push(CONFIG.EMPTY_FILTER_VALUE);
         }
 
         // Statuts : tous les statuts possibles
         const allStatuts = CONFIG.MAE_STATUTS.map(s => s.value);
 
-        // Priorites
-        const allPriorites = [...CONFIG.MAE_PRIORITES];
+        // Priorites : extraites des donnees (texte libre)
+        const prioSet = new Set();
+        this.demandes.forEach(d => {
+            if (d['Priorité']) prioSet.add(d['Priorité']);
+        });
+        const allPriorites = [...prioSet].sort();
         if (this.demandes.some(d => !d['Priorité'])) {
             allPriorites.push(CONFIG.EMPTY_FILTER_VALUE);
+        }
+
+        // Personnes assignees : extraites des donnees (texte libre)
+        const assigneeSet = new Set();
+        this.demandes.forEach(d => {
+            if (d['Personne assignée']) assigneeSet.add(d['Personne assignée']);
+        });
+        const allAssignees = [...assigneeSet].sort();
+        if (this.demandes.some(d => !d['Personne assignée'])) {
+            allAssignees.push(CONFIG.EMPTY_FILTER_VALUE);
         }
 
         this.filters.perimetres = [...allPerimetres];
         this.filters.statuts = [...allStatuts];
         this.filters.priorites = [...allPriorites];
+        this.filters.assignees = [...allAssignees];
 
         this._allPerimetres = allPerimetres;
         this._allStatuts = allStatuts;
         this._allPriorites = allPriorites;
+        this._allAssignees = allAssignees;
     }
 
     // ---- Utilitaires ----
-
-    _getActeurDisplay(mail) {
-        if (!mail) return '';
-        const acteur = this.acteurs.find(a => a['Mail'] === mail);
-        return acteur ? `${acteur['Prénom'] || ''} ${acteur['Nom'] || ''}`.trim() : mail;
-    }
 
     _parseDate(dateValue) {
         if (!dateValue) return new Date(0);
@@ -135,22 +143,11 @@ class MAEPage {
 
     _getStatusBadgeClass(statut) {
         switch (statut) {
-            case 'Création': return 'creation';
-            case 'Infos Data': return 'infos-data';
-            case 'Prêt pour démarrer': return 'pret';
-            case 'En cours': return 'en-cours';
-            case 'En recette': return 'en-recette';
-            case 'Terminé': return 'termine';
-            default: return 'creation';
-        }
-    }
-
-    _getPriorityBadgeClass(priorite) {
-        switch (priorite) {
-            case 'Elevée': return 'elevee';
-            case 'Moyenne': return 'moyenne';
-            case 'Faible': return 'faible';
-            default: return '';
+            case 'À FAIRE': return 'a-faire';
+            case 'EN COURS': return 'en-cours';
+            case 'LIVRÉ': return 'livre';
+            case 'VALIDÉ': return 'valide';
+            default: return 'a-faire';
         }
     }
 
@@ -163,7 +160,7 @@ class MAEPage {
         const counts = {};
         CONFIG.MAE_STATUTS.forEach(s => { counts[s.value] = 0; });
         this.demandes.forEach(d => {
-            const statut = d['Statut'] || 'Création';
+            const statut = d['État'] || 'À FAIRE';
             if (counts[statut] !== undefined) {
                 counts[statut]++;
             }
@@ -213,9 +210,9 @@ class MAEPage {
                     </div>
                 </div>
 
-                <!-- Filtre Statut -->
+                <!-- Filtre Etat -->
                 <div class="mae-filter-group" data-filter="statut">
-                    <label>Statut</label>
+                    <label>État</label>
                     <div class="mae-filter-trigger" onclick="maePageInstance.toggleFilter('statut')">
                         <span id="maeFilterStatutLabel">${this._getFilterLabel('statut')}</span>
                         <span class="arrow">&#9660;</span>
@@ -255,6 +252,27 @@ class MAEPage {
                     </div>
                 </div>
 
+                <!-- Filtre Personne assignee -->
+                <div class="mae-filter-group" data-filter="assignee">
+                    <label>Personne assignée</label>
+                    <div class="mae-filter-trigger" onclick="maePageInstance.toggleFilter('assignee')">
+                        <span id="maeFilterAssigneeLabel">${this._getFilterLabel('assignee')}</span>
+                        <span class="arrow">&#9660;</span>
+                    </div>
+                    <div class="mae-filter-dropdown" id="maeFilterAssigneeDropdown">
+                        <div class="mae-filter-dropdown-actions">
+                            <button onclick="maePageInstance.selectAll('assignee')">Tout</button>
+                            <button onclick="maePageInstance.clearFilter('assignee')">Aucun</button>
+                        </div>
+                        ${this._allAssignees.map(a => `
+                            <label class="mae-filter-option">
+                                <input type="checkbox" value="${escapeHtml(a)}" ${this.filters.assignees.includes(a) ? 'checked' : ''} onchange="maePageInstance.onFilterChange('assignee')">
+                                <span>${escapeHtml(a)}</span>
+                            </label>
+                        `).join('')}
+                    </div>
+                </div>
+
                 <div class="mae-filters-actions">
                     <button class="btn btn-secondary btn-sm" onclick="maePageInstance.resetFilters()">Réinitialiser</button>
                 </div>
@@ -266,7 +284,8 @@ class MAEPage {
         const map = {
             perimetre: { all: this._allPerimetres, selected: this.filters.perimetres },
             statut: { all: this._allStatuts, selected: this.filters.statuts },
-            priorite: { all: this._allPriorites, selected: this.filters.priorites }
+            priorite: { all: this._allPriorites, selected: this.filters.priorites },
+            assignee: { all: this._allAssignees, selected: this.filters.assignees }
         };
         const { all, selected } = map[filterType];
         if (!all || all.length === 0) return 'Aucun';
@@ -307,6 +326,7 @@ class MAEPage {
             case 'perimetre': this.filters.perimetres = values; break;
             case 'statut': this.filters.statuts = values; break;
             case 'priorite': this.filters.priorites = values; break;
+            case 'assignee': this.filters.assignees = values; break;
         }
 
         this._updateFilterLabel(filterType);
@@ -319,6 +339,7 @@ class MAEPage {
             case 'perimetre': this.filters.perimetres = [...this._allPerimetres]; break;
             case 'statut': this.filters.statuts = [...this._allStatuts]; break;
             case 'priorite': this.filters.priorites = [...this._allPriorites]; break;
+            case 'assignee': this.filters.assignees = [...this._allAssignees]; break;
         }
         this._recheckFilterCheckboxes(filterType);
         this._updateFilterLabel(filterType);
@@ -331,6 +352,7 @@ class MAEPage {
             case 'perimetre': this.filters.perimetres = []; break;
             case 'statut': this.filters.statuts = []; break;
             case 'priorite': this.filters.priorites = []; break;
+            case 'assignee': this.filters.assignees = []; break;
         }
         this._recheckFilterCheckboxes(filterType);
         this._updateFilterLabel(filterType);
@@ -346,7 +368,8 @@ class MAEPage {
         const map = {
             perimetre: this.filters.perimetres,
             statut: this.filters.statuts,
-            priorite: this.filters.priorites
+            priorite: this.filters.priorites,
+            assignee: this.filters.assignees
         };
 
         dropdown.querySelectorAll('input[type="checkbox"]').forEach(cb => {
@@ -366,8 +389,9 @@ class MAEPage {
         this.filters.perimetres = [...this._allPerimetres];
         this.filters.statuts = [...this._allStatuts];
         this.filters.priorites = [...this._allPriorites];
+        this.filters.assignees = [...this._allAssignees];
 
-        ['perimetre', 'statut', 'priorite'].forEach(f => {
+        ['perimetre', 'statut', 'priorite', 'assignee'].forEach(f => {
             this._recheckFilterCheckboxes(f);
             this._updateFilterLabel(f);
         });
@@ -385,24 +409,78 @@ class MAEPage {
         container.innerHTML = `
             <div class="mae-actions">
                 <span class="mae-result-count" id="maeResultCount"></span>
-                <button class="btn btn-action" onclick="maePageInstance.addDemande()">
-                    + Nouvelle demande
-                </button>
+                <div style="display:flex;gap:8px;">
+                    <button class="btn btn-action btn-sm" id="btnMaeCopyJira">
+                        <span>&#128230;</span> Copie Jira
+                    </button>
+                    <button class="btn btn-action" onclick="maePageInstance.addDemande()">
+                        + Nouvelle demande
+                    </button>
+                </div>
             </div>
         `;
+
+        const btnCopyJira = document.getElementById('btnMaeCopyJira');
+        if (btnCopyJira) {
+            btnCopyJira.addEventListener('click', () => this.handleCopyFromJira());
+        }
+    }
+
+    // ---- Copie Jira ----
+
+    async handleCopyFromJira() {
+        const jiraSheet = CONFIG.TABLES.MAE.jiraSheet;
+        const tableName = CONFIG.TABLES.MAE.name;
+        const keyField = 'Clé';
+
+        const confirmMessage = `Voulez-vous synchroniser les données depuis la feuille "${jiraSheet}" ?\n\n` +
+            `• Nouveaux éléments ajoutés\n` +
+            `• Champs Jira mis à jour pour les éléments existants`;
+
+        showConfirmModal(
+            'Copie Jira MAE',
+            confirmMessage,
+            async () => {
+                try {
+                    const options = {
+                        updateFields: [
+                            'Résumé', 'Périmètre - MAE', 'Rapporteur', 'Start Date',
+                            'Date souhaitée de livraison', 'Priorité', 'Description',
+                            'État', 'Personne assignée', 'Date d\'échéance',
+                            'Parent', 'Thème'
+                        ]
+                    };
+
+                    const result = await copyFromJira(jiraSheet, tableName, keyField, options);
+
+                    if (result && result.success) {
+                        showSuccess(result.message || 'Synchronisation terminée');
+                        await this.refresh();
+                    } else {
+                        showError((result && result.message) || 'Erreur lors de la synchronisation');
+                    }
+                } catch (error) {
+                    console.error('Erreur Copie Jira MAE:', error);
+                    showError('Erreur lors de la synchronisation Jira');
+                }
+            },
+            { confirmText: 'Synchroniser', cancelText: 'Annuler' }
+        );
     }
 
     // ---- Filtrage des demandes ----
 
     _getFilteredDemandes() {
         return this.demandes.filter(d => {
-            const perimetre = d['Perimetre'] || CONFIG.EMPTY_FILTER_VALUE;
-            const statut = d['Statut'] || 'Création';
+            const perimetre = d['Périmètre - MAE'] || CONFIG.EMPTY_FILTER_VALUE;
+            const statut = d['État'] || 'À FAIRE';
             const priorite = d['Priorité'] || CONFIG.EMPTY_FILTER_VALUE;
+            const assignee = d['Personne assignée'] || CONFIG.EMPTY_FILTER_VALUE;
 
             if (!this.filters.perimetres.includes(perimetre)) return false;
             if (!this.filters.statuts.includes(statut)) return false;
             if (!this.filters.priorites.includes(priorite)) return false;
+            if (!this.filters.assignees.includes(assignee)) return false;
 
             return true;
         });
@@ -419,7 +497,7 @@ class MAEPage {
             let valB = b[field];
 
             // Dates
-            if (field.includes('Date') || field.includes('date')) {
+            if (field.includes('Date') || field === 'Start Date') {
                 const dA = this._parseDate(valA);
                 const dB = this._parseDate(valB);
                 return (dA - dB) * dir;
@@ -430,12 +508,6 @@ class MAEPage {
                 valA = parseFloat(valA) || 0;
                 valB = parseFloat(valB) || 0;
                 return (valA - valB) * dir;
-            }
-
-            // Texte (affichage acteur pour Demandeur / Pris en charge par)
-            if (field === 'Demandeur' || field === 'Pris en charge par') {
-                valA = this._getActeurDisplay(valA);
-                valB = this._getActeurDisplay(valB);
             }
 
             valA = (valA || '').toString().toLowerCase();
@@ -482,13 +554,13 @@ class MAEPage {
         }
 
         const columns = [
-            { field: 'Numero', label: 'Numéro' },
-            { field: 'Nom', label: 'Nom' },
-            { field: 'Demandeur', label: 'Demandeur' },
-            { field: 'Statut', label: 'Statut' },
+            { field: 'Clé', label: 'Clé' },
+            { field: 'Résumé', label: 'Résumé' },
+            { field: 'Périmètre - MAE', label: 'Périmètre' },
+            { field: 'Rapporteur', label: 'Rapporteur' },
+            { field: 'État', label: 'État' },
             { field: 'Priorité', label: 'Priorité' },
-            { field: 'Pris en charge par', label: 'Pris en charge par' },
-            { field: 'Equipe', label: 'Équipe' }
+            { field: 'Personne assignée', label: 'Personne assignée' }
         ];
 
         container.innerHTML = `
@@ -510,17 +582,16 @@ class MAEPage {
                     </thead>
                     <tbody>
                         ${sorted.map(d => {
-                            const statut = d['Statut'] || 'Création';
-                            const priorite = d['Priorité'] || '';
+                            const statut = d['État'] || 'À FAIRE';
                             return `
-                                <tr onclick="maePageInstance.openDemande('${escapeJsString(d['Numero'])}')">
-                                    <td><strong>${escapeHtml(d['Numero'] || '')}</strong></td>
-                                    <td>${escapeHtml(d['Nom'] || '')}</td>
-                                    <td>${escapeHtml(this._getActeurDisplay(d['Demandeur']))}</td>
+                                <tr onclick="maePageInstance.openDemande('${escapeJsString(d['Clé'])}')">
+                                    <td><strong>${escapeHtml(d['Clé'] || '')}</strong></td>
+                                    <td>${escapeHtml(d['Résumé'] || '')}</td>
+                                    <td>${escapeHtml(d['Périmètre - MAE'] || '')}</td>
+                                    <td>${escapeHtml(d['Rapporteur'] || '')}</td>
                                     <td><span class="mae-status-badge ${this._getStatusBadgeClass(statut)}">${escapeHtml(statut)}</span></td>
-                                    <td><span class="mae-priority-badge ${this._getPriorityBadgeClass(priorite)}">${escapeHtml(priorite)}</span></td>
-                                    <td>${escapeHtml(this._getActeurDisplay(d['Pris en charge par']))}</td>
-                                    <td>${escapeHtml(d['Equipe'] || '')}</td>
+                                    <td>${escapeHtml(d['Priorité'] || '')}</td>
+                                    <td>${escapeHtml(d['Personne assignée'] || '')}</td>
                                 </tr>
                             `;
                         }).join('')}
@@ -550,8 +621,8 @@ class MAEPage {
         });
     }
 
-    openDemande(numero) {
-        MAEModal.showEditModal(numero, async () => {
+    openDemande(cle) {
+        MAEModal.showEditModal(cle, async () => {
             await this.refresh();
         });
     }
@@ -561,6 +632,7 @@ class MAEPage {
     async refresh() {
         await this.loadData();
         this.renderPipeline();
+        this.renderFilters();
         this.renderTable();
     }
 }

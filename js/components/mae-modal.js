@@ -6,7 +6,7 @@
 const MAEModal = {
     _data: {
         acteurs: [],
-        perimetres: [],
+        chantiers: [],
         demandes: [],
         notes: [],
         liens: []
@@ -16,7 +16,7 @@ const MAEModal = {
         mode: null, // 'add' ou 'edit'
         activeTab: 'demande',
         currentDemande: null,
-        currentNumero: null,
+        currentCle: null,
         rowIndex: null,
         notes: [],
         liens: [],
@@ -28,16 +28,16 @@ const MAEModal = {
 
     async loadData() {
         try {
-            const [acteursData, perimetresData, demandesData, notesData, liensData] = await Promise.all([
+            const [acteursData, chantiersData, demandesData, notesData, liensData] = await Promise.all([
                 readTable('tActeurs'),
-                readTable('tPerimetres'),
+                readTable('tChantiers'),
                 readTable('tMAE'),
                 readTable('tMAENote'),
                 readTable('tMAELien')
             ]);
 
             this._data.acteurs = acteursData.data || [];
-            this._data.perimetres = perimetresData.data || [];
+            this._data.chantiers = chantiersData.data || [];
             this._data.demandes = demandesData.data || [];
             this._data.notes = notesData.data || [];
             this._data.liens = liensData.data || [];
@@ -49,33 +49,12 @@ const MAEModal = {
         }
     },
 
-    // ---- Generation du numero ----
-
-    generateNumero() {
-        const year = new Date().getFullYear();
-        const prefix = year + '_';
-        const existing = this._data.demandes
-            .filter(d => d['Numero'] && d['Numero'].startsWith(prefix))
-            .map(d => {
-                const num = parseInt(d['Numero'].substring(prefix.length), 10);
-                return isNaN(num) ? 0 : num;
-            });
-
-        const maxNum = existing.length > 0 ? Math.max(...existing) : 0;
-        const next = (maxNum + 1).toString().padStart(3, '0');
-        return prefix + next;
-    },
-
     // ---- Utilitaires ----
 
     _getActeurDisplay(mail) {
         if (!mail) return '';
         const acteur = this._data.acteurs.find(a => a['Mail'] === mail);
         return acteur ? `${acteur['Prénom'] || ''} ${acteur['Nom'] || ''}`.trim() : mail;
-    },
-
-    _getDataActeurs() {
-        return this._data.acteurs.filter(a => a['Equipe'] === 'Data');
     },
 
     _parseDate(dateValue) {
@@ -129,88 +108,33 @@ const MAEModal = {
         return found ? found.index : 0;
     },
 
-    _isDemandeComplete(d) {
-        const fields = ['Nom', 'Perimetre', 'Demandeur', 'Date demande', 'Date souhaitée', 'Priorité', 'Description', 'Impact'];
-        return fields.every(f => {
-            const val = d[f];
-            return val !== null && val !== undefined && String(val).trim() !== '';
-        });
-    },
-
-    _isDataComplete(d) {
-        const fields = ['Pris en charge par', 'Equipe'];
-        return fields.every(f => {
-            const val = d[f];
-            return val !== null && val !== undefined && String(val).trim() !== '';
-        });
-    },
-
-    _computeEffectiveIndex(storedStatut) {
-        const storedIndex = this._getStatutIndex(storedStatut);
-        // Si le statut stocké est déjà à Validation ou au-delà, on le garde
-        if (storedIndex >= 2) return storedIndex;
-
-        const d = this._state.currentDemande || {};
-
-        // Vérifier si l'onglet Demande est complet
-        if (!this._isDemandeComplete(d)) return storedIndex;
-
-        // Demande complète → au moins index 1 (Infos Data)
-        // Vérifier si l'onglet Data est complet
-        if (!this._isDataComplete(d)) return Math.max(storedIndex, 1);
-
-        // Les deux sont complets → index 2 (Validation)
-        return 2;
-    },
-
     _getStatusBadgeClass(statut) {
         switch (statut) {
-            case 'Création': return 'creation';
-            case 'Infos Data': return 'infos-data';
-            case 'Validation': return 'validation';
-            case 'Prêt pour démarrer': return 'pret';
-            case 'En cours': return 'en-cours';
-            case 'En recette': return 'en-recette';
-            case 'Terminé': return 'termine';
-            default: return 'creation';
+            case 'À FAIRE': return 'a-faire';
+            case 'EN COURS': return 'en-cours';
+            case 'LIVRÉ': return 'livre';
+            case 'VALIDÉ': return 'valide';
+            default: return 'a-faire';
         }
     },
 
-    // ---- Rendu du pipeline header ----
+    // ---- Rendu du pipeline header (read-only) ----
 
     _renderPipelineHeader(currentStatut) {
-        const effectiveIndex = this._computeEffectiveIndex(currentStatut);
+        const currentIndex = this._getStatutIndex(currentStatut);
         return `
             <div class="mae-modal-pipeline">
                 ${CONFIG.MAE_STATUTS.map((step, i) => {
                     let stepClass = '';
-                    let isDisabled = false;
-
-                    if (i < effectiveIndex) {
+                    if (i < currentIndex) {
                         stepClass = 'completed';
-                    } else if (i === effectiveIndex) {
+                    } else if (i === currentIndex) {
                         stepClass = 'current';
-                    }
-
-                    // Steps 0-1 (Création, Infos Data) toujours non-cliquables
-                    if (i <= 1) {
-                        isDisabled = true;
-                    }
-                    // Étapes futures non-cliquables
-                    else if (i > effectiveIndex) {
-                        isDisabled = true;
-                    }
-                    // Si on est encore dans les 2 premières étapes, tout désactivé
-                    else if (effectiveIndex < 2) {
-                        isDisabled = true;
                     }
 
                     return `
                         ${i > 0 ? '<div class="mae-pipeline-arrow">&#9654;</div>' : ''}
-                        <div class="mae-pipeline-step ${stepClass} ${isDisabled ? 'disabled' : ''}"
-                             data-step-index="${i}"
-                             onclick="MAEModal.onStepClick(${i})"
-                             title="${step.label}">
+                        <div class="mae-pipeline-step ${stepClass}" title="${step.label}">
                             <div class="mae-pipeline-step-box">
                                 <span class="step-label">${escapeHtml(step.label)}</span>
                             </div>
@@ -219,62 +143,6 @@ const MAEModal = {
                 }).join('')}
             </div>
         `;
-    },
-
-    // ---- Clic sur une etape du pipeline ----
-
-    async onStepClick(targetIndex) {
-        if (this._state.mode === 'add') return;
-
-        const currentStatut = this._state.currentDemande['Statut'] || 'Création';
-        const effectiveIndex = this._computeEffectiveIndex(currentStatut);
-
-        // Pas de clic sur les 2 premières étapes
-        if (targetIndex <= 1) return;
-
-        // Pas de clic si on est encore dans les 2 premières étapes
-        if (effectiveIndex < 2) return;
-
-        // Pas de saut vers une étape future
-        if (targetIndex > effectiveIndex) return;
-
-        let newStatut;
-
-        if (targetIndex === effectiveIndex) {
-            // Clic sur l'étape courante (orange) → avancer à la suivante
-            if (effectiveIndex >= CONFIG.MAE_STATUTS.length - 1) return; // Déjà à la dernière étape
-            newStatut = CONFIG.MAE_STATUTS[effectiveIndex + 1].value;
-        } else {
-            // Retour à une étape précédente (>= 2) → elle redevient orange, les suivantes transparentes
-            newStatut = CONFIG.MAE_STATUTS[targetIndex].value;
-        }
-
-        try {
-            this._state.currentDemande['Statut'] = newStatut;
-            await updateTableRow('tMAE', this._state.rowIndex, this._getSaveData());
-            invalidateCache('tMAE');
-
-            // Mettre a jour le pipeline dans la modale
-            const pipelineContainer = document.querySelector('.mae-modal-pipeline');
-            if (pipelineContainer) {
-                pipelineContainer.outerHTML = this._renderPipelineHeader(newStatut);
-            }
-
-            // Mettre à jour le bouton validation si nécessaire
-            const validationSection = document.querySelector('.mae-validation-section');
-            if (validationSection) {
-                validationSection.outerHTML = this._renderValidationButton();
-            }
-
-            showSuccess(`Statut mis à jour : ${newStatut}`);
-
-            if (this._state.onSuccess) {
-                await this._state.onSuccess();
-            }
-        } catch (error) {
-            console.error('Erreur mise à jour statut:', error);
-            showError('Erreur lors de la mise à jour du statut');
-        }
     },
 
     // ---- Modale Ajout ----
@@ -286,12 +154,12 @@ const MAEModal = {
         this._state.onSuccess = onSuccess;
         this._state.activeTab = 'demande';
         this._state.currentDemande = null;
-        this._state.currentNumero = this.generateNumero();
+        this._state.currentCle = '';
         this._state.notes = [];
         this._state.liens = [];
         this._state.editingNoteIndex = null;
 
-        const content = this._buildModalContent('Création');
+        const content = this._buildModalContent('À FAIRE');
 
         showModal({
             title: 'Nouvelle demande MAE',
@@ -312,10 +180,10 @@ const MAEModal = {
 
     // ---- Modale Edition ----
 
-    async showEditModal(numero, onSuccess = null) {
+    async showEditModal(cle, onSuccess = null) {
         await this.loadData();
 
-        const demande = this._data.demandes.find(d => d['Numero'] === numero);
+        const demande = this._data.demandes.find(d => d['Clé'] === cle);
         if (!demande) {
             showError('Demande non trouvée');
             return;
@@ -325,13 +193,13 @@ const MAEModal = {
         this._state.onSuccess = onSuccess;
         this._state.activeTab = 'demande';
         this._state.currentDemande = demande;
-        this._state.currentNumero = numero;
+        this._state.currentCle = cle;
         this._state.rowIndex = demande._rowIndex;
         this._state.editingNoteIndex = null;
 
         // Notes de cette demande
         this._state.notes = this._data.notes
-            .filter(n => n['Numero'] === numero)
+            .filter(n => n['Clé'] === cle)
             .sort((a, b) => {
                 const dateA = this._parseDate(a['Date']);
                 const dateB = this._parseDate(b['Date']);
@@ -339,13 +207,13 @@ const MAEModal = {
             });
 
         // Liens de cette demande
-        this._state.liens = this._data.liens.filter(l => l['Numero'] === numero);
+        this._state.liens = this._data.liens.filter(l => l['Clé'] === cle);
 
-        const currentStatut = demande['Statut'] || 'Création';
+        const currentStatut = demande['État'] || 'À FAIRE';
         const content = this._buildModalContent(currentStatut);
 
         showModal({
-            title: `Demande ${escapeHtml(numero)}`,
+            title: `Demande ${escapeHtml(cle)}`,
             content: content,
             size: 'xl',
             buttons: [
@@ -371,8 +239,6 @@ const MAEModal = {
     _buildModalContent(currentStatut) {
         const isEdit = this._state.mode === 'edit';
         const d = this._state.currentDemande || {};
-        const dataActeurs = this._getDataActeurs();
-        const allActeurs = this._data.acteurs;
 
         return `
             ${isEdit ? this._renderPipelineHeader(currentStatut) : ''}
@@ -381,9 +247,6 @@ const MAEModal = {
             <div class="mae-modal-tabs">
                 <button type="button" class="mae-modal-tab active" data-tab="demande" onclick="MAEModal.switchTab('demande')">
                     Demande
-                </button>
-                <button type="button" class="mae-modal-tab" data-tab="data" onclick="MAEModal.switchTab('data')">
-                    Data
                 </button>
                 <button type="button" class="mae-modal-tab" data-tab="notes" onclick="MAEModal.switchTab('notes')">
                     Notes <span class="tab-badge" id="maeNotesBadge">${this._state.notes.length > 0 ? this._state.notes.length : ''}</span>
@@ -395,120 +258,70 @@ const MAEModal = {
                 <form id="formMAEDemande" class="form">
                     <div class="mae-form-row">
                         <div class="form-group">
-                            <label class="form-label">Numéro</label>
-                            <div class="form-control-readonly" id="maeNumero">${escapeHtml(this._state.currentNumero)}</div>
+                            <label class="form-label${!isEdit ? ' required' : ''}">Clé</label>
+                            ${isEdit
+                                ? `<div class="form-control-readonly" id="maeCle">${escapeHtml(this._state.currentCle)}</div>`
+                                : `<input type="text" class="form-control" name="Clé" value="" placeholder="Ex: MPD-8">`
+                            }
                         </div>
                         <div class="form-group">
-                            <label class="form-label required">Priorité</label>
-                            <select class="form-control" name="Priorité">
-                                <option value="">-- Sélectionner --</option>
-                                ${CONFIG.MAE_PRIORITES.map(p => `
-                                    <option value="${p}" ${d['Priorité'] === p ? 'selected' : ''}>${p}</option>
-                                `).join('')}
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label required">Nom de la modification</label>
-                        <input type="text" class="form-control" name="Nom" value="${escapeHtml(d['Nom'] || '')}">
-                    </div>
-
-                    <div class="mae-form-row">
-                        <div class="form-group">
-                            <label class="form-label required">Périmètre</label>
-                            <select class="form-control" name="Perimetre">
-                                <option value="">-- Sélectionner --</option>
-                                ${this._data.perimetres.map(p => `
-                                    <option value="${escapeHtml(p['Périmetre'])}" ${d['Perimetre'] === p['Périmetre'] ? 'selected' : ''}>
-                                        ${escapeHtml(p['Périmetre'])}
-                                    </option>
-                                `).join('')}
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label required">Demandeur</label>
-                            <select class="form-control" name="Demandeur">
-                                <option value="">-- Sélectionner --</option>
-                                ${allActeurs.map(a => `
-                                    <option value="${escapeHtml(a['Mail'])}" ${d['Demandeur'] === a['Mail'] ? 'selected' : ''}>
-                                        ${escapeHtml(a['Prénom'] || '')} ${escapeHtml(a['Nom'] || '')}
-                                    </option>
-                                `).join('')}
-                            </select>
+                            <label class="form-label">Résumé</label>
+                            <input type="text" class="form-control" name="Résumé" value="${escapeHtml(d['Résumé'] || '')}">
                         </div>
                     </div>
 
                     <div class="mae-form-row">
                         <div class="form-group">
-                            <label class="form-label required">Date de la demande</label>
-                            <input type="date" class="form-control" name="Date demande" value="${this._formatDateForInput(d['Date demande']) || new Date().toISOString().split('T')[0]}">
+                            <label class="form-label">Périmètre - MAE</label>
+                            <input type="text" class="form-control" name="Périmètre - MAE" value="${escapeHtml(d['Périmètre - MAE'] || '')}">
                         </div>
                         <div class="form-group">
-                            <label class="form-label required">Date souhaitée de livraison</label>
-                            <input type="date" class="form-control" name="Date souhaitée" value="${this._formatDateForInput(d['Date souhaitée'])}">
+                            <label class="form-label">Rapporteur</label>
+                            <input type="text" class="form-control" name="Rapporteur" value="${escapeHtml(d['Rapporteur'] || '')}">
+                        </div>
+                    </div>
+
+                    <div class="mae-form-row">
+                        <div class="form-group">
+                            <label class="form-label">Start Date</label>
+                            <input type="date" class="form-control" name="Start Date" value="${this._formatDateForInput(d['Start Date'])}">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Date souhaitée de livraison</label>
+                            <input type="date" class="form-control" name="Date souhaitée de livraison" value="${this._formatDateForInput(d['Date souhaitée de livraison'])}">
+                        </div>
+                    </div>
+
+                    <div class="mae-form-row">
+                        <div class="form-group">
+                            <label class="form-label">Priorité</label>
+                            <div class="form-control-readonly">${escapeHtml(d['Priorité'] || '')}</div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">État</label>
+                            <div class="form-control-readonly">${escapeHtml(d['État'] || (isEdit ? 'À FAIRE' : ''))}</div>
                         </div>
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label required">Description</label>
+                        <label class="form-label">Description</label>
                         <textarea class="form-control" name="Description" rows="4" style="white-space: pre-wrap;">${escapeHtml(d['Description'] || '')}</textarea>
                     </div>
 
-                    <div class="form-group">
-                        <label class="form-label required">Impact</label>
-                        <textarea class="form-control" name="Impact" rows="3" style="white-space: pre-wrap;">${escapeHtml(d['Impact'] || '')}</textarea>
-                    </div>
-                </form>
-            </div>
-
-            <!-- Onglet Data -->
-            <div class="mae-modal-tab-content" id="maeTabData">
-                <form id="formMAEData" class="form">
-                    <!-- Liens -->
-                    <div class="mae-liens-section">
-                        <div class="mae-liens-header">
-                            <h4>Liens</h4>
-                            <button type="button" class="btn btn-sm btn-primary" onclick="MAEModal.addLienRow()">
-                                + Ajouter un lien
-                            </button>
-                        </div>
-                        <div id="maeLiensList">
-                            <!-- Liens dynamiques -->
-                        </div>
-                    </div>
-
                     <div class="mae-form-row">
                         <div class="form-group">
-                            <label class="form-label">Pris en charge par</label>
-                            <select class="form-control" name="Pris en charge par">
-                                <option value="">-- Sélectionner --</option>
-                                ${dataActeurs.map(a => `
-                                    <option value="${escapeHtml(a['Mail'])}" ${d['Pris en charge par'] === a['Mail'] ? 'selected' : ''}>
-                                        ${escapeHtml(a['Prénom'] || '')} ${escapeHtml(a['Nom'] || '')}
-                                    </option>
-                                `).join('')}
-                            </select>
+                            <label class="form-label">Personne assignée</label>
+                            <div class="form-control-readonly">${escapeHtml(d['Personne assignée'] || '')}</div>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Équipe</label>
-                            <select class="form-control" name="Equipe">
-                                <option value="">-- Sélectionner --</option>
-                                ${CONFIG.MAE_EQUIPES.map(e => `
-                                    <option value="${e}" ${d['Equipe'] === e ? 'selected' : ''}>${e}</option>
-                                `).join('')}
-                            </select>
+                            <label class="form-label">Date d'échéance</label>
+                            <input type="date" class="form-control" name="Date d'échéance" value="${this._formatDateForInput(d["Date d'échéance"])}">
                         </div>
                     </div>
 
                     <div class="form-group">
                         <label class="form-label">Gold</label>
                         <textarea class="form-control" name="Gold" rows="3">${escapeHtml(d['Gold'] || '')}</textarea>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label">Date de livraison estimée</label>
-                        <input type="date" class="form-control" name="Date livraison estimée" value="${this._formatDateForInput(d['Date livraison estimée'])}">
                     </div>
 
                     <div class="mae-form-row">
@@ -521,17 +334,52 @@ const MAEModal = {
                             <input type="number" class="form-control" name="JH DA" step="0.01" min="0" value="${d['JH DA'] != null && d['JH DA'] !== '' ? d['JH DA'] : ''}">
                         </div>
                         <div class="form-group">
-                            <label class="form-label">JH DATA VIZ</label>
-                            <input type="number" class="form-control" name="JH DATA VIZ" step="0.01" min="0" value="${d['JH DATA VIZ'] != null && d['JH DATA VIZ'] !== '' ? d['JH DATA VIZ'] : ''}">
+                            <label class="form-label">JH DataViz</label>
+                            <input type="number" class="form-control" name="JH DataViz" step="0.01" min="0" value="${d['JH DataViz'] != null && d['JH DataViz'] !== '' ? d['JH DataViz'] : ''}">
                         </div>
                     </div>
 
-                    ${this._renderValidationButton()}
+                    <div class="mae-form-row">
+                        <div class="form-group">
+                            <label class="form-label">Parent</label>
+                            <div class="form-control-readonly">${escapeHtml(d['Parent'] || '')}</div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Thème</label>
+                            <div class="form-control-readonly">${escapeHtml(d['Thème'] || '')}</div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Chantier</label>
+                        <select class="form-control" name="Chantier">
+                            <option value="">-- Sélectionner --</option>
+                            ${this._data.chantiers.map(c => `
+                                <option value="${escapeHtml(c['Chantier'])}" ${d['Chantier'] === c['Chantier'] ? 'selected' : ''}>
+                                    ${escapeHtml(c['Chantier'])}
+                                </option>
+                            `).join('')}
+                        </select>
+                    </div>
                 </form>
             </div>
 
             <!-- Onglet Notes -->
             <div class="mae-modal-tab-content" id="maeTabNotes">
+                <!-- Liens -->
+                <div class="mae-liens-section">
+                    <div class="mae-liens-header">
+                        <h4>Liens</h4>
+                        <button type="button" class="btn btn-sm btn-primary" onclick="MAEModal.addLienRow()">
+                            + Ajouter un lien
+                        </button>
+                    </div>
+                    <div id="maeLiensList">
+                        <!-- Liens dynamiques -->
+                    </div>
+                </div>
+
+                <!-- Notes -->
                 <div class="mae-notes-section">
                     <div class="notes-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
                         <h4 style="margin:0;color:var(--mh-bleu-fonce);">Notes</h4>
@@ -546,85 +394,6 @@ const MAEModal = {
         `;
     },
 
-    // ---- Bouton validation metier ----
-
-    _renderValidationButton() {
-        if (this._state.mode !== 'edit') return '';
-        const currentStatut = this._state.currentDemande ? this._state.currentDemande['Statut'] : 'Création';
-        const effectiveIndex = this._computeEffectiveIndex(currentStatut);
-
-        // Si l'index effectif est 0, l'onglet Demande n'est pas complet → bouton pour avancer
-        if (effectiveIndex === 0) {
-            return `
-                <div class="mae-validation-section">
-                    <button type="button" class="btn btn-success btn-validate" onclick="MAEModal.advanceToInfosData()">
-                        Passer à Infos Data
-                    </button>
-                </div>
-            `;
-        }
-
-        // Si l'index effectif est 1, l'onglet Data n'est pas complet → bouton pour valider
-        if (effectiveIndex === 1) {
-            return `
-                <div class="mae-validation-section">
-                    <button type="button" class="btn btn-success btn-validate" onclick="MAEModal.validateMetier()">
-                        Passer à Validation
-                    </button>
-                </div>
-            `;
-        }
-
-        // Si effectiveIndex >= 2, pas de bouton (navigation via pipeline)
-        return '';
-    },
-
-    // ---- Avancer a Infos Data ----
-
-    async advanceToInfosData() {
-        // Valider tous les champs de l'onglet Demande
-        const form = document.getElementById('formMAEDemande');
-        const fields = ['Nom', 'Perimetre', 'Demandeur', 'Date demande', 'Date souhaitée', 'Priorité', 'Description', 'Impact'];
-
-        for (const field of fields) {
-            const el = form.querySelector(`[name="${field}"]`);
-            if (!el || !el.value || el.value.trim() === '') {
-                showError(`Le champ "${field}" est obligatoire`);
-                this.switchTab('demande');
-                if (el) el.focus();
-                return;
-            }
-        }
-
-        // Sauvegarder d'abord
-        const saved = await this._saveDemande(true, 'Infos Data');
-        if (saved) {
-            showSuccess('Statut mis à jour : Infos Data');
-        }
-    },
-
-    // ---- Validation Metier ----
-
-    async validateMetier() {
-        // Valider les champs Data obligatoires
-        const form = document.getElementById('formMAEData');
-        const requiredDataFields = ['Pris en charge par', 'Equipe'];
-
-        for (const field of requiredDataFields) {
-            const el = form.querySelector(`[name="${field}"]`);
-            if (!el || !el.value || el.value.trim() === '') {
-                showError(`Le champ "${field}" est obligatoire pour la validation`);
-                if (el) el.focus();
-                return;
-            }
-        }
-
-        const saved = await this._saveDemande(true, 'Validation');
-        if (saved) {
-            showSuccess('Statut mis à jour : Validation');
-        }
-    },
-
     // ---- Gestion des onglets ----
 
     switchTab(tabName) {
@@ -635,13 +404,10 @@ const MAEModal = {
         });
 
         document.getElementById('maeTabDemande').classList.toggle('active', tabName === 'demande');
-        document.getElementById('maeTabData').classList.toggle('active', tabName === 'data');
         document.getElementById('maeTabNotes').classList.toggle('active', tabName === 'notes');
 
         if (tabName === 'notes') {
             this._renderNotesList();
-        }
-        if (tabName === 'data') {
             this._renderLiensList();
         }
     },
@@ -661,6 +427,7 @@ const MAEModal = {
             <div class="mae-lien-row" data-index="${index}">
                 <input type="text" class="form-control" placeholder="Nom du lien" value="${escapeHtml(lien['Nom lien'] || '')}" data-field="nom" onchange="MAEModal.updateLien(${index}, 'nom', this.value)">
                 <input type="text" class="form-control" placeholder="URL" value="${escapeHtml(lien['Lien'] || '')}" data-field="url" onchange="MAEModal.updateLien(${index}, 'url', this.value)">
+                <a class="btn-open-lien ${lien['Lien'] ? '' : 'disabled'}" href="${lien['Lien'] || '#'}" target="_blank" title="Ouvrir" onclick="${lien['Lien'] ? '' : 'return false;'}">&#128279;</a>
                 <button type="button" class="btn-remove-lien" onclick="MAEModal.removeLien(${index})" title="Supprimer">&#10005;</button>
             </div>
         `).join('');
@@ -843,7 +610,7 @@ const MAEModal = {
 
         try {
             const noteData = {
-                'Numero': this._state.currentNumero,
+                'Clé': this._state.currentCle,
                 'Date': dateValue,
                 'Redacteur': redacteur,
                 'Note': noteContent
@@ -911,7 +678,7 @@ const MAEModal = {
             this._data.notes = notesData.data || [];
 
             this._state.notes = this._data.notes
-                .filter(n => n['Numero'] === this._state.currentNumero)
+                .filter(n => n['Clé'] === this._state.currentCle)
                 .sort((a, b) => {
                     const dateA = this._parseDate(a['Date']);
                     const dateB = this._parseDate(b['Date']);
@@ -931,67 +698,62 @@ const MAEModal = {
 
     // ---- Sauvegarde de la demande ----
 
-    _getSaveData(overrideStatut) {
-        const formDemande = document.getElementById('formMAEDemande');
-        const formData = formDemande ? new FormData(formDemande) : new FormData();
+    _getSaveData() {
+        const form = document.getElementById('formMAEDemande');
+        const formData = form ? new FormData(form) : new FormData();
 
-        const formDataEl = document.getElementById('formMAEData');
-        const formDataData = formDataEl ? new FormData(formDataEl) : new FormData();
+        const isEdit = this._state.mode === 'edit';
+        const d = this._state.currentDemande || {};
 
-        const currentStatut = overrideStatut || (this._state.currentDemande ? this._state.currentDemande['Statut'] : 'Création');
+        // Clé : from form in add mode, from state in edit mode
+        const cle = isEdit ? this._state.currentCle : (formData.get('Clé') || '');
 
-        return {
-            'Numero': this._state.currentNumero,
-            'Nom': formData.get('Nom') || '',
-            'Perimetre': formData.get('Perimetre') || '',
-            'Demandeur': formData.get('Demandeur') || '',
-            'Date demande': formData.get('Date demande') || '',
-            'Date souhaitée': formData.get('Date souhaitée') || '',
-            'Priorité': formData.get('Priorité') || '',
+        const data = {
+            'Clé': cle,
+            'Résumé': formData.get('Résumé') || '',
+            'Périmètre - MAE': formData.get('Périmètre - MAE') || '',
+            'Rapporteur': formData.get('Rapporteur') || '',
+            'Start Date': formData.get('Start Date') || '',
+            'Date souhaitée de livraison': formData.get('Date souhaitée de livraison') || '',
+            'Priorité': d['Priorité'] || '',
             'Description': formData.get('Description') || '',
-            'Impact': formData.get('Impact') || '',
-            'Statut': currentStatut,
-            'Pris en charge par': formDataData.get('Pris en charge par') || '',
-            'Gold': formDataData.get('Gold') || '',
-            'Date livraison estimée': formDataData.get('Date livraison estimée') || '',
-            'Equipe': formDataData.get('Equipe') || '',
-            'JH DE': formDataData.get('JH DE') ?? '',
-            'JH DA': formDataData.get('JH DA') ?? '',
-            'JH DATA VIZ': formDataData.get('JH DATA VIZ') ?? ''
+            'État': d['État'] || 'À FAIRE',
+            'Personne assignée': d['Personne assignée'] || '',
+            'Gold': formData.get('Gold') || '',
+            "Date d'échéance": formData.get("Date d'échéance") || '',
+            'JH DE': formData.get('JH DE') ?? '',
+            'JH DA': formData.get('JH DA') ?? '',
+            'JH DataViz': formData.get('JH DataViz') ?? '',
+            'Parent': d['Parent'] || '',
+            // Thème is a formula in Excel — do not save it
+            'Chantier': formData.get('Chantier') || ''
         };
+
+        return data;
     },
 
-    async _saveDemande(isEdit, overrideStatut) {
+    async _saveDemande(isEdit) {
         try {
-            const demandeData = this._getSaveData(overrideStatut);
+            const demandeData = this._getSaveData();
 
-            // Auto-avancement du statut si les formulaires sont complets (étapes 0-1 uniquement)
-            if (!overrideStatut && isEdit) {
-                const storedIndex = this._getStatutIndex(demandeData['Statut']);
-                if (storedIndex < 2) {
-                    if (this._isDemandeComplete(demandeData) && this._isDataComplete(demandeData)) {
-                        demandeData['Statut'] = 'Validation';
-                    } else if (this._isDemandeComplete(demandeData) && storedIndex < 1) {
-                        demandeData['Statut'] = 'Infos Data';
-                    }
+            if (!isEdit) {
+                // Mode ajout : valider la Clé obligatoire
+                if (!demandeData['Clé'] || demandeData['Clé'].trim() === '') {
+                    showError('Le champ "Clé" est obligatoire');
+                    return false;
                 }
-            }
 
-            if (isEdit) {
+                // Vérifier que la clé n'existe pas déjà
+                const exists = this._data.demandes.some(d => d['Clé'] === demandeData['Clé']);
+                if (exists) {
+                    showError(`La clé "${demandeData['Clé']}" existe déjà`);
+                    return false;
+                }
+
+                await addTableRow('tMAE', demandeData);
+            } else {
                 await updateTableRow('tMAE', this._state.rowIndex, demandeData);
                 this._state.currentDemande = { ...this._state.currentDemande, ...demandeData };
-            } else {
-                // Mode ajout : valider les champs obligatoires de l'onglet Demande
-                const requiredFields = ['Nom', 'Perimetre', 'Demandeur', 'Date demande', 'Date souhaitée', 'Priorité', 'Description', 'Impact'];
-                for (const field of requiredFields) {
-                    if (!demandeData[field] || demandeData[field].trim() === '') {
-                        showError(`Le champ "${field}" est obligatoire`);
-                        return false;
-                    }
-                }
-
-                demandeData['Statut'] = 'Création';
-                await addTableRow('tMAE', demandeData);
             }
 
             invalidateCache('tMAE');
@@ -1000,14 +762,6 @@ const MAEModal = {
             await this._saveLiens();
 
             showSuccess(isEdit ? 'Demande mise à jour' : 'Demande créée avec succès');
-
-            // Rafraîchir le pipeline après sauvegarde
-            if (isEdit) {
-                const pipelineContainer = document.querySelector('.mae-modal-pipeline');
-                if (pipelineContainer) {
-                    pipelineContainer.outerHTML = this._renderPipelineHeader(demandeData['Statut']);
-                }
-            }
 
             if (this._state.onSuccess) {
                 await this._state.onSuccess();
@@ -1027,7 +781,7 @@ const MAEModal = {
 
         // Supprimer les anciens liens (en ordre inverse)
         const oldLiens = this._data.liens
-            .filter(l => l['Numero'] === this._state.currentNumero)
+            .filter(l => l['Clé'] === this._state.currentCle)
             .sort((a, b) => (b._rowIndex ?? 0) - (a._rowIndex ?? 0));
 
         for (const lien of oldLiens) {
@@ -1039,7 +793,7 @@ const MAEModal = {
         // Ajouter les nouveaux liens
         for (const lien of currentLiens) {
             await addTableRow('tMAELien', {
-                'Numero': this._state.currentNumero,
+                'Clé': this._state.currentCle,
                 'Nom lien': lien['Nom lien'],
                 'Lien': lien['Lien']
             });

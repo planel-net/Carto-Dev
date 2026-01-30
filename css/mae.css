@@ -100,12 +100,7 @@
 
 .mae-modal-pipeline .mae-pipeline-step {
     min-width: 100px;
-    cursor: pointer;
-}
-
-.mae-modal-pipeline .mae-pipeline-step.disabled {
-    cursor: not-allowed;
-    opacity: 0.7;
+    cursor: default;
 }
 
 .mae-modal-pipeline .mae-pipeline-step-box {
@@ -117,16 +112,6 @@
 
 .mae-modal-pipeline .mae-pipeline-step-box .step-label {
     font-size: 11px;
-}
-
-.mae-modal-pipeline .mae-pipeline-step-box:hover {
-    transform: scale(1.05);
-    box-shadow: var(--shadow-sm);
-}
-
-.mae-modal-pipeline .mae-pipeline-step.disabled .mae-pipeline-step-box:hover {
-    transform: none;
-    box-shadow: none;
 }
 
 .mae-modal-pipeline .mae-pipeline-arrow {
@@ -335,64 +320,25 @@
     white-space: nowrap;
 }
 
-.mae-status-badge.creation {
+.mae-status-badge.a-faire {
     background: #E3F2FD;
     color: #1565C0;
 }
 
-.mae-status-badge.infos-data {
+.mae-status-badge.en-cours {
     background: #FFF3E0;
     color: #E65100;
 }
 
-.mae-status-badge.validation {
-    background: #E0F7FA;
-    color: #00695C;
-}
-
-.mae-status-badge.pret {
-    background: #F3E5F5;
-    color: #6A1B9A;
-}
-
-.mae-status-badge.en-cours {
-    background: #FFF8E1;
-    color: #F57F17;
-}
-
-.mae-status-badge.en-recette {
+.mae-status-badge.livre {
     background: #E8F5E9;
     color: #2E7D32;
 }
 
-.mae-status-badge.termine {
+.mae-status-badge.valide {
     background: #E8F5E9;
     color: #1B5E20;
     border: 1px solid #1B5E20;
-}
-
-/* Badge de priorite */
-.mae-priority-badge {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 10px;
-    font-size: 11px;
-    font-weight: 600;
-}
-
-.mae-priority-badge.elevee {
-    background: #FFEBEE;
-    color: #C62828;
-}
-
-.mae-priority-badge.moyenne {
-    background: #FFF8E1;
-    color: #F57F17;
-}
-
-.mae-priority-badge.faible {
-    background: #E8F5E9;
-    color: #2E7D32;
 }
 
 /* ---- Tableau vide ---- */
@@ -532,20 +478,6 @@
     font-size: 13px;
     font-style: italic;
     padding: 8px 0;
-}
-
-/* ---- Bouton validation metier ---- */
-.mae-validation-section {
-    margin-top: var(--spacing-lg);
-    padding-top: var(--spacing-md);
-    border-top: 2px solid #dee2e6;
-    text-align: center;
-}
-
-.mae-validation-section .btn-validate {
-    padding: 12px 32px;
-    font-size: 15px;
-    font-weight: 600;
 }
 
 /* ---- Section formulaire dans modale ---- */

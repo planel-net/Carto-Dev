@@ -6,7 +6,7 @@
 const CONFIG = {
     // Nom de l'application
     APP_NAME: 'Carto',
-    APP_VERSION: '1.2.0',
+    APP_VERSION: '1.4.0',
 
     // Valeur spéciale pour filtrer les éléments sans valeur (périmètre/responsable vide)
     EMPTY_FILTER_VALUE: '(Non rempli)',
@@ -304,24 +304,25 @@ const CONFIG = {
             sheet: 'MAE',
             displayName: 'Demandes MAE',
             icon: '&#128203;',
+            jiraSheet: 'MAEJiras',
             columns: [
-                { field: 'Numero', label: 'Numéro', type: 'text', required: true },
-                { field: 'Nom', label: 'Nom', type: 'text', required: true },
-                { field: 'Perimetre', label: 'Périmètre', type: 'select', source: 'PERIMETRES', sourceField: 'Périmetre', required: true },
-                { field: 'Demandeur', label: 'Demandeur', type: 'select', source: 'ACTEURS', sourceField: 'Mail', required: true },
-                { field: 'Date demande', label: 'Date demande', type: 'date', required: true },
-                { field: 'Date souhaitée', label: 'Date souhaitée', type: 'date', required: true },
-                { field: 'Priorité', label: 'Priorité', type: 'select', options: ['Elevée', 'Moyenne', 'Faible'], required: true },
-                { field: 'Description', label: 'Description', type: 'textarea', required: true },
-                { field: 'Impact', label: 'Impact', type: 'textarea', required: true },
-                { field: 'Statut', label: 'Statut', type: 'text' },
-                { field: 'Pris en charge par', label: 'Pris en charge par', type: 'select', source: 'ACTEURS', sourceField: 'Mail' },
+                { field: 'Clé', label: 'Clé', type: 'text', required: true, linkPattern: 'https://malakoffhumanis.atlassian.net/browse/{value}' },
+                { field: 'Résumé', label: 'Résumé', type: 'text' },
+                { field: 'Périmètre - MAE', label: 'Périmètre - MAE', type: 'text' },
+                { field: 'Rapporteur', label: 'Rapporteur', type: 'text' },
+                { field: 'Start Date', label: 'Start Date', type: 'date' },
+                { field: 'Date souhaitée de livraison', label: 'Date souhaitée de livraison', type: 'date' },
+                { field: 'Priorité', label: 'Priorité', type: 'text' },
+                { field: 'Description', label: 'Description', type: 'textarea' },
+                { field: 'État', label: 'État', type: 'text', readonly: true },
+                { field: 'Personne assignée', label: 'Personne assignée', type: 'text' },
                 { field: 'Gold', label: 'Gold', type: 'textarea' },
-                { field: 'Date livraison estimée', label: 'Date livraison estimée', type: 'date' },
-                { field: 'Equipe', label: 'Équipe', type: 'select', options: ['DE', 'DA', 'DATA VIZ'] },
+                { field: 'Date d\'échéance', label: 'Date d\'échéance', type: 'date' },
                 { field: 'JH DE', label: 'JH DE', type: 'number' },
                 { field: 'JH DA', label: 'JH DA', type: 'number' },
-                { field: 'JH DATA VIZ', label: 'JH DATA VIZ', type: 'number' },
+                { field: 'JH DataViz', label: 'JH DataViz', type: 'number' },
+                { field: 'Parent', label: 'Parent', type: 'text' },
+                { field: 'Thème', label: 'Thème', type: 'text', readonly: true },
                 { field: 'Chantier', label: 'Chantier', type: 'select', source: 'CHANTIER', sourceField: 'Chantier' }
             ]
         },
@@ -331,7 +332,7 @@ const CONFIG = {
             displayName: 'Notes MAE',
             icon: '&#128221;',
             columns: [
-                { field: 'Numero', label: 'Numéro demande', type: 'text', required: true },
+                { field: 'Clé', label: 'Clé demande', type: 'text', required: true },
                 { field: 'Date', label: 'Date', type: 'text', required: true },
                 { field: 'Redacteur', label: 'Rédacteur', type: 'select', source: 'ACTEURS', sourceField: 'Mail' },
                 { field: 'Note', label: 'Note', type: 'textarea' }
@@ -343,7 +344,7 @@ const CONFIG = {
             displayName: 'Liens MAE',
             icon: '&#128279;',
             columns: [
-                { field: 'Numero', label: 'Numéro demande', type: 'text', required: true },
+                { field: 'Clé', label: 'Clé demande', type: 'text', required: true },
                 { field: 'Nom lien', label: 'Nom du lien', type: 'text' },
                 { field: 'Lien', label: 'URL', type: 'text' }
             ]
@@ -376,20 +377,11 @@ const CONFIG = {
 
     // Statuts MAE (dans l'ordre du processus)
     MAE_STATUTS: [
-        { value: 'Création', label: 'Création', index: 0 },
-        { value: 'Infos Data', label: 'Infos Data', index: 1 },
-        { value: 'Validation', label: 'Validation', index: 2 },
-        { value: 'Prêt pour démarrer', label: 'Prêt pour démarrer', index: 3 },
-        { value: 'En cours', label: 'En cours', index: 4 },
-        { value: 'En recette', label: 'En recette', index: 5 },
-        { value: 'Terminé', label: 'Terminé', index: 6 }
+        { value: 'À FAIRE', label: 'À faire', index: 0 },
+        { value: 'EN COURS', label: 'En cours', index: 1 },
+        { value: 'LIVRÉ', label: 'Livré', index: 2 },
+        { value: 'VALIDÉ', label: 'Validé', index: 3 }
     ],
-
-    // Priorités MAE
-    MAE_PRIORITES: ['Elevée', 'Moyenne', 'Faible'],
-
-    // Équipes MAE (sous-équipes Data)
-    MAE_EQUIPES: ['DE', 'DA', 'DATA VIZ'],
 
     // Capacité par défaut (jours par sprint par acteur)
     CAPACITE_DEFAUT: 15,
