@@ -2022,8 +2022,8 @@
     background: var(--mh-bleu-fonce) !important;
     color: var(--mh-blanc);
     font-weight: 600;
-    min-width: 200px;
-    width: 200px;
+    min-width: 260px;
+    width: 260px;
     position: sticky;
     left: 0;
     z-index: 25;
@@ -2037,8 +2037,8 @@
     position: sticky;
     left: 0;
     z-index: 10;
-    min-width: 200px;
-    width: 200px;
+    min-width: 260px;
+    width: 260px;
     padding: var(--spacing-sm);
     border-right: 2px solid var(--mh-bleu-clair);
 }
@@ -2052,7 +2052,7 @@
 
 .chantier-name {
     font-weight: 500;
-    font-size: var(--font-size-sm);
+    font-size: 12px;
     color: var(--mh-gris-fonce);
     flex: 1;
     min-width: 0;
@@ -2453,12 +2453,12 @@
     .gantt-chantier-cell,
     .gantt-chantier-header,
     .gantt-header-chantier-label {
-        min-width: 152px;
-        width: 152px;
+        min-width: 200px;
+        width: 200px;
     }
 
     .chantier-name {
-        font-size: 12px;
+        font-size: 11px;
     }
 }
 

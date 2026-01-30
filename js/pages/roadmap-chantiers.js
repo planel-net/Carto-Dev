@@ -880,7 +880,7 @@ class RoadmapChantiersPage {
         // Générer les colgroup avec largeurs fixes (une colonne par semaine)
         const colgroupHtml = `
             <colgroup>
-                <col class="gantt-col-chantier" style="width: 200px; min-width: 200px;">
+                <col class="gantt-col-chantier" style="width: 260px; min-width: 260px;">
                 ${allWeeks.map(w => `<col class="gantt-col-week" style="width: ${WEEK_COL_WIDTH}px; min-width: ${WEEK_COL_WIDTH}px;">`).join('')}
             </colgroup>
         `;

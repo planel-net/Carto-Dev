@@ -509,6 +509,24 @@
     color: #fff;
 }
 
+.btn-open-lien {
+    font-size: 16px;
+    text-decoration: none;
+    flex-shrink: 0;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.btn-open-lien:hover {
+    opacity: 0.7;
+}
+
+.btn-open-lien.disabled {
+    opacity: 0.25;
+    cursor: default;
+    pointer-events: none;
+}
+
 .mae-liens-empty {
     color: var(--mh-gris-moyen);
     font-size: 13px;

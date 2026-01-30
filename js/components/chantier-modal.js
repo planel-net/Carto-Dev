@@ -519,8 +519,16 @@ const ChantierModal = {
         });
 
         // Rendre la mini roadmap sur l'onglet Général (actif par défaut)
+        // puis verrouiller la hauteur du body pour éviter le redimensionnement au changement d'onglet
         setTimeout(() => {
             this._renderMiniRoadmap();
+            // Verrouiller la hauteur du modal-body après le rendu complet de l'onglet Général
+            setTimeout(() => {
+                const modalBody = document.querySelector('.modal-body');
+                if (modalBody) {
+                    modalBody.style.minHeight = modalBody.offsetHeight + 'px';
+                }
+            }, 150);
         }, 100);
     },
 
@@ -1084,8 +1092,14 @@ const ChantierModal = {
             return;
         }
 
-        container.innerHTML = this._state.liens.map((lien, index) => `
+        container.innerHTML = this._state.liens.map((lien, index) => {
+            const hasUrl = lien['Lien'] && lien['Lien'].trim() !== '';
+            return `
             <div class="mae-lien-row" data-index="${index}">
+                ${hasUrl
+                    ? `<a href="${escapeHtml(lien['Lien'])}" target="_blank" rel="noopener noreferrer" class="btn-open-lien" title="Ouvrir le lien">&#128279;</a>`
+                    : `<span class="btn-open-lien disabled">&#128279;</span>`
+                }
                 <input type="text" class="form-control" placeholder="Nom du lien"
                        value="${escapeHtml(lien['Nom lien'] || '')}"
                        data-field="nom"
@@ -1098,7 +1112,7 @@ const ChantierModal = {
                         onclick="ChantierModal.removeLien(${index})"
                         title="Supprimer">&#10005;</button>
             </div>
-        `).join('');
+        `;}).join('');
     },
 
     addLienRow() {
@@ -1112,6 +1126,9 @@ const ChantierModal = {
             this._state.liens[index]['Nom lien'] = value;
         } else {
             this._state.liens[index]['Lien'] = value;
+            // Re-render pour mettre à jour l'icône de lien
+            const suffix = this._state.mode === 'edit' ? 'Edit' : 'Add';
+            this._renderLiensList(suffix);
         }
     },
 
