@@ -296,8 +296,8 @@ const ExcelBridge = {
         return this.request('LIST_TABLES', {});
     },
 
-    async copyFromJira(jiraSheetName, tableName, keyField = 'Clé') {
-        return this.request('COPY_FROM_JIRA', { jiraSheetName, tableName, keyField });
+    async copyFromJira(jiraSheetName, tableName, keyField = 'Clé', options = {}) {
+        return this.request('COPY_FROM_JIRA', { jiraSheetName, tableName, keyField, options });
     },
 
     /**

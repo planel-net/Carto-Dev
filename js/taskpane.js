@@ -142,7 +142,8 @@ async function handleDialogMessage(arg) {
                         result = await copyFromJira(
                             message.params.jiraSheetName,
                             message.params.tableName,
-                            message.params.keyField
+                            message.params.keyField,
+                            message.params.options || {}
                         );
                         break;
 

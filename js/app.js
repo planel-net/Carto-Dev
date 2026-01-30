@@ -131,10 +131,10 @@ async function invalidateCache(tableName = null) {
 }
 
 // Override copyFromJira pour utiliser le bridge
-async function copyFromJira(jiraSheetName, tableName, keyField = 'Clé') {
-    console.log(`[App] copyFromJira via bridge: ${jiraSheetName} -> ${tableName}`);
+async function copyFromJira(jiraSheetName, tableName, keyField = 'Clé', options = {}) {
+    console.log(`[App] copyFromJira via bridge: ${jiraSheetName} -> ${tableName}`, options);
     if (!AppState.bridgeReady) throw new Error('Bridge not ready');
-    return await ExcelBridge.copyFromJira(jiraSheetName, tableName, keyField);
+    return await ExcelBridge.copyFromJira(jiraSheetName, tableName, keyField, options);
 }
 
 /**

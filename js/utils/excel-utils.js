@@ -374,6 +374,90 @@ async function addTableRow(tableName, rowData) {
 }
 
 /**
+ * Ajoute plusieurs lignes à une table Excel en une seule opération
+ * Beaucoup plus rapide que des appels individuels à addTableRow
+ * @param {string} tableName - Nom de la table
+ * @param {Array<Object>} rowsData - Tableau d'objets clé-valeur
+ * @returns {Promise<Object>} Résultat { success, added }
+ */
+async function addTableRows(tableName, rowsData) {
+    if (!rowsData || rowsData.length === 0) {
+        return { success: true, added: 0 };
+    }
+
+    // Invalider le cache
+    tableCache.delete(tableName);
+
+    return await ExcelWriteQueue.enqueue(async () => {
+        return await Excel.run(async (context) => {
+            const table = context.workbook.tables.getItem(tableName);
+            const headerRange = table.getHeaderRowRange();
+            headerRange.load('values');
+
+            await context.sync();
+
+            const headers = headerRange.values[0];
+
+            // Convertir tous les objets en tableaux de valeurs
+            const allRowValues = rowsData.map(rowData => {
+                return headers.map(header => {
+                    const value = rowData[header];
+                    return value !== undefined ? value : '';
+                });
+            });
+
+            // Ajouter toutes les lignes en une seule opération
+            table.rows.add(null, allRowValues);
+
+            await context.sync();
+
+            return { success: true, added: rowsData.length };
+        });
+    });
+}
+
+/**
+ * Met à jour plusieurs lignes d'une table Excel en une seule opération
+ * @param {string} tableName - Nom de la table
+ * @param {Array<{rowIndex: number, rowData: Object}>} updates - Tableau de mises à jour
+ * @returns {Promise<Object>} Résultat { success, updated }
+ */
+async function updateTableRows(tableName, updates) {
+    if (!updates || updates.length === 0) {
+        return { success: true, updated: 0 };
+    }
+
+    // Invalider le cache
+    tableCache.delete(tableName);
+
+    return await ExcelWriteQueue.enqueue(async () => {
+        return await Excel.run(async (context) => {
+            const table = context.workbook.tables.getItem(tableName);
+            const headerRange = table.getHeaderRowRange();
+            const bodyRange = table.getDataBodyRange();
+            headerRange.load('values');
+
+            await context.sync();
+
+            const headers = headerRange.values[0];
+
+            for (const { rowIndex, rowData } of updates) {
+                const rowValues = headers.map(header => {
+                    const value = rowData[header];
+                    return value !== undefined ? value : '';
+                });
+                const row = bodyRange.getRow(rowIndex);
+                row.values = [rowValues];
+            }
+
+            await context.sync();
+
+            return { success: true, updated: updates.length };
+        });
+    });
+}
+
+/**
  * Met à jour une ligne d'une table Excel
  * Utilise ExcelWriteQueue pour éviter les conflits de contexte
  * @param {string} tableName - Nom de la table
@@ -713,7 +797,7 @@ async function readSheet(sheetName) {
  */
 async function copyFromJira(jiraSheetName, tableName, keyField = 'Clé', options = {}) {
     const { skipStates = [], stateField = 'État', updateFields = [] } = options;
-    console.log(`[copyFromJira] Copying from ${jiraSheetName} to ${tableName}`);
+    console.log(`[copyFromJira] Copying from ${jiraSheetName} to ${tableName}`, { skipStates, stateField, updateFields });
 
     try {
         // Invalider le cache de la table destination
@@ -735,8 +819,9 @@ async function copyFromJira(jiraSheetName, tableName, keyField = 'Clé', options
 
         console.log(`[copyFromJira] Existing keys: ${existingMap.size}, Jira rows: ${jiraData.data.length}`);
 
-        let added = 0;
-        let updated = 0;
+        // Phase 1 : Trier les lignes Jira en lots (ajout / mise à jour / ignoré)
+        const rowsToAdd = [];
+        const rowsToUpdate = [];
         let skippedExisting = 0;
         let skippedState = 0;
 
@@ -747,7 +832,7 @@ async function copyFromJira(jiraSheetName, tableName, keyField = 'Clé', options
             const existingRow = existingMap.get(key);
 
             if (existingRow) {
-                // Élément existant : mettre à jour les champs spécifiés
+                // Élément existant : vérifier si mise à jour nécessaire
                 if (updateFields.length > 0) {
                     let needsUpdate = false;
                     const updatedRow = { ...existingRow };
@@ -763,8 +848,7 @@ async function copyFromJira(jiraSheetName, tableName, keyField = 'Clé', options
                     }
 
                     if (needsUpdate) {
-                        await updateTableRow(tableName, existingRow._rowIndex, updatedRow);
-                        updated++;
+                        rowsToUpdate.push({ rowIndex: existingRow._rowIndex, rowData: updatedRow });
                     } else {
                         skippedExisting++;
                     }
@@ -783,12 +867,22 @@ async function copyFromJira(jiraSheetName, tableName, keyField = 'Clé', options
 
                 const rowData = { ...jiraRow };
                 delete rowData._rowIndex;
-                await addTableRow(tableName, rowData);
-                added++;
+                rowsToAdd.push(rowData);
             }
         }
 
-        console.log(`[copyFromJira] Added: ${added}, Updated: ${updated}, Skipped existing: ${skippedExisting}, Skipped state: ${skippedState}`);
+        console.log(`[copyFromJira] To add: ${rowsToAdd.length}, To update: ${rowsToUpdate.length}, Skipped existing: ${skippedExisting}, Skipped state: ${skippedState}`);
+
+        // Phase 2 : Exécuter les opérations en batch
+        if (rowsToAdd.length > 0) {
+            await addTableRows(tableName, rowsToAdd);
+        }
+        if (rowsToUpdate.length > 0) {
+            await updateTableRows(tableName, rowsToUpdate);
+        }
+
+        const added = rowsToAdd.length;
+        const updated = rowsToUpdate.length;
 
         // Construire le message
         const parts = [];
