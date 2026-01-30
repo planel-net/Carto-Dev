@@ -1268,27 +1268,18 @@ tr.drag-over {
 }
 
 /* ===========================================
-   CHANTIER MODAL - Layout 2 colonnes
+   CHANTIER MODAL - Grille formulaire 2 colonnes
    =========================================== */
 
-.chantier-modal-columns {
-    display: flex;
-    gap: var(--spacing-lg);
+.chantier-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 var(--spacing-lg);
 }
 
-.chantier-modal-left {
-    flex: 55;
-    min-width: 0;
-}
-
-.chantier-modal-right {
-    flex: 45;
-    min-width: 0;
-}
-
-@media (max-width: 900px) {
-    .chantier-modal-columns {
-        flex-direction: column;
+@media (max-width: 700px) {
+    .chantier-form-grid {
+        grid-template-columns: 1fr;
     }
 }
 

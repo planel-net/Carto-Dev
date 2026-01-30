@@ -40,7 +40,7 @@ const ChantierModal = {
         chantierName: null,
         rowIndex: null,
         onSuccess: null,
-        activeTab: 'general', // 'general', 'associations' ou 'notes'
+        activeTab: 'general', // 'general', 'phases', 'associations' ou 'notes'
         notes: [],
         editingNoteIndex: null
     },
@@ -174,40 +174,48 @@ const ChantierModal = {
 
         const content = `
             <form id="formChantierModal" class="form">
-                <div class="form-group">
-                    <label class="form-label required">Nom du chantier</label>
-                    <input type="text" class="form-control" name="Chantier" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Responsable</label>
-                    <select class="form-control" name="Responsable">
-                        <option value="">-- Sélectionner --</option>
-                        ${acteursFiltered.map(a => `
-                            <option value="${escapeHtml(a['Mail'])}">${escapeHtml(a['Prénom'] || '')} ${escapeHtml(a['Nom'] || '')}</option>
-                        `).join('')}
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Périmètre</label>
-                    <select class="form-control" name="Perimetre">
-                        <option value="">-- Sélectionner --</option>
-                        ${this._data.perimetres.map(p => `
-                            <option value="${escapeHtml(p['Périmetre'])}">${escapeHtml(p['Périmetre'])}</option>
-                        `).join('')}
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Processus</label>
-                    <select class="form-control" name="Processus">
-                        <option value="">-- Sélectionner --</option>
-                        ${this.getOrderedProcessus().map(p => `
-                            <option value="${escapeHtml(p)}">${escapeHtml(p)}</option>
-                        `).join('')}
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Date fin souhaitée</label>
-                    <input type="date" class="form-control" name="Date fin souhaitée">
+                <div class="chantier-form-grid">
+                    <div class="form-group">
+                        <label class="form-label required">Nom du chantier</label>
+                        <input type="text" class="form-control" name="Chantier" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Responsable</label>
+                        <select class="form-control" name="Responsable">
+                            <option value="">-- Sélectionner --</option>
+                            ${acteursFiltered.map(a => `
+                                <option value="${escapeHtml(a['Mail'])}">${escapeHtml(a['Prénom'] || '')} ${escapeHtml(a['Nom'] || '')}</option>
+                            `).join('')}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Périmètre</label>
+                        <select class="form-control" name="Perimetre">
+                            <option value="">-- Sélectionner --</option>
+                            ${this._data.perimetres.map(p => `
+                                <option value="${escapeHtml(p['Périmetre'])}">${escapeHtml(p['Périmetre'])}</option>
+                            `).join('')}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Processus</label>
+                        <select class="form-control" name="Processus">
+                            <option value="">-- Sélectionner --</option>
+                            ${this.getOrderedProcessus().map(p => `
+                                <option value="${escapeHtml(p)}">${escapeHtml(p)}</option>
+                            `).join('')}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Date fin souhaitée</label>
+                        <input type="date" class="form-control" name="Date fin souhaitée">
+                    </div>
+                    <div class="form-group" style="display: flex; align-items: flex-end;">
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="Archivé">
+                            <span>Archivé</span>
+                        </label>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Enjeux</label>
@@ -218,13 +226,7 @@ const ChantierModal = {
                         <button type="button" class="rich-text-btn" onclick="ChantierModal.execEnjeuxCommand('insertUnorderedList')" title="Liste">&#8226;</button>
                         <button type="button" class="rich-text-btn" onclick="ChantierModal.execEnjeuxCommand('insertOrderedList')" title="Liste numérotée">1.</button>
                     </div>
-                    <div class="rich-text-editor" id="enjeuxEditor" contenteditable="true" style="min-height: 80px;"></div>
-                </div>
-                <div class="form-group">
-                    <label class="checkbox-label">
-                        <input type="checkbox" name="Archivé">
-                        <span>Archivé</span>
-                    </label>
+                    <div class="rich-text-editor" id="enjeuxEditor" contenteditable="true" style="min-height: 100px; resize: vertical; overflow: auto;"></div>
                 </div>
             </form>
         `;
@@ -326,6 +328,9 @@ const ChantierModal = {
                 <button type="button" class="modal-tab active" data-tab="general" onclick="ChantierModal.switchTab('general')">
                     Général
                 </button>
+                <button type="button" class="modal-tab" data-tab="phases" onclick="ChantierModal.switchTab('phases')">
+                    Phases <span class="tab-badge" id="phasesBadge">${phasesCount > 0 ? phasesCount : ''}</span>
+                </button>
                 <button type="button" class="modal-tab" data-tab="associations" onclick="ChantierModal.switchTab('associations')">
                     Associations
                 </button>
@@ -337,74 +342,72 @@ const ChantierModal = {
             <!-- Contenu onglet Général -->
             <div class="modal-tab-content active" id="tabGeneral">
                 <form id="formChantierModal" class="form">
-                    <div class="chantier-modal-columns">
-                        <div class="chantier-modal-left">
-                            <div class="form-group">
-                                <label class="form-label required">Nom du chantier</label>
-                                <input type="text" class="form-control" name="Chantier" value="${escapeHtml(chantier['Chantier'])}" required>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Responsable</label>
-                                <select class="form-control" name="Responsable">
-                                    <option value="">-- Sélectionner --</option>
-                                    ${acteursFiltered.map(a => `
-                                        <option value="${escapeHtml(a['Mail'])}" ${a['Mail'] === chantier['Responsable'] ? 'selected' : ''}>
-                                            ${escapeHtml(a['Prénom'] || '')} ${escapeHtml(a['Nom'] || '')}
-                                        </option>
-                                    `).join('')}
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Périmètre</label>
-                                <select class="form-control" name="Perimetre">
-                                    <option value="">-- Sélectionner --</option>
-                                    ${this._data.perimetres.map(p => `
-                                        <option value="${escapeHtml(p['Périmetre'])}" ${p['Périmetre'] === chantier['Perimetre'] ? 'selected' : ''}>
-                                            ${escapeHtml(p['Périmetre'])}
-                                        </option>
-                                    `).join('')}
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Processus</label>
-                                <select class="form-control" name="Processus">
-                                    <option value="">-- Sélectionner --</option>
-                                    ${this.getOrderedProcessus().map(p => `
-                                        <option value="${escapeHtml(p)}" ${p === chantier['Processus'] ? 'selected' : ''}>
-                                            ${escapeHtml(p)}
-                                        </option>
-                                    `).join('')}
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Date fin souhaitée</label>
-                                <input type="date" class="form-control" name="Date fin souhaitée" value="${this._formatDateForInput(chantier['Date fin souhaitée'])}">
-                            </div>
-                            <div class="form-group">
-                                <label class="checkbox-label">
-                                    <input type="checkbox" name="Archivé" ${this.isArchived(chantier) ? 'checked' : ''}>
-                                    <span>Archivé</span>
-                                </label>
-                            </div>
+                    <div class="chantier-form-grid">
+                        <div class="form-group">
+                            <label class="form-label required">Nom du chantier</label>
+                            <input type="text" class="form-control" name="Chantier" value="${escapeHtml(chantier['Chantier'])}" required>
                         </div>
-                        <div class="chantier-modal-right">
-                            <div class="form-group">
-                                <label class="form-label">Enjeux</label>
-                                <div class="rich-text-toolbar">
-                                    <button type="button" class="rich-text-btn" onclick="ChantierModal.execEnjeuxCommand('bold')" title="Gras"><strong>G</strong></button>
-                                    <button type="button" class="rich-text-btn" onclick="ChantierModal.execEnjeuxCommand('italic')" title="Italique"><em>I</em></button>
-                                    <span class="rich-text-separator"></span>
-                                    <button type="button" class="rich-text-btn" onclick="ChantierModal.execEnjeuxCommand('insertUnorderedList')" title="Liste">&#8226;</button>
-                                    <button type="button" class="rich-text-btn" onclick="ChantierModal.execEnjeuxCommand('insertOrderedList')" title="Liste numérotée">1.</button>
-                                </div>
-                                <div class="rich-text-editor" id="enjeuxEditor" contenteditable="true" style="min-height: 80px;">${chantier['Enjeux'] || ''}</div>
-                            </div>
+                        <div class="form-group">
+                            <label class="form-label">Responsable</label>
+                            <select class="form-control" name="Responsable">
+                                <option value="">-- Sélectionner --</option>
+                                ${acteursFiltered.map(a => `
+                                    <option value="${escapeHtml(a['Mail'])}" ${a['Mail'] === chantier['Responsable'] ? 'selected' : ''}>
+                                        ${escapeHtml(a['Prénom'] || '')} ${escapeHtml(a['Nom'] || '')}
+                                    </option>
+                                `).join('')}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Périmètre</label>
+                            <select class="form-control" name="Perimetre">
+                                <option value="">-- Sélectionner --</option>
+                                ${this._data.perimetres.map(p => `
+                                    <option value="${escapeHtml(p['Périmetre'])}" ${p['Périmetre'] === chantier['Perimetre'] ? 'selected' : ''}>
+                                        ${escapeHtml(p['Périmetre'])}
+                                    </option>
+                                `).join('')}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Processus</label>
+                            <select class="form-control" name="Processus">
+                                <option value="">-- Sélectionner --</option>
+                                ${this.getOrderedProcessus().map(p => `
+                                    <option value="${escapeHtml(p)}" ${p === chantier['Processus'] ? 'selected' : ''}>
+                                        ${escapeHtml(p)}
+                                    </option>
+                                `).join('')}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Date fin souhaitée</label>
+                            <input type="date" class="form-control" name="Date fin souhaitée" value="${this._formatDateForInput(chantier['Date fin souhaitée'])}">
+                        </div>
+                        <div class="form-group" style="display: flex; align-items: flex-end;">
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="Archivé" ${this.isArchived(chantier) ? 'checked' : ''}>
+                                <span>Archivé</span>
+                            </label>
                         </div>
                     </div>
+                    <div class="form-group">
+                        <label class="form-label">Enjeux</label>
+                        <div class="rich-text-toolbar">
+                            <button type="button" class="rich-text-btn" onclick="ChantierModal.execEnjeuxCommand('bold')" title="Gras"><strong>G</strong></button>
+                            <button type="button" class="rich-text-btn" onclick="ChantierModal.execEnjeuxCommand('italic')" title="Italique"><em>I</em></button>
+                            <span class="rich-text-separator"></span>
+                            <button type="button" class="rich-text-btn" onclick="ChantierModal.execEnjeuxCommand('insertUnorderedList')" title="Liste">&#8226;</button>
+                            <button type="button" class="rich-text-btn" onclick="ChantierModal.execEnjeuxCommand('insertOrderedList')" title="Liste numérotée">1.</button>
+                        </div>
+                        <div class="rich-text-editor" id="enjeuxEditor" contenteditable="true" style="min-height: 100px; resize: vertical; overflow: auto;">${chantier['Enjeux'] || ''}</div>
+                    </div>
                 </form>
+            </div>
 
-                <!-- Phases -->
-                <div class="phases-section" style="margin-top: var(--spacing-lg); padding-top: var(--spacing-md); border-top: 2px solid #dee2e6;">
+            <!-- Contenu onglet Phases -->
+            <div class="modal-tab-content" id="tabPhases">
+                <div class="phases-section">
                     <div class="phases-header">
                         <h4>Phases du chantier</h4>
                         <button type="button" class="btn btn-sm btn-primary" onclick="ChantierModal.showAddPhaseModal()">
@@ -415,7 +418,6 @@ const ChantierModal = {
                         <!-- Tableau des phases -->
                     </div>
                 </div>
-
                 <!-- Mini Roadmap -->
                 <div class="chantier-mini-roadmap" id="chantierMiniRoadmap">
                     <!-- Généré dynamiquement -->
@@ -508,11 +510,6 @@ const ChantierModal = {
             ]
         });
 
-        // Rendre les listes initiales après le rendu de la modale
-        setTimeout(() => {
-            this._renderPhasesTable();
-            this._renderMiniRoadmap();
-        }, 100);
     },
 
     // ==========================================
@@ -563,13 +560,19 @@ const ChantierModal = {
         });
 
         const tabGeneral = document.getElementById('tabGeneral');
+        const tabPhases = document.getElementById('tabPhases');
         const tabAssociations = document.getElementById('tabAssociations');
         const tabNotes = document.getElementById('tabNotes');
 
         if (tabGeneral) tabGeneral.classList.toggle('active', tabName === 'general');
+        if (tabPhases) tabPhases.classList.toggle('active', tabName === 'phases');
         if (tabAssociations) tabAssociations.classList.toggle('active', tabName === 'associations');
         if (tabNotes) tabNotes.classList.toggle('active', tabName === 'notes');
 
+        if (tabName === 'phases') {
+            this._renderPhasesTable();
+            this._renderMiniRoadmap();
+        }
         if (tabName === 'associations') {
             this._state.renderProduits();
             this._state.renderDataAnas();
