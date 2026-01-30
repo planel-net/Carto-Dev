@@ -705,9 +705,14 @@ async function readSheet(sheetName) {
  * @param {string} jiraSheetName - Nom de la feuille source (Jira)
  * @param {string} tableName - Nom de la table destination
  * @param {string} keyField - Nom du champ clé pour vérifier les doublons
- * @returns {Promise<Object>} Résultat { success, added, skipped, error }
+ * @param {Object} options - Options avancées
+ * @param {string[]} options.skipStates - États à ignorer pour les nouveaux éléments
+ * @param {string} options.stateField - Nom du champ état (défaut: 'État')
+ * @param {string[]} options.updateFields - Champs à mettre à jour pour les éléments existants
+ * @returns {Promise<Object>} Résultat { success, added, updated, skipped, error }
  */
-async function copyFromJira(jiraSheetName, tableName, keyField = 'Clé') {
+async function copyFromJira(jiraSheetName, tableName, keyField = 'Clé', options = {}) {
+    const { skipStates = [], stateField = 'État', updateFields = [] } = options;
     console.log(`[copyFromJira] Copying from ${jiraSheetName} to ${tableName}`);
 
     try {
@@ -717,44 +722,91 @@ async function copyFromJira(jiraSheetName, tableName, keyField = 'Clé') {
         // Lire les données source (feuille Jira)
         const jiraData = await readSheet(jiraSheetName);
         if (jiraData.data.length === 0) {
-            return { success: true, added: 0, skipped: 0, message: 'Aucune donnée dans la feuille source' };
+            return { success: true, added: 0, updated: 0, skipped: 0, message: 'Aucune donnée dans la feuille source' };
         }
 
         // Lire les données existantes dans la table destination
         const existingData = await readTable(tableName, false);
-        const existingKeys = new Set(
-            existingData.data.map(row => String(row[keyField] || '').trim().toLowerCase())
-        );
-
-        console.log(`[copyFromJira] Existing keys: ${existingKeys.size}`);
-
-        // Filtrer les lignes à ajouter (celles dont la clé n'existe pas)
-        const rowsToAdd = jiraData.data.filter(row => {
+        const existingMap = new Map();
+        existingData.data.forEach(row => {
             const key = String(row[keyField] || '').trim().toLowerCase();
-            return key && !existingKeys.has(key);
+            if (key) existingMap.set(key, row);
         });
 
-        console.log(`[copyFromJira] Rows to add: ${rowsToAdd.length}`);
+        console.log(`[copyFromJira] Existing keys: ${existingMap.size}, Jira rows: ${jiraData.data.length}`);
 
-        // Ajouter les nouvelles lignes
         let added = 0;
-        for (const row of rowsToAdd) {
-            const rowData = { ...row };
-            delete rowData._rowIndex;
-            await addTableRow(tableName, rowData);
-            added++;
+        let updated = 0;
+        let skippedExisting = 0;
+        let skippedState = 0;
+
+        for (const jiraRow of jiraData.data) {
+            const key = String(jiraRow[keyField] || '').trim().toLowerCase();
+            if (!key) continue;
+
+            const existingRow = existingMap.get(key);
+
+            if (existingRow) {
+                // Élément existant : mettre à jour les champs spécifiés
+                if (updateFields.length > 0) {
+                    let needsUpdate = false;
+                    const updatedRow = { ...existingRow };
+                    delete updatedRow._rowIndex;
+
+                    for (const field of updateFields) {
+                        const jiraValue = String(jiraRow[field] || '').trim();
+                        const existingValue = String(existingRow[field] || '').trim();
+                        if (jiraValue && jiraValue !== existingValue) {
+                            updatedRow[field] = jiraRow[field];
+                            needsUpdate = true;
+                        }
+                    }
+
+                    if (needsUpdate) {
+                        await updateTableRow(tableName, existingRow._rowIndex, updatedRow);
+                        updated++;
+                    } else {
+                        skippedExisting++;
+                    }
+                } else {
+                    skippedExisting++;
+                }
+            } else {
+                // Nouvel élément : vérifier si l'état doit être ignoré
+                if (skipStates.length > 0) {
+                    const state = String(jiraRow[stateField] || '').trim();
+                    if (skipStates.includes(state)) {
+                        skippedState++;
+                        continue;
+                    }
+                }
+
+                const rowData = { ...jiraRow };
+                delete rowData._rowIndex;
+                await addTableRow(tableName, rowData);
+                added++;
+            }
         }
 
-        const skipped = jiraData.data.length - added;
+        console.log(`[copyFromJira] Added: ${added}, Updated: ${updated}, Skipped existing: ${skippedExisting}, Skipped state: ${skippedState}`);
+
+        // Construire le message
+        const parts = [];
+        if (added > 0) parts.push(`${added} ajouté(s)`);
+        if (updated > 0) parts.push(`${updated} mis à jour`);
+        if (skippedState > 0) parts.push(`${skippedState} ignoré(s) (état Résolue)`);
+        if (skippedExisting > 0) parts.push(`${skippedExisting} inchangé(s)`);
+        const message = parts.length > 0 ? parts.join(', ') : 'Aucune modification';
 
         return {
             success: true,
             added,
-            skipped,
-            message: `${added} élément(s) ajouté(s), ${skipped} ignoré(s) (déjà existants)`
+            updated,
+            skipped: skippedExisting + skippedState,
+            message
         };
     } catch (error) {
         console.error(`[copyFromJira] Error:`, error);
-        return { success: false, added: 0, skipped: 0, error: error.message };
+        return { success: false, added: 0, updated: 0, skipped: 0, error: error.message };
     }
 }

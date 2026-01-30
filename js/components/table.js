@@ -41,6 +41,12 @@ class DataTable {
         this.sortable = this.tableConfig?.sortable || false;
         this.draggedRow = null;
 
+        // External filter function (returns filtered array)
+        this.externalFilter = options.externalFilter || null;
+
+        // Callback when data is loaded
+        this.onDataLoaded = options.onDataLoaded || null;
+
         this.init();
     }
 
@@ -166,6 +172,9 @@ class DataTable {
             this.showLoading(true);
             const result = await readTable(this.tableName);
             this.data = result.data;
+            if (this.onDataLoaded) {
+                this.onDataLoaded(this.data);
+            }
             this.applyFilters();
         } catch (error) {
             console.error('Erreur chargement données:', error);
@@ -184,6 +193,11 @@ class DataTable {
     applyFilters() {
         // Commencer avec toutes les données
         let filtered = [...this.data];
+
+        // Appliquer le filtre externe (ex: filtres page-level)
+        if (this.externalFilter) {
+            filtered = this.externalFilter(filtered);
+        }
 
         // Filtrer par recherche globale
         if (this.searchTerm) {
