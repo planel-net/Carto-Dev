@@ -976,14 +976,12 @@ class RoadmapChantiersPage {
         // Calculer les largeurs des phases après le rendu (basé sur la largeur réelle des colonnes)
         this.updatePhaseWidths();
 
-        // Restaurer les positions de scroll après le rendu
-        requestAnimationFrame(() => {
-            if (mainBody) mainBody.scrollTop = savedScroll.mainBodyTop;
-            if (container) {
-                container.scrollLeft = savedScroll.ganttLeft;
-                container.scrollTop = savedScroll.ganttTop;
-            }
-        });
+        // Restaurer les positions de scroll immédiatement (synchrone pour éviter tout saut visuel)
+        if (mainBody) mainBody.scrollTop = savedScroll.mainBodyTop;
+        if (container) {
+            container.scrollLeft = savedScroll.ganttLeft;
+            container.scrollTop = savedScroll.ganttTop;
+        }
     }
 
     /**
@@ -3159,14 +3157,13 @@ class RoadmapChantiersPage {
         this.renderGantt();
         // attachCellEvents est appelé dans renderGantt, pas besoin de l'appeler ici
 
-        // Restaurer la position de scroll (couvre le cas où renderFilters modifie le layout)
-        requestAnimationFrame(() => {
-            if (mainBody) mainBody.scrollTop = savedScroll.mainBodyTop;
-            if (ganttContainer) {
-                ganttContainer.scrollLeft = savedScroll.ganttLeft;
-                ganttContainer.scrollTop = savedScroll.ganttTop;
-            }
-        });
+        // Restaurer la position de scroll (synchrone, après tout le re-rendu)
+        // Nécessaire car renderFilters() peut modifier le layout avant renderGantt()
+        if (mainBody) mainBody.scrollTop = savedScroll.mainBodyTop;
+        if (ganttContainer) {
+            ganttContainer.scrollLeft = savedScroll.ganttLeft;
+            ganttContainer.scrollTop = savedScroll.ganttTop;
+        }
     }
 
     /**
