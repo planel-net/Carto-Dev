@@ -40,7 +40,7 @@ const ChantierModal = {
         chantierName: null,
         rowIndex: null,
         onSuccess: null,
-        activeTab: 'general', // 'general', 'phases' ou 'notes'
+        activeTab: 'general', // 'general', 'associations' ou 'notes'
         notes: [],
         editingNoteIndex: null
     },
@@ -209,8 +209,6 @@ const ChantierModal = {
                     <label class="form-label">Date fin souhaitée</label>
                     <input type="date" class="form-control" name="Date fin souhaitée">
                 </div>
-
-                <!-- Enjeux -->
                 <div class="form-group">
                     <label class="form-label">Enjeux</label>
                     <div class="rich-text-toolbar">
@@ -222,59 +220,6 @@ const ChantierModal = {
                     </div>
                     <div class="rich-text-editor" id="enjeuxEditor" contenteditable="true" style="min-height: 80px;"></div>
                 </div>
-
-                <!-- Section Produits -->
-                <div class="assigned-section">
-                    <div class="assigned-section-header">
-                        <h4>&#128202; Produits associés</h4>
-                        <button type="button" class="btn btn-sm btn-primary" onclick="ChantierModal.showSelectProduitsModal()">
-                            Assigner produit
-                        </button>
-                    </div>
-                    <div class="assigned-items-list" id="assignedProduitsAdd">
-                        <div class="assigned-items-empty">Aucun produit assigné</div>
-                    </div>
-                </div>
-
-                <!-- Section DataAnas -->
-                <div class="assigned-section">
-                    <div class="assigned-section-header">
-                        <h4>&#128202; DataAnas associés</h4>
-                        <button type="button" class="btn btn-sm btn-primary" onclick="ChantierModal.showSelectDataAnasModal()">
-                            Assigner DataAna
-                        </button>
-                    </div>
-                    <div class="assigned-items-list" id="assignedDataAnasAdd">
-                        <div class="assigned-items-empty">Aucun DataAna assigné</div>
-                    </div>
-                </div>
-
-                <!-- Section MAE -->
-                <div class="assigned-section">
-                    <div class="assigned-section-header">
-                        <h4>&#128203; MAE associés</h4>
-                        <button type="button" class="btn btn-sm btn-primary" onclick="ChantierModal.showSelectMAEModal()">
-                            Assigner MAE
-                        </button>
-                    </div>
-                    <div class="assigned-items-list" id="assignedMAEAdd">
-                        <div class="assigned-items-empty">Aucun MAE assigné</div>
-                    </div>
-                </div>
-
-                <!-- Section Liens -->
-                <div class="assigned-section">
-                    <div class="assigned-section-header">
-                        <h4>&#128279; Liens</h4>
-                        <button type="button" class="btn btn-sm btn-primary" onclick="ChantierModal.addLienRow()">
-                            + Ajouter un lien
-                        </button>
-                    </div>
-                    <div id="chantierLiensAdd">
-                        <div class="assigned-items-empty">Aucun lien</div>
-                    </div>
-                </div>
-
                 <div class="form-group">
                     <label class="checkbox-label">
                         <input type="checkbox" name="Archivé">
@@ -381,8 +326,8 @@ const ChantierModal = {
                 <button type="button" class="modal-tab active" data-tab="general" onclick="ChantierModal.switchTab('general')">
                     Général
                 </button>
-                <button type="button" class="modal-tab" data-tab="phases" onclick="ChantierModal.switchTab('phases')">
-                    Phases <span class="tab-badge" id="phasesBadge">${phasesCount > 0 ? phasesCount : ''}</span>
+                <button type="button" class="modal-tab" data-tab="associations" onclick="ChantierModal.switchTab('associations')">
+                    Associations
                 </button>
                 <button type="button" class="modal-tab" data-tab="notes" onclick="ChantierModal.switchTab('notes')">
                     Notes <span class="tab-badge" id="notesBadge">${this._state.notes.length > 0 ? this._state.notes.length : ''}</span>
@@ -393,7 +338,6 @@ const ChantierModal = {
             <div class="modal-tab-content active" id="tabGeneral">
                 <form id="formChantierModal" class="form">
                     <div class="chantier-modal-columns">
-                        <!-- Colonne gauche : Infos -->
                         <div class="chantier-modal-left">
                             <div class="form-group">
                                 <label class="form-label required">Nom du chantier</label>
@@ -443,10 +387,7 @@ const ChantierModal = {
                                 </label>
                             </div>
                         </div>
-
-                        <!-- Colonne droite : Enjeux + associations -->
                         <div class="chantier-modal-right">
-                            <!-- Enjeux -->
                             <div class="form-group">
                                 <label class="form-label">Enjeux</label>
                                 <div class="rich-text-toolbar">
@@ -458,71 +399,12 @@ const ChantierModal = {
                                 </div>
                                 <div class="rich-text-editor" id="enjeuxEditor" contenteditable="true" style="min-height: 80px;">${chantier['Enjeux'] || ''}</div>
                             </div>
-
-                            <!-- Section Produits -->
-                            <div class="assigned-section">
-                                <div class="assigned-section-header">
-                                    <h4>&#128202; Produits associés</h4>
-                                    <button type="button" class="btn btn-sm btn-primary" onclick="ChantierModal.showSelectProduitsModal()">
-                                        Assigner
-                                    </button>
-                                </div>
-                                <div class="assigned-items-list" id="assignedProduitsEdit">
-                                    <div class="assigned-items-empty">Aucun produit assigné</div>
-                                </div>
-                            </div>
-
-                            <!-- Section DataAnas -->
-                            <div class="assigned-section">
-                                <div class="assigned-section-header">
-                                    <h4>&#128202; DataAnas associés</h4>
-                                    <button type="button" class="btn btn-sm btn-primary" onclick="ChantierModal.showSelectDataAnasModal()">
-                                        Assigner
-                                    </button>
-                                </div>
-                                <div class="assigned-items-list" id="assignedDataAnasEdit">
-                                    <div class="assigned-items-empty">Aucun DataAna assigné</div>
-                                </div>
-                            </div>
-
-                            <!-- Section MAE -->
-                            <div class="assigned-section">
-                                <div class="assigned-section-header">
-                                    <h4>&#128203; MAE associés</h4>
-                                    <button type="button" class="btn btn-sm btn-primary" onclick="ChantierModal.showSelectMAEModal()">
-                                        Assigner
-                                    </button>
-                                </div>
-                                <div class="assigned-items-list" id="assignedMAEEdit">
-                                    <div class="assigned-items-empty">Aucun MAE assigné</div>
-                                </div>
-                            </div>
-
-                            <!-- Section Liens -->
-                            <div class="assigned-section">
-                                <div class="assigned-section-header">
-                                    <h4>&#128279; Liens</h4>
-                                    <button type="button" class="btn btn-sm btn-primary" onclick="ChantierModal.addLienRow()">
-                                        + Ajouter
-                                    </button>
-                                </div>
-                                <div id="chantierLiensEdit">
-                                    <div class="assigned-items-empty">Aucun lien</div>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </form>
 
-                <!-- Mini Roadmap -->
-                <div class="chantier-mini-roadmap" id="chantierMiniRoadmap">
-                    <!-- Généré dynamiquement -->
-                </div>
-            </div>
-
-            <!-- Contenu onglet Phases -->
-            <div class="modal-tab-content" id="tabPhases">
-                <div class="phases-section">
+                <!-- Phases -->
+                <div class="phases-section" style="margin-top: var(--spacing-lg); padding-top: var(--spacing-md); border-top: 2px solid #dee2e6;">
                     <div class="phases-header">
                         <h4>Phases du chantier</h4>
                         <button type="button" class="btn btn-sm btn-primary" onclick="ChantierModal.showAddPhaseModal()">
@@ -531,6 +413,66 @@ const ChantierModal = {
                     </div>
                     <div id="phasesTableContainer">
                         <!-- Tableau des phases -->
+                    </div>
+                </div>
+
+                <!-- Mini Roadmap -->
+                <div class="chantier-mini-roadmap" id="chantierMiniRoadmap">
+                    <!-- Généré dynamiquement -->
+                </div>
+            </div>
+
+            <!-- Contenu onglet Associations -->
+            <div class="modal-tab-content" id="tabAssociations">
+                <!-- Section Produits -->
+                <div class="assigned-section">
+                    <div class="assigned-section-header">
+                        <h4>&#128202; Produits associés</h4>
+                        <button type="button" class="btn btn-sm btn-primary" onclick="ChantierModal.showSelectProduitsModal()">
+                            Assigner
+                        </button>
+                    </div>
+                    <div class="assigned-items-list" id="assignedProduitsEdit">
+                        <div class="assigned-items-empty">Aucun produit assigné</div>
+                    </div>
+                </div>
+
+                <!-- Section DataAnas -->
+                <div class="assigned-section">
+                    <div class="assigned-section-header">
+                        <h4>&#128202; DataAnas associés</h4>
+                        <button type="button" class="btn btn-sm btn-primary" onclick="ChantierModal.showSelectDataAnasModal()">
+                            Assigner
+                        </button>
+                    </div>
+                    <div class="assigned-items-list" id="assignedDataAnasEdit">
+                        <div class="assigned-items-empty">Aucun DataAna assigné</div>
+                    </div>
+                </div>
+
+                <!-- Section MAE -->
+                <div class="assigned-section">
+                    <div class="assigned-section-header">
+                        <h4>&#128203; MAE associés</h4>
+                        <button type="button" class="btn btn-sm btn-primary" onclick="ChantierModal.showSelectMAEModal()">
+                            Assigner
+                        </button>
+                    </div>
+                    <div class="assigned-items-list" id="assignedMAEEdit">
+                        <div class="assigned-items-empty">Aucun MAE assigné</div>
+                    </div>
+                </div>
+
+                <!-- Section Liens -->
+                <div class="assigned-section">
+                    <div class="assigned-section-header">
+                        <h4>&#128279; Liens</h4>
+                        <button type="button" class="btn btn-sm btn-primary" onclick="ChantierModal.addLienRow()">
+                            + Ajouter
+                        </button>
+                    </div>
+                    <div id="chantierLiensEdit">
+                        <div class="assigned-items-empty">Aucun lien</div>
                     </div>
                 </div>
             </div>
@@ -568,11 +510,6 @@ const ChantierModal = {
 
         // Rendre les listes initiales après le rendu de la modale
         setTimeout(() => {
-            this._state.renderProduits();
-            this._state.renderDataAnas();
-            this._state.renderMAE();
-            this._state.renderLiens();
-            this._renderNotesList();
             this._renderPhasesTable();
             this._renderMiniRoadmap();
         }, 100);
@@ -626,18 +563,21 @@ const ChantierModal = {
         });
 
         const tabGeneral = document.getElementById('tabGeneral');
-        const tabPhases = document.getElementById('tabPhases');
+        const tabAssociations = document.getElementById('tabAssociations');
         const tabNotes = document.getElementById('tabNotes');
 
         if (tabGeneral) tabGeneral.classList.toggle('active', tabName === 'general');
-        if (tabPhases) tabPhases.classList.toggle('active', tabName === 'phases');
+        if (tabAssociations) tabAssociations.classList.toggle('active', tabName === 'associations');
         if (tabNotes) tabNotes.classList.toggle('active', tabName === 'notes');
 
+        if (tabName === 'associations') {
+            this._state.renderProduits();
+            this._state.renderDataAnas();
+            this._state.renderMAE();
+            this._state.renderLiens();
+        }
         if (tabName === 'notes') {
             this._renderNotesList();
-        }
-        if (tabName === 'phases') {
-            this._renderPhasesTable();
         }
     },
 
