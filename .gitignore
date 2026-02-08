@@ -11,8 +11,8 @@
 .vscode/
 *.code-workspace
 
-# Claude session files
-.claude/
+# Claude - fichiers locaux uniquement (les agents, skills, rules, hooks sont partages)
+.claude/settings.local.json
 
 # Temporary files
 *.tmp
