@@ -234,7 +234,7 @@ class SynthesePage {
     populateFilters() {
         // Remplir le filtre Perimetre
         const perimetreSelect = document.getElementById('filterPerimetre');
-        const perimetresUniques = [...new Set(this.data.perimetres.map(p => p['Périmètre']))].filter(Boolean).sort();
+        const perimetresUniques = [...new Set(this.data.perimetres.map(p => p.Perimetre))].filter(Boolean).sort();
         perimetresUniques.forEach(p => {
             const option = document.createElement('option');
             option.value = p;
