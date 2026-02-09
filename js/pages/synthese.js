@@ -9,6 +9,7 @@ class SynthesePage {
             chantiers: [],
             produits: [],
             mae: [],
+            acteurs: [],
             perimetres: [],
             processus: [],
             flux: [],
@@ -23,6 +24,7 @@ class SynthesePage {
             processus: '',
             sousProcessus: '',
             avancement: '',
+            responsable: '',
             etat: ''
         };
     }
@@ -68,8 +70,13 @@ class SynthesePage {
                                 <label>Avancement</label>
                                 <select id="filterAvancement" class="filter-select">
                                     <option value="">Tous</option>
-                                    <option value="A venir">À venir</option>
-                                    <option value="En cours">En cours</option>
+                                    <option value="Non démarré">Non démarré</option>
+                                    <option value="En cadrage">En cadrage</option>
+                                    <option value="Cadré">Cadré</option>
+                                    <option value="En développement">En développement</option>
+                                    <option value="Développé">Développé</option>
+                                    <option value="En recette">En recette</option>
+                                    <option value="Recetté">Recetté</option>
                                     <option value="Terminé">Terminé</option>
                                 </select>
                             </div>
@@ -93,6 +100,12 @@ class SynthesePage {
                     <div class="synthese-column">
                         <div class="column-header">
                             <h2>Produits</h2>
+                            <div class="filter-group">
+                                <label>Responsable</label>
+                                <select id="filterResponsable" class="filter-select">
+                                    <option value="">Tous</option>
+                                </select>
+                            </div>
                         </div>
                         <div class="column-count" id="produitsCount">0 produit(s)</div>
                         <div class="column-content">
@@ -150,10 +163,11 @@ class SynthesePage {
     async loadData() {
         try {
             // Charger toutes les donnees necessaires
-            const [chantiers, produits, mae, perimetres, processus, flux, shores, projetsDSS, dataflows, pdtProcess] = await Promise.all([
+            const [chantiers, produits, mae, acteurs, perimetres, processus, flux, shores, projetsDSS, dataflows, pdtProcess] = await Promise.all([
                 readTable(CONFIG.TABLES.CHANTIER.name),
                 readTable(CONFIG.TABLES.PRODUITS.name),
                 readTable(CONFIG.TABLES.MAE.name),
+                readTable(CONFIG.TABLES.ACTEURS.name),
                 readTable(CONFIG.TABLES.PERIMETRES.name),
                 readTable(CONFIG.TABLES.PROCESSUS.name),
                 readTable(CONFIG.TABLES.FLUX.name),
@@ -166,6 +180,7 @@ class SynthesePage {
             this.data.chantiers = chantiers.filter(c => c.Archive !== 'Oui' && c.Archive !== true);
             this.data.produits = produits;
             this.data.mae = mae;
+            this.data.acteurs = acteurs;
             this.data.perimetres = perimetres;
             this.data.processus = processus;
             this.data.flux = flux;
@@ -199,6 +214,17 @@ class SynthesePage {
             option.textContent = p;
             processusSelect.appendChild(option);
         });
+
+        // Remplir le filtre Responsable
+        const responsableSelect = document.getElementById('filterResponsable');
+        const responsablesUniques = [...new Set(this.data.acteurs.map(a => a.Mail))].filter(Boolean).sort();
+        responsablesUniques.forEach(mail => {
+            const acteur = this.data.acteurs.find(a => a.Mail === mail);
+            const option = document.createElement('option');
+            option.value = mail;
+            option.textContent = formatActorName(mail);
+            responsableSelect.appendChild(option);
+        });
     }
 
     attachEvents() {
@@ -222,6 +248,11 @@ class SynthesePage {
         // Filtres specifiques
         document.getElementById('filterAvancement').addEventListener('change', () => {
             this.filters.avancement = document.getElementById('filterAvancement').value;
+            this.applyFiltersAndRender();
+        });
+
+        document.getElementById('filterResponsable').addEventListener('change', () => {
+            this.filters.responsable = document.getElementById('filterResponsable').value;
             this.applyFiltersAndRender();
         });
 
@@ -294,6 +325,11 @@ class SynthesePage {
         return this.data.produits.filter(produit => {
             // Filtre Perimetre
             if (this.filters.perimetre && produit['Perimétre fonctionnel'] !== this.filters.perimetre) {
+                return false;
+            }
+
+            // Filtre Responsable
+            if (this.filters.responsable && produit.Responsable !== this.filters.responsable) {
                 return false;
             }
 

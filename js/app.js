@@ -168,7 +168,7 @@ async function initializeApp() {
 
         // Charger la page par défaut
         console.log('[App] Loading default page...');
-        await navigateTo('migration');
+        await navigateTo('synthese');
 
         // Masquer le loader initial
         hideLoading();
