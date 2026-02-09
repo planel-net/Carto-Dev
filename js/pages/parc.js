@@ -18,6 +18,7 @@ class ParcPage {
         this.filters = {
             type: 'all',
             processStatus: 'all', // 'all', 'with', 'without'
+            selectedPerimetres: [], // Perimetres selectionnes (vide = tous)
             selectedProcessus: [], // Processus selectionnes (vide = tous)
             selectedSubProcessus: [] // Sous-processus selectionnes (vide = tous)
         };
@@ -97,6 +98,16 @@ class ParcPage {
             console.error('Erreur chargement donnees parc:', error);
             showError('Erreur lors du chargement des donnees');
         }
+    }
+
+    /**
+     * Obtient les perimetres uniques (depuis la table de reference)
+     */
+    getUniquePerimetres() {
+        return this.perimetres
+            .map(p => p['Périmetre'])
+            .filter(Boolean)
+            .sort();
     }
 
     /**
@@ -295,6 +306,16 @@ class ParcPage {
             filtered = filtered.filter(p => p['Type de rapport'] === this.filters.type);
         }
 
+        // Filtre par perimetre
+        if (this.filters.selectedPerimetres.length > 0) {
+            const produitsParPerimetre = new Set(
+                this.pdtsPerimetres
+                    .filter(pp => this.filters.selectedPerimetres.includes(pp['Périmètre']))
+                    .map(pp => pp['Produit'])
+            );
+            filtered = filtered.filter(p => produitsParPerimetre.has(p.Nom));
+        }
+
         // Filtre par statut processus
         if (this.filters.processStatus !== 'all') {
             const produitsAvecProcessus = new Set(this.pdtProcess.map(pp => pp.Produit));
@@ -358,6 +379,7 @@ class ParcPage {
         const productTypes = this.getUniqueProductTypes();
         const allProcessus = this.getUniqueProcessus();
         const availableSubProcessus = this.getAvailableSubProcessus();
+        const allPerimetres = this.getUniquePerimetres();
 
         // Construire les colonnes filtrees
         const columns = this.getFilteredColumns(structuredProcessus);
@@ -384,6 +406,31 @@ class ParcPage {
                             <option value="with" ${this.filters.processStatus === 'with' ? 'selected' : ''}>Avec processus</option>
                             <option value="without" ${this.filters.processStatus === 'without' ? 'selected' : ''}>Sans processus</option>
                         </select>
+                    </div>
+                    <div class="matrix-filter-group">
+                        <label>Périmètre:</label>
+                        <div class="multi-select-wrapper" id="perimetreFilterWrapper">
+                            <div class="multi-select-trigger" onclick="parcPageInstance.toggleMultiSelect('perimetre')">
+                                <span class="multi-select-label">${this.filters.selectedPerimetres.length === 0 ? 'Tous' : this.filters.selectedPerimetres.length + ' selectionne(s)'}</span>
+                                <span class="multi-select-arrow">&#9662;</span>
+                            </div>
+                            <div class="multi-select-dropdown" id="perimetreDropdown">
+                                <div class="multi-select-actions">
+                                    <button type="button" class="btn btn-sm" onclick="parcPageInstance.selectAllPerimetresFilter()">Tous</button>
+                                    <button type="button" class="btn btn-sm" onclick="parcPageInstance.clearPerimetresFilter()">Aucun</button>
+                                </div>
+                                <div class="multi-select-options">
+                                    ${allPerimetres.map(p => `
+                                        <label class="multi-select-option">
+                                            <input type="checkbox" value="${escapeHtml(p)}"
+                                                ${this.filters.selectedPerimetres.includes(p) ? 'checked' : ''}
+                                                onchange="parcPageInstance.onPerimetresCheckChange()">
+                                            <span>${escapeHtml(p)}</span>
+                                        </label>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <div class="matrix-filter-group">
                         <label>Processus:</label>
@@ -963,15 +1010,21 @@ class ParcPage {
      * Toggle l'affichage d'un dropdown multi-select
      */
     toggleMultiSelect(type) {
-        const dropdownId = type === 'processus' ? 'processusDropdown' : 'subProcessusDropdown';
-        const otherDropdownId = type === 'processus' ? 'subProcessusDropdown' : 'processusDropdown';
+        const dropdownIds = {
+            perimetre: 'perimetreDropdown',
+            processus: 'processusDropdown',
+            subProcessus: 'subProcessusDropdown'
+        };
+        const dropdownId = dropdownIds[type];
         const dropdown = document.getElementById(dropdownId);
-        const otherDropdown = document.getElementById(otherDropdownId);
 
-        // Fermer l'autre dropdown
-        if (otherDropdown) {
-            otherDropdown.classList.remove('open');
-        }
+        // Fermer tous les autres dropdowns
+        Object.entries(dropdownIds).forEach(([key, id]) => {
+            if (key !== type) {
+                const other = document.getElementById(id);
+                if (other) other.classList.remove('open');
+            }
+        });
 
         // Toggle le dropdown actuel
         if (dropdown) {
@@ -984,6 +1037,39 @@ class ParcPage {
      */
     closeAllDropdowns() {
         document.querySelectorAll('.multi-select-dropdown').forEach(d => d.classList.remove('open'));
+    }
+
+    /**
+     * Selectionne tous les perimetres (= pas de filtre)
+     */
+    selectAllPerimetresFilter() {
+        this.filters.selectedPerimetres = [];
+        this.closeAllDropdowns();
+        this.clearSelection();
+        this.renderProcessView();
+    }
+
+    /**
+     * Efface le filtre perimetres (= aucun perimetre selectionne -> tableau vide)
+     */
+    clearPerimetresFilter() {
+        const allPerimetres = this.getUniquePerimetres();
+        this.filters.selectedPerimetres = [...allPerimetres];
+        this.closeAllDropdowns();
+        this.clearSelection();
+        this.renderProcessView();
+    }
+
+    /**
+     * Gestion du changement de checkbox perimetre
+     */
+    onPerimetresCheckChange() {
+        const checkboxes = document.querySelectorAll('#perimetreDropdown input[type="checkbox"]');
+        this.filters.selectedPerimetres = Array.from(checkboxes)
+            .filter(cb => cb.checked)
+            .map(cb => cb.value);
+        this.clearSelection();
+        this.renderProcessView();
     }
 
     /**
