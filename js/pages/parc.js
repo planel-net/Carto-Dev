@@ -32,6 +32,9 @@ class ParcPage {
     async render(container) {
         container.innerHTML = `
             <div class="parc-page">
+                <!-- Barre de filtres partagee -->
+                <div id="parcFilters" class="matrix-filters"></div>
+
                 <!-- Toolbar avec tabs et bouton ajouter -->
                 <div class="parc-toolbar">
                     <div class="tabs tabs-compact">
@@ -102,6 +105,7 @@ class ParcPage {
                 this.filters.selectedSubProcessus = this.getAvailableSubProcessus();
             }
 
+            this.renderFilters();
             this.renderProcessView();
             this.renderListView();
 
@@ -388,7 +392,131 @@ class ParcPage {
     }
 
     /**
-     * Rendu de la vue processus (matrice)
+     * Rendu de la barre de filtres partagee (au-dessus des onglets)
+     */
+    renderFilters() {
+        const container = document.getElementById('parcFilters');
+        if (!container) return;
+
+        const productTypes = this.getUniqueProductTypes();
+        const allProcessus = this.getUniqueProcessus();
+        const availableSubProcessus = this.getAvailableSubProcessus();
+        const allPerimetres = this.getUniquePerimetres();
+
+        container.innerHTML = `
+            <div class="matrix-filter-group">
+                <label for="filterType">Type:</label>
+                <select id="filterType" onchange="parcPageInstance.onFilterChange()">
+                    <option value="all">Tous les types</option>
+                    ${productTypes.map(type => `
+                        <option value="${escapeHtml(type)}" ${this.filters.type === type ? 'selected' : ''}>
+                            ${escapeHtml(type)}
+                        </option>
+                    `).join('')}
+                </select>
+            </div>
+            <div class="matrix-filter-group">
+                <label>Périmètre:</label>
+                <div class="multi-select-wrapper" id="perimetreFilterWrapper">
+                    <div class="multi-select-trigger" onclick="parcPageInstance.toggleMultiSelect('perimetre')">
+                        <span class="multi-select-label">${this.filters.selectedPerimetres.length === allPerimetres.length ? 'Tous' : (this.filters.selectedPerimetres.length === 0 ? 'Aucun' : this.filters.selectedPerimetres.length + ' selectionne(s)')}</span>
+                        <span class="multi-select-arrow">&#9662;</span>
+                    </div>
+                    <div class="multi-select-dropdown" id="perimetreDropdown">
+                        <div class="multi-select-actions">
+                            <button type="button" class="btn btn-sm" onclick="parcPageInstance.selectAllPerimetresFilter()">Tous</button>
+                            <button type="button" class="btn btn-sm" onclick="parcPageInstance.clearPerimetresFilter()">Aucun</button>
+                        </div>
+                        <div class="multi-select-options">
+                            ${allPerimetres.map(p => `
+                                <label class="multi-select-option">
+                                    <input type="checkbox" value="${escapeHtml(p)}"
+                                        ${this.filters.selectedPerimetres.includes(p) ? 'checked' : ''}
+                                        onchange="parcPageInstance.onPerimetresCheckChange()">
+                                    <span>${escapeHtml(p)}</span>
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="matrix-filter-group">
+                <label for="filterProcessStatus">Lignes:</label>
+                <select id="filterProcessStatus" onchange="parcPageInstance.onFilterChange()">
+                    <option value="all" ${this.filters.processStatus === 'all' ? 'selected' : ''}>Tous</option>
+                    <option value="with" ${this.filters.processStatus === 'with' ? 'selected' : ''}>Avec processus</option>
+                    <option value="without" ${this.filters.processStatus === 'without' ? 'selected' : ''}>Sans processus</option>
+                </select>
+            </div>
+            <div class="matrix-filter-group">
+                <label>Processus:</label>
+                <div class="multi-select-wrapper" id="processusFilterWrapper">
+                    <div class="multi-select-trigger" onclick="parcPageInstance.toggleMultiSelect('processus')">
+                        <span class="multi-select-label">${this.filters.selectedProcessus.length === allProcessus.length ? 'Tous' : (this.filters.selectedProcessus.length === 0 ? 'Aucun' : this.filters.selectedProcessus.length + ' selectionne(s)')}</span>
+                        <span class="multi-select-arrow">&#9662;</span>
+                    </div>
+                    <div class="multi-select-dropdown" id="processusDropdown">
+                        <div class="multi-select-actions">
+                            <button type="button" class="btn btn-sm" onclick="parcPageInstance.selectAllProcessus()">Tous</button>
+                            <button type="button" class="btn btn-sm" onclick="parcPageInstance.clearProcessusFilter()">Aucun</button>
+                        </div>
+                        <div class="multi-select-options">
+                            ${allProcessus.map(proc => `
+                                <label class="multi-select-option">
+                                    <input type="checkbox" value="${escapeHtml(proc)}"
+                                        ${this.filters.selectedProcessus.includes(proc) ? 'checked' : ''}
+                                        onchange="parcPageInstance.onProcessusCheckChange()">
+                                    <span>${escapeHtml(proc)}</span>
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="matrix-filter-group">
+                <label>Sous-processus:</label>
+                <div class="multi-select-wrapper" id="subProcessusFilterWrapper">
+                    <div class="multi-select-trigger" onclick="parcPageInstance.toggleMultiSelect('subProcessus')">
+                        <span class="multi-select-label">${this.filters.selectedSubProcessus.length === availableSubProcessus.length ? 'Tous' : (this.filters.selectedSubProcessus.length === 0 ? 'Aucun' : this.filters.selectedSubProcessus.length + ' selectionne(s)')}</span>
+                        <span class="multi-select-arrow">&#9662;</span>
+                    </div>
+                    <div class="multi-select-dropdown" id="subProcessusDropdown">
+                        <div class="multi-select-actions">
+                            <button type="button" class="btn btn-sm" onclick="parcPageInstance.selectAllSubProcessus()">Tous</button>
+                            <button type="button" class="btn btn-sm" onclick="parcPageInstance.clearSubProcessusFilter()">Aucun</button>
+                        </div>
+                        <div class="multi-select-options">
+                            ${availableSubProcessus.length > 0 ? availableSubProcessus.map(sub => `
+                                <label class="multi-select-option">
+                                    <input type="checkbox" value="${escapeHtml(sub)}"
+                                        ${this.filters.selectedSubProcessus.includes(sub) ? 'checked' : ''}
+                                        onchange="parcPageInstance.onSubProcessusCheckChange()">
+                                    <span>${escapeHtml(sub)}</span>
+                                </label>
+                            `).join('') : '<div class="multi-select-empty">Aucun sous-processus</div>'}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="matrix-legend">
+                <div class="legend-item">
+                    <span class="legend-color run"></span>
+                    <span>Run</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color evolution"></span>
+                    <span>Evolution</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color backlog"></span>
+                    <span>Backlog</span>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Rendu de la vue processus (matrice seule, sans filtres)
      */
     renderProcessView() {
         const container = document.getElementById('processMatrix');
@@ -397,140 +525,18 @@ class ParcPage {
         const structuredProcessus = this.getStructuredProcessus();
         const filteredStructuredProcessus = this.getFilteredStructuredProcessus(structuredProcessus);
         const filteredProducts = this.getFilteredProducts();
-        const productTypes = this.getUniqueProductTypes();
-        const allProcessus = this.getUniqueProcessus();
-        const availableSubProcessus = this.getAvailableSubProcessus();
-        const allPerimetres = this.getUniquePerimetres();
-
-        // Construire les colonnes filtrees
         const columns = this.getFilteredColumns(structuredProcessus);
 
-        let html = `
+        container.innerHTML = `
             <div class="process-matrix-container">
-                <!-- Filtres -->
-                <div class="matrix-filters">
-                    <div class="matrix-filter-group">
-                        <label for="filterType">Type:</label>
-                        <select id="filterType" onchange="parcPageInstance.onFilterChange()">
-                            <option value="all">Tous les types</option>
-                            ${productTypes.map(type => `
-                                <option value="${escapeHtml(type)}" ${this.filters.type === type ? 'selected' : ''}>
-                                    ${escapeHtml(type)}
-                                </option>
-                            `).join('')}
-                        </select>
-                    </div>
-                    <div class="matrix-filter-group">
-                        <label for="filterProcessStatus">Lignes:</label>
-                        <select id="filterProcessStatus" onchange="parcPageInstance.onFilterChange()">
-                            <option value="all" ${this.filters.processStatus === 'all' ? 'selected' : ''}>Tous</option>
-                            <option value="with" ${this.filters.processStatus === 'with' ? 'selected' : ''}>Avec processus</option>
-                            <option value="without" ${this.filters.processStatus === 'without' ? 'selected' : ''}>Sans processus</option>
-                        </select>
-                    </div>
-                    <div class="matrix-filter-group">
-                        <label>Périmètre:</label>
-                        <div class="multi-select-wrapper" id="perimetreFilterWrapper">
-                            <div class="multi-select-trigger" onclick="parcPageInstance.toggleMultiSelect('perimetre')">
-                                <span class="multi-select-label">${this.filters.selectedPerimetres.length === allPerimetres.length ? 'Tous' : (this.filters.selectedPerimetres.length === 0 ? 'Aucun' : this.filters.selectedPerimetres.length + ' selectionne(s)')}</span>
-                                <span class="multi-select-arrow">&#9662;</span>
-                            </div>
-                            <div class="multi-select-dropdown" id="perimetreDropdown">
-                                <div class="multi-select-actions">
-                                    <button type="button" class="btn btn-sm" onclick="parcPageInstance.selectAllPerimetresFilter()">Tous</button>
-                                    <button type="button" class="btn btn-sm" onclick="parcPageInstance.clearPerimetresFilter()">Aucun</button>
-                                </div>
-                                <div class="multi-select-options">
-                                    ${allPerimetres.map(p => `
-                                        <label class="multi-select-option">
-                                            <input type="checkbox" value="${escapeHtml(p)}"
-                                                ${this.filters.selectedPerimetres.includes(p) ? 'checked' : ''}
-                                                onchange="parcPageInstance.onPerimetresCheckChange()">
-                                            <span>${escapeHtml(p)}</span>
-                                        </label>
-                                    `).join('')}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="matrix-filter-group">
-                        <label>Processus:</label>
-                        <div class="multi-select-wrapper" id="processusFilterWrapper">
-                            <div class="multi-select-trigger" onclick="parcPageInstance.toggleMultiSelect('processus')">
-                                <span class="multi-select-label">${this.filters.selectedProcessus.length === allProcessus.length ? 'Tous' : (this.filters.selectedProcessus.length === 0 ? 'Aucun' : this.filters.selectedProcessus.length + ' selectionne(s)')}</span>
-                                <span class="multi-select-arrow">&#9662;</span>
-                            </div>
-                            <div class="multi-select-dropdown" id="processusDropdown">
-                                <div class="multi-select-actions">
-                                    <button type="button" class="btn btn-sm" onclick="parcPageInstance.selectAllProcessus()">Tous</button>
-                                    <button type="button" class="btn btn-sm" onclick="parcPageInstance.clearProcessusFilter()">Aucun</button>
-                                </div>
-                                <div class="multi-select-options">
-                                    ${allProcessus.map(proc => `
-                                        <label class="multi-select-option">
-                                            <input type="checkbox" value="${escapeHtml(proc)}"
-                                                ${this.filters.selectedProcessus.includes(proc) ? 'checked' : ''}
-                                                onchange="parcPageInstance.onProcessusCheckChange()">
-                                            <span>${escapeHtml(proc)}</span>
-                                        </label>
-                                    `).join('')}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="matrix-filter-group">
-                        <label>Sous-processus:</label>
-                        <div class="multi-select-wrapper" id="subProcessusFilterWrapper">
-                            <div class="multi-select-trigger" onclick="parcPageInstance.toggleMultiSelect('subProcessus')">
-                                <span class="multi-select-label">${this.filters.selectedSubProcessus.length === availableSubProcessus.length ? 'Tous' : (this.filters.selectedSubProcessus.length === 0 ? 'Aucun' : this.filters.selectedSubProcessus.length + ' selectionne(s)')}</span>
-                                <span class="multi-select-arrow">&#9662;</span>
-                            </div>
-                            <div class="multi-select-dropdown" id="subProcessusDropdown">
-                                <div class="multi-select-actions">
-                                    <button type="button" class="btn btn-sm" onclick="parcPageInstance.selectAllSubProcessus()">Tous</button>
-                                    <button type="button" class="btn btn-sm" onclick="parcPageInstance.clearSubProcessusFilter()">Aucun</button>
-                                </div>
-                                <div class="multi-select-options">
-                                    ${availableSubProcessus.length > 0 ? availableSubProcessus.map(sub => `
-                                        <label class="multi-select-option">
-                                            <input type="checkbox" value="${escapeHtml(sub)}"
-                                                ${this.filters.selectedSubProcessus.includes(sub) ? 'checked' : ''}
-                                                onchange="parcPageInstance.onSubProcessusCheckChange()">
-                                            <span>${escapeHtml(sub)}</span>
-                                        </label>
-                                    `).join('') : '<div class="multi-select-empty">Aucun sous-processus</div>'}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="matrix-legend">
-                        <div class="legend-item">
-                            <span class="legend-color run"></span>
-                            <span>Run</span>
-                        </div>
-                        <div class="legend-item">
-                            <span class="legend-color evolution"></span>
-                            <span>Evolution</span>
-                        </div>
-                        <div class="legend-item">
-                            <span class="legend-color backlog"></span>
-                            <span>Backlog</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Wrapper avec scroll pour le tableau -->
                 <div class="process-matrix-table-wrapper">
                     <table class="process-matrix-table">
                         <thead>
-                            <!-- Ligne des processus principaux -->
                             <tr>
                                 <th class="matrix-col-fixed matrix-col-product" rowspan="2">Produit</th>
                                 <th class="matrix-col-fixed matrix-col-type" rowspan="2">Type de rapport</th>
                                 ${this.renderProcessHeaders(filteredStructuredProcessus)}
                             </tr>
-                            <!-- Ligne des sous-processus -->
                             <tr>
                                 ${this.renderSubProcessHeaders(filteredStructuredProcessus)}
                             </tr>
@@ -548,7 +554,6 @@ class ParcPage {
             </div>
         `;
 
-        container.innerHTML = html;
         this.attachMatrixEvents();
     }
 
@@ -1068,7 +1073,7 @@ class ParcPage {
         this.filters.selectedPerimetres = this.getUniquePerimetres();
         this.updatePerimetreLabel();
         this.clearSelection();
-        this.refreshMatrixTable();
+        this.refreshActiveView();
     }
 
     clearPerimetresFilter() {
@@ -1077,7 +1082,7 @@ class ParcPage {
         this.filters.selectedPerimetres = [];
         this.updatePerimetreLabel();
         this.clearSelection();
-        this.refreshMatrixTable();
+        this.refreshActiveView();
     }
 
     onPerimetresCheckChange() {
@@ -1087,7 +1092,7 @@ class ParcPage {
             .map(cb => cb.value);
         this.updatePerimetreLabel();
         this.clearSelection();
-        this.refreshMatrixTable();
+        this.refreshActiveView();
     }
 
     updatePerimetreLabel() {
@@ -1109,7 +1114,7 @@ class ParcPage {
         this.updateProcessusLabel();
         this.refreshSubProcessusDropdown();
         this.clearSelection();
-        this.refreshMatrixTable();
+        this.refreshActiveView();
     }
 
     clearProcessusFilter() {
@@ -1119,7 +1124,7 @@ class ParcPage {
         this.updateProcessusLabel();
         this.refreshSubProcessusDropdown();
         this.clearSelection();
-        this.refreshMatrixTable();
+        this.refreshActiveView();
     }
 
     onProcessusCheckChange() {
@@ -1130,7 +1135,7 @@ class ParcPage {
         this.updateProcessusLabel();
         this.refreshSubProcessusDropdown();
         this.clearSelection();
-        this.refreshMatrixTable();
+        this.refreshActiveView();
     }
 
     updateProcessusLabel() {
@@ -1176,7 +1181,7 @@ class ParcPage {
         this.filters.selectedSubProcessus = this.getAvailableSubProcessus();
         this.updateSubProcessusLabel();
         this.clearSelection();
-        this.refreshMatrixTable();
+        this.refreshActiveView();
     }
 
     clearSubProcessusFilter() {
@@ -1185,7 +1190,7 @@ class ParcPage {
         this.filters.selectedSubProcessus = [];
         this.updateSubProcessusLabel();
         this.clearSelection();
-        this.refreshMatrixTable();
+        this.refreshActiveView();
     }
 
     onSubProcessusCheckChange() {
@@ -1195,7 +1200,7 @@ class ParcPage {
             .map(cb => cb.value);
         this.updateSubProcessusLabel();
         this.clearSelection();
-        this.refreshMatrixTable();
+        this.refreshActiveView();
     }
 
     updateSubProcessusLabel() {
@@ -1208,7 +1213,27 @@ class ParcPage {
         }
     }
 
-    // === Rendu partiel du tableau (sans re-rendre les filtres) ===
+    // === Rendu partiel (sans re-rendre les filtres) ===
+
+    /**
+     * Rafraichit la vue active (matrice ou liste) sans re-rendre les filtres
+     */
+    refreshActiveView() {
+        if (this.currentView === 'list') {
+            this.refreshListView();
+        } else {
+            this.refreshMatrixTable();
+        }
+    }
+
+    /**
+     * Rafraichit la vue liste en re-appliquant les filtres externes
+     */
+    refreshListView() {
+        if (this._listTable) {
+            this._listTable.applyFilters();
+        }
+    }
 
     /**
      * Rafraichit uniquement le tableau de la matrice sans toucher aux filtres
@@ -1255,7 +1280,7 @@ class ParcPage {
         this.filters.type = document.getElementById('filterType').value;
         this.filters.processStatus = document.getElementById('filterProcessStatus').value;
         this.clearSelection();
-        this.renderProcessView();
+        this.refreshActiveView();
     }
 
     /**
@@ -1265,7 +1290,7 @@ class ParcPage {
         const container = document.getElementById('tableProduits');
         if (!container) return;
 
-        new DataTable(container, {
+        this._listTable = new DataTable(container, {
             tableName: 'tProduits',
             tableConfig: CONFIG.TABLES.PRODUITS,
             columns: CONFIG.TABLES.PRODUITS.columns.map(col => ({
@@ -1276,11 +1301,53 @@ class ParcPage {
             showToolbar: true,
             showPagination: true,
             editable: true,
+            externalFilter: (data) => this.applyExternalFilter(data),
             onRowClick: (row, index) => this.showEditProductForm(row, index),
             onAdd: () => this.showAddProductForm(),
             onEdit: (row, index) => this.showEditProductForm(row, index),
             onDelete: (row, index) => this.confirmDeleteProduct(row, index)
         });
+    }
+
+    /**
+     * Filtre externe pour le DataTable de la vue liste
+     * Applique les memes filtres que la matrice (type, perimetre, statut processus)
+     */
+    applyExternalFilter(data) {
+        let filtered = [...data];
+
+        // Filtre par type
+        if (this.filters.type !== 'all') {
+            filtered = filtered.filter(p => p['Type de rapport'] === this.filters.type);
+        }
+
+        // Filtre par perimetre
+        const allPerimetres = this.getUniquePerimetres();
+        const allPerimetresSelected = this.filters.selectedPerimetres.length === allPerimetres.length;
+        if (!allPerimetresSelected) {
+            if (this.filters.selectedPerimetres.length === 0) {
+                filtered = [];
+            } else {
+                const produitsParPerimetre = new Set(
+                    this.pdtsPerimetres
+                        .filter(pp => this.filters.selectedPerimetres.includes(pp['Périmètre']))
+                        .map(pp => pp['Produit'])
+                );
+                filtered = filtered.filter(p => produitsParPerimetre.has(p.Nom));
+            }
+        }
+
+        // Filtre par statut processus
+        if (this.filters.processStatus !== 'all') {
+            const produitsAvecProcessus = new Set(this.pdtProcess.map(pp => pp.Produit));
+            if (this.filters.processStatus === 'with') {
+                filtered = filtered.filter(p => produitsAvecProcessus.has(p.Nom));
+            } else if (this.filters.processStatus === 'without') {
+                filtered = filtered.filter(p => !produitsAvecProcessus.has(p.Nom));
+            }
+        }
+
+        return filtered;
     }
 
     /**
@@ -1594,6 +1661,8 @@ class ParcPage {
         // Cacher les actions de selection si on change de vue
         if (view === 'list') {
             this.clearSelection();
+            // Re-rendre la liste avec les filtres actuels
+            this.refreshListView();
         }
     }
 
