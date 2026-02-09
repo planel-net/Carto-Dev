@@ -709,7 +709,26 @@ class SynthesePage {
 
             // Filtres globaux : on filtre via le chantier associé (multi-select)
             const chantier = this.data.chantiers.find(c => c.Chantier === mae.Chantier);
-            if (!chantier) return false;
+
+            // Si pas de chantier associé : inclure uniquement si tous les filtres sont "Tous"
+            if (!chantier) {
+                // Vérifier si tous les périmètres sont sélectionnés
+                const allPerimetres = [...new Set(this.data.perimetres.map(p => p.Périmetre))].filter(Boolean);
+                const allPerimetresSelected = this.filters.selectedPerimetres.length === allPerimetres.length;
+
+                // Vérifier si tous les processus sont sélectionnés
+                const allProcessus = [...new Set(this.data.processus.map(p => p.Processus))].filter(Boolean);
+                const allProcessusSelected = this.filters.selectedProcessus.length === allProcessus.length;
+
+                // Vérifier si aucun sous-processus n'est filtré (compatible avec affichage "Aucun" quand liste vide)
+                const availableSousProcessus = this.getAvailableSousProcessus();
+                const noSousProcessusFilter = availableSousProcessus.length === 0 ||
+                                              this.filters.selectedSousProcessus.length === 0 ||
+                                              this.filters.selectedSousProcessus.length === availableSousProcessus.length;
+
+                // Inclure la demande MAE seulement si TOUS les filtres globaux sont à "Tous"
+                return allPerimetresSelected && allProcessusSelected && noSousProcessusFilter;
+            }
 
             // Filtre Périmètre
             if (!this.filters.selectedPerimetres.includes(chantier.Perimetre)) {
