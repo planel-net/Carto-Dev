@@ -593,7 +593,35 @@ class SynthesePage {
             return [];
         }
 
+        // Vérifier si tous les filtres sont sur "Tous"
+        const allPerimetres = [...new Set(this.data.perimetres.map(p => p.Périmetre))].filter(Boolean);
+        const allPerimetresSelected = this.filters.selectedPerimetres.length === allPerimetres.length;
+
+        const allProcessus = [...new Set(this.data.processus.map(p => p.Processus))].filter(Boolean);
+        const allProcessusSelected = this.filters.selectedProcessus.length === allProcessus.length;
+
+        const availableSousProcessus = this.getAvailableSousProcessus();
+        const allSousProcessusSelected = availableSousProcessus.length === 0 ||
+                                         this.filters.selectedSousProcessus.length === 0 ||
+                                         this.filters.selectedSousProcessus.length === availableSousProcessus.length;
+
         return this.data.chantiers.filter(chantier => {
+            // Si le chantier n'a pas de périmètre ou processus défini, l'inclure seulement si tous les filtres sont sur "Tous"
+            const hasPerimetre = !!chantier.Perimetre;
+            const hasProcessus = !!chantier.Processus;
+
+            if (!hasPerimetre || !hasProcessus) {
+                // Inclure uniquement si TOUS les filtres globaux sont à "Tous"
+                if (!allPerimetresSelected || !allProcessusSelected || !allSousProcessusSelected) {
+                    return false;
+                }
+                // Si tous les filtres sont "Tous", vérifier quand même le filtre Avancement
+                if (this.filters.avancement && chantier.Avancement !== this.filters.avancement) {
+                    return false;
+                }
+                return true;
+            }
+
             // Filtre Périmètre (multi-select)
             if (!this.filters.selectedPerimetres.includes(chantier.Perimetre)) {
                 return false;
@@ -605,7 +633,6 @@ class SynthesePage {
             }
 
             // Filtre Sous-processus (multi-select) - uniquement si des sous-processus sont disponibles et sélectionnés
-            const availableSousProcessus = this.getAvailableSousProcessus();
             if (availableSousProcessus.length > 0 && this.filters.selectedSousProcessus.length > 0) {
                 if (!this.filters.selectedSousProcessus.includes(chantier['Sous-processus'])) {
                     return false;
@@ -632,6 +659,18 @@ class SynthesePage {
             return [];
         }
 
+        // Vérifier si tous les filtres sont sur "Tous"
+        const allPerimetres = [...new Set(this.data.perimetres.map(p => p.Périmetre))].filter(Boolean);
+        const allPerimetresSelected = this.filters.selectedPerimetres.length === allPerimetres.length;
+
+        const allProcessus = [...new Set(this.data.processus.map(p => p.Processus))].filter(Boolean);
+        const allProcessusSelected = this.filters.selectedProcessus.length === allProcessus.length;
+
+        const availableSousProcessus = this.getAvailableSousProcessus();
+        const allSousProcessusSelected = availableSousProcessus.length === 0 ||
+                                         this.filters.selectedSousProcessus.length === 0 ||
+                                         this.filters.selectedSousProcessus.length === availableSousProcessus.length;
+
         // Construire l'ensemble des produits qui correspondent aux périmètres sélectionnés
         const produitsParPerimetre = new Set(
             this.data.pdtsPerimetres
@@ -640,6 +679,24 @@ class SynthesePage {
         );
 
         return this.data.produits.filter(produit => {
+            // Vérifier si le produit a un périmètre et un processus définis
+            const hasPerimetre = this.data.pdtsPerimetres.some(pp => pp.Produit === produit.Nom);
+            const pdtProcessEntries = this.data.pdtProcess.filter(pp => pp.Produit === produit.Nom);
+            const hasProcessus = pdtProcessEntries.length > 0;
+
+            // Si le produit n'a pas de périmètre ou processus défini, l'inclure seulement si tous les filtres sont sur "Tous"
+            if (!hasPerimetre || !hasProcessus) {
+                // Inclure uniquement si TOUS les filtres globaux sont à "Tous"
+                if (!allPerimetresSelected || !allProcessusSelected || !allSousProcessusSelected) {
+                    return false;
+                }
+                // Si tous les filtres sont "Tous", vérifier quand même le filtre Responsable
+                if (this.filters.responsable && produit.Responsable !== this.filters.responsable) {
+                    return false;
+                }
+                return true;
+            }
+
             // Filtre Périmètre via tPdtsPerimetres (multi-select)
             if (!produitsParPerimetre.has(produit.Nom)) {
                 return false;
@@ -647,13 +704,6 @@ class SynthesePage {
 
             // Filtre Responsable
             if (this.filters.responsable && produit.Responsable !== this.filters.responsable) {
-                return false;
-            }
-
-            // Filtre Processus/Sous-processus via tPdtProcess (multi-select)
-            const pdtProcessEntries = this.data.pdtProcess.filter(pp => pp.Produit === produit.Nom);
-
-            if (pdtProcessEntries.length === 0) {
                 return false;
             }
 
@@ -671,7 +721,6 @@ class SynthesePage {
             }
 
             // Filtre Sous-processus uniquement si des sous-processus sont disponibles et sélectionnés
-            const availableSousProcessus = this.getAvailableSousProcessus();
             if (availableSousProcessus.length > 0 && this.filters.selectedSousProcessus.length > 0) {
                 let matchesSousProcessus = false;
                 for (const entry of pdtProcessEntries) {
