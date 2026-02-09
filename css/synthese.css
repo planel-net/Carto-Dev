@@ -1,0 +1,290 @@
+/* ===========================================
+   SYNTHESE.CSS - Styles pour la page Synthese
+   =========================================== */
+
+.page-synthese {
+    padding: var(--spacing-md);
+}
+
+.page-synthese .page-header {
+    margin-bottom: var(--spacing-lg);
+}
+
+.page-synthese .page-header h1 {
+    color: var(--mh-bleu-fonce);
+    font-size: 28px;
+    font-weight: 600;
+    margin: 0;
+}
+
+/* Filtres globaux */
+.synthese-filters-global {
+    display: flex;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md);
+    background: white;
+    border-radius: var(--border-radius-md);
+    box-shadow: var(--shadow-sm);
+    margin-bottom: var(--spacing-lg);
+    flex-wrap: wrap;
+}
+
+.synthese-filters-global .filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+    flex: 1;
+    min-width: 200px;
+}
+
+.synthese-filters-global .filter-group label {
+    font-weight: 600;
+    color: var(--mh-bleu-fonce);
+    font-size: 14px;
+}
+
+.synthese-filters-global .filter-select {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: var(--border-radius-sm);
+    font-size: 14px;
+    background: white;
+}
+
+.synthese-filters-global .filter-select:disabled {
+    background: var(--mh-gris-clair);
+    cursor: not-allowed;
+}
+
+/* Trois colonnes */
+.synthese-columns {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--spacing-lg);
+    align-items: start;
+}
+
+.synthese-column {
+    background: white;
+    border-radius: var(--border-radius-md);
+    box-shadow: var(--shadow-md);
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 300px);
+    min-height: 400px;
+}
+
+.synthese-column .column-header {
+    padding: var(--spacing-md);
+    border-bottom: 2px solid var(--mh-bleu-fonce);
+    background: var(--mh-gris-clair);
+    border-radius: var(--border-radius-md) var(--border-radius-md) 0 0;
+}
+
+.synthese-column .column-header h2 {
+    color: var(--mh-bleu-fonce);
+    font-size: 20px;
+    font-weight: 600;
+    margin: 0 0 var(--spacing-sm) 0;
+}
+
+.synthese-column .column-header .filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+    margin-top: var(--spacing-sm);
+}
+
+.synthese-column .column-header .filter-group label {
+    font-weight: 600;
+    color: var(--mh-bleu-fonce);
+    font-size: 13px;
+}
+
+.synthese-column .column-header .filter-select {
+    padding: 6px 10px;
+    border: 1px solid #ddd;
+    border-radius: var(--border-radius-sm);
+    font-size: 13px;
+    background: white;
+}
+
+.synthese-column .column-count {
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: var(--mh-bleu-clair);
+    color: white;
+    font-weight: 600;
+    font-size: 14px;
+    text-align: center;
+}
+
+.synthese-column .column-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--spacing-sm);
+}
+
+/* Tables de synthese */
+.synthese-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.synthese-table thead {
+    position: sticky;
+    top: 0;
+    background: var(--mh-bleu-fonce);
+    color: white;
+    z-index: 10;
+}
+
+.synthese-table th {
+    padding: var(--spacing-sm);
+    text-align: left;
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+}
+
+.synthese-table tbody tr {
+    border-bottom: 1px solid #eee;
+}
+
+.synthese-table tbody tr.clickable-row {
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.synthese-table tbody tr.clickable-row:hover {
+    background: #f8f9fa;
+}
+
+.synthese-table td {
+    padding: var(--spacing-sm);
+    vertical-align: middle;
+}
+
+.synthese-table td.empty-state {
+    text-align: center;
+    color: var(--mh-gris-moyen);
+    font-style: italic;
+    padding: var(--spacing-lg);
+}
+
+/* Status circles */
+.status-circle {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+}
+
+.status-circle.status-green {
+    background-color: var(--mh-vert-succes);
+    border-color: var(--mh-vert-succes);
+}
+
+.status-circle.status-orange {
+    background-color: var(--mh-jaune-warning);
+    border-color: var(--mh-jaune-warning);
+}
+
+.status-circle.status-red {
+    background-color: var(--mh-rouge-erreur);
+    border-color: var(--mh-rouge-erreur);
+}
+
+/* Bouton Lineage */
+.btn-lineage {
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
+/* Liens Jira dans table MAE */
+.synthese-table a {
+    color: var(--mh-bleu-clair);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.synthese-table a:hover {
+    text-decoration: underline;
+}
+
+/* Modale détails produit */
+.product-details {
+    padding: var(--spacing-md);
+}
+
+.detail-grid {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.detail-row {
+    display: grid;
+    grid-template-columns: 150px 1fr;
+    gap: var(--spacing-md);
+    padding: var(--spacing-sm) 0;
+    border-bottom: 1px solid #eee;
+}
+
+.detail-row:last-child {
+    border-bottom: none;
+}
+
+.detail-label {
+    font-weight: 600;
+    color: var(--mh-bleu-fonce);
+}
+
+.detail-value {
+    color: var(--mh-gris-fonce);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+/* Modale lineage */
+.lineage-content {
+    padding: var(--spacing-md);
+}
+
+.lineage-content .synthese-table {
+    font-size: 14px;
+}
+
+/* Responsive */
+@media (max-width: 1400px) {
+    .synthese-columns {
+        grid-template-columns: 1fr;
+        gap: var(--spacing-md);
+    }
+
+    .synthese-column {
+        height: auto;
+        min-height: 300px;
+    }
+}
+
+@media (max-width: 768px) {
+    .synthese-filters-global {
+        flex-direction: column;
+    }
+
+    .synthese-filters-global .filter-group {
+        min-width: 100%;
+    }
+
+    .detail-row {
+        grid-template-columns: 1fr;
+        gap: var(--spacing-xs);
+    }
+
+    .detail-label {
+        font-size: 12px;
+    }
+}

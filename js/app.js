@@ -231,6 +231,10 @@ async function navigateTo(page, table = null) {
                 await renderRoadmapChantiersPage(container);
                 break;
 
+            case 'synthese':
+                await renderSynthesePage(container);
+                break;
+
             case 'migration':
                 await renderMigrationPage(container);
                 break;
@@ -426,6 +430,9 @@ async function refreshCurrentPage() {
                 break;
             case 'roadmap-chantiers':
                 await refreshRoadmapChantiersPage();
+                break;
+            case 'synthese':
+                await refreshSynthesePage();
                 break;
             case 'migration':
                 await refreshMigrationPage();

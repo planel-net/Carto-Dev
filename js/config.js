@@ -6,7 +6,7 @@
 const CONFIG = {
     // Nom de l'application
     APP_NAME: 'Carto',
-    APP_VERSION: '1.4.6',
+    APP_VERSION: '1.4.7',
 
     // Valeur spéciale pour filtrer les éléments sans valeur (périmètre/responsable vide)
     EMPTY_FILTER_VALUE: '(Non rempli)',
@@ -425,6 +425,7 @@ const CONFIG = {
     // Navigation de l'application
     NAVIGATION: {
         FONCTIONNEL: [
+            { id: 'synthese', label: 'Synthèse', icon: '&#128200;', page: 'synthese' },
             { id: 'migration', label: 'Cartographie', icon: '&#128640;', page: 'migration' },
             { id: 'parc', label: 'Parc Applicatif', icon: '&#128202;', page: 'parc' },
             { id: 'roadmap-chantiers', label: 'Roadmap', icon: '&#128197;', page: 'roadmap-chantiers' },
