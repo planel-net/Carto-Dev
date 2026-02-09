@@ -16,7 +16,8 @@ class SynthesePage {
             shores: [],
             projetsDSS: [],
             dataflows: [],
-            pdtProcess: []
+            pdtProcess: [],
+            tablesMh: []
         };
 
         this.filters = {
@@ -198,6 +199,9 @@ class SynthesePage {
             console.log('[Synthese] Chargement pdtProcess...');
             const pdtProcess = await readTable(CONFIG.TABLES.PDT_PROCESS.name);
 
+            console.log('[Synthese] Chargement tablesMh...');
+            const tablesMh = await readTable(CONFIG.TABLES.TABLES_MH.name);
+
             console.log('[Synthese] Toutes les données chargées avec succès');
 
             // Extraire les tableaux depuis les résultats (format {data: [...], ...})
@@ -212,6 +216,7 @@ class SynthesePage {
             const projetsDSSArray = projetsDSS.data || projetsDSS || [];
             const dataflowsArray = dataflows.data || dataflows || [];
             const pdtProcessArray = pdtProcess.data || pdtProcess || [];
+            const tablesMhArray = tablesMh.data || tablesMh || [];
 
             this.data.chantiers = chantiersArray.filter(c => c.Archivé !== 'Oui' && c.Archivé !== true);
             this.data.produits = produitsArray;
@@ -224,6 +229,7 @@ class SynthesePage {
             this.data.projetsDSS = projetsDSSArray;
             this.data.dataflows = dataflowsArray;
             this.data.pdtProcess = pdtProcessArray;
+            this.data.tablesMh = tablesMhArray;
         } catch (error) {
             console.error('[Synthese] Erreur chargement donnees:', error);
             console.error('[Synthese] Stack:', error.stack);
@@ -588,101 +594,266 @@ class SynthesePage {
 
     showProductDetails(produit) {
         console.log('[Synthese] showProductDetails appelé avec:', produit);
-        const responsable = formatActorName(produit.Responsable);
-        const backup = formatActorName(produit.Backup);
-        const status = this.getProductMigrationStatus(produit);
-        console.log('[Synthese] Statut migration:', status);
-        const statusText = status === 'migrated' ? 'Migré' : status === 'partial' ? 'Partiellement migré' : 'Non migré';
-        const statusClass = status === 'migrated' ? 'status-green' : status === 'partial' ? 'status-orange' : 'status-red';
 
-        const content = `
-            <div class="product-details">
-                <div class="detail-grid">
-                    <div class="detail-row">
-                        <span class="detail-label">Type:</span>
-                        <span class="detail-value">${escapeHtml(produit['Type de rapport'] || '-')}</span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Périmètre:</span>
-                        <span class="detail-value">${escapeHtml(produit['Perimétre fonctionnel'] || '-')}</span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Responsable:</span>
-                        <span class="detail-value">${escapeHtml(responsable || '-')}</span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Backup:</span>
-                        <span class="detail-value">${escapeHtml(backup || '-')}</span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Gold/Shore:</span>
-                        <span class="detail-value">${escapeHtml(produit['Gold / Shore actuel'] || '-')}</span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Statut migration:</span>
-                        <span class="detail-value">
-                            <span class="status-circle ${statusClass}"></span>
-                            ${escapeHtml(statusText)}
-                        </span>
-                    </div>
-                </div>
-            </div>
+        // Si l'instance de la page Parc existe, utiliser son formulaire
+        if (typeof parcPageInstance !== 'undefined' && parcPageInstance && typeof parcPageInstance.showEditProductForm === 'function') {
+            parcPageInstance.showEditProductForm(produit, produit._rowIndex);
+        } else {
+            // Fallback : afficher une modale simple
+            const formHtml = generateFormHtml('formEditProduct', CONFIG.TABLES.PRODUITS.columns, produit || {});
+            const formHtmlTwoCols = formHtml.replace('class="form"', 'class="form form-two-columns"');
+
+            new Modal({
+                title: `Modifier: ${escapeHtml(produit.Nom || '')}`,
+                content: formHtmlTwoCols,
+                size: 'xl',
+                confirmText: 'Modifier',
+                onConfirm: async () => {
+                    try {
+                        const form = document.getElementById('formEditProduct');
+                        const formData = new FormData(form);
+                        const updatedData = {};
+                        for (const [key, value] of formData.entries()) {
+                            updatedData[key] = value;
+                        }
+                        await updateTableRow(CONFIG.TABLES.PRODUITS.name, produit._rowIndex, updatedData);
+                        showSuccess('Produit modifié avec succès');
+                        await this.loadData();
+                        this.applyFiltersAndRender();
+                        return true;
+                    } catch (error) {
+                        showError('Erreur lors de la modification : ' + error.message);
+                        return false;
+                    }
+                }
+            }).show();
+        }
+    }
+
+    /**
+     * Trouve les tables MH associées à un shore
+     */
+    findTablesForShore(shoreName) {
+        return this.data.tablesMh.filter(t => t['Shore/Gold'] === shoreName);
+    }
+
+    /**
+     * Retourne la classe CSS selon le statut de migration
+     */
+    getStatusClass(statut) {
+        if (!statut) return 'status-grey';
+        const s = statut.toLowerCase();
+        if (s === 'migré' || s === 'terminé' || s === 'oui') return 'status-green';
+        if (s === 'en cours' || s === 'partiel') return 'status-orange';
+        return 'status-red';
+    }
+
+    /**
+     * Génère le HTML du graphique de lineage (version graphique avec colonnes et connexions)
+     */
+    renderLineageGraph(produit, fluxProduits, idSuffix = '') {
+        const relations = [];
+        const tablesSet = new Set();
+        const shoresSet = new Set();
+        const projetsSet = new Set();
+        const dataflowsSet = new Set();
+
+        // Collecter tous les éléments uniques
+        fluxProduits.forEach(flux => {
+            const shoreName = flux['Shore/Gold'];
+            const projetName = flux['Projet DSS'];
+            const dfName = flux['DFNom DF'];
+
+            if (shoreName) shoresSet.add(shoreName);
+            if (projetName) projetsSet.add(projetName);
+            if (dfName) dataflowsSet.add(dfName);
+
+            // Trouver les tables associées au shore
+            const tables = this.findTablesForShore(shoreName);
+            tables.forEach(t => {
+                const tableName = t['Table'];
+                if (tableName) {
+                    tablesSet.add(tableName);
+                    relations.push({ from: tableName, to: shoreName, fromType: 'table', toType: 'shore' });
+                }
+            });
+
+            // Relations Shore -> Projet
+            if (shoreName && projetName) {
+                relations.push({ from: shoreName, to: projetName, fromType: 'shore', toType: 'projet' });
+            }
+
+            // Relations Projet -> Dataflow
+            if (projetName && dfName) {
+                relations.push({ from: projetName, to: dfName, fromType: 'projet', toType: 'dataflow' });
+            }
+
+            // Relations Dataflow -> Produit
+            if (dfName) {
+                relations.push({ from: dfName, to: produit.Nom, fromType: 'dataflow', toType: 'produit' });
+            }
+        });
+
+        // Construire le HTML
+        let html = `
+            <div class="lineage-graph-container">
+                <div class="lineage-graph-body" id="lineageGraphBody${idSuffix}">
+                    <svg class="lineage-connections" id="lineageConnections${idSuffix}"></svg>
         `;
 
-        new Modal({
-            title: `Produit : ${escapeHtml(produit.Nom || '')}`,
-            content: content,
-            size: 'md',
-            showFooter: false
-        }).show();
+        // Colonne Tables
+        html += '<div class="lineage-column">';
+        html += '<div class="lineage-column-header">Tables MHTech</div>';
+        Array.from(tablesSet).sort().forEach(tableName => {
+            const table = this.data.tablesMh.find(t => t['Table'] === tableName);
+            const statusClass = this.getStatusClass(table?.['Statut migration']);
+            html += `
+                <div class="lineage-node ${statusClass}" data-type="table" data-name="${escapeHtml(tableName)}">
+                    <div class="lineage-node-name">${escapeHtml(tableName)}</div>
+                </div>
+            `;
+        });
+        html += '</div>';
+
+        // Colonne Shores
+        html += '<div class="lineage-column">';
+        html += '<div class="lineage-column-header">Shores / Golds</div>';
+        Array.from(shoresSet).sort().forEach(shoreName => {
+            const shore = this.data.shores.find(s => s.Nom === shoreName);
+            const statusClass = this.getStatusClass(shore?.['Migré Tech']);
+            html += `
+                <div class="lineage-node ${statusClass}" data-type="shore" data-name="${escapeHtml(shoreName)}">
+                    <div class="lineage-node-name">${escapeHtml(shoreName)}</div>
+                </div>
+            `;
+        });
+        html += '</div>';
+
+        // Colonne Projets DSS
+        html += '<div class="lineage-column">';
+        html += '<div class="lineage-column-header">Projets DSS</div>';
+        Array.from(projetsSet).sort().forEach(projetName => {
+            const projet = this.data.projetsDSS.find(p => p['Nom projet'] === projetName);
+            const statusClass = this.getStatusClass(projet?.['Statut migration']);
+            html += `
+                <div class="lineage-node ${statusClass}" data-type="projet" data-name="${escapeHtml(projetName)}">
+                    <div class="lineage-node-name">${escapeHtml(projetName)}</div>
+                </div>
+            `;
+        });
+        html += '</div>';
+
+        // Colonne Dataflows
+        html += '<div class="lineage-column">';
+        html += '<div class="lineage-column-header">Dataflows</div>';
+        Array.from(dataflowsSet).sort().forEach(dfName => {
+            const dataflow = this.data.dataflows.find(d => d.Nom === dfName);
+            const statusClass = this.getStatusClass(dataflow?.['Statut migration']);
+            html += `
+                <div class="lineage-node ${statusClass}" data-type="dataflow" data-name="${escapeHtml(dfName)}">
+                    <div class="lineage-node-name">${escapeHtml(dfName)}</div>
+                </div>
+            `;
+        });
+        html += '</div>';
+
+        // Colonne Produit
+        html += '<div class="lineage-column">';
+        html += '<div class="lineage-column-header">Produit</div>';
+        const produitStatusClass = this.getStatusClass(produit['Statut Migration']);
+        html += `
+            <div class="lineage-node ${produitStatusClass}" data-type="produit" data-name="${escapeHtml(produit.Nom)}">
+                <div class="lineage-node-name">${escapeHtml(produit.Nom)}</div>
+            </div>
+        `;
+        html += '</div>';
+
+        html += '</div></div>'; // Fermer lineage-graph-body et lineage-graph-container
+
+        return { html, relations };
+    }
+
+    /**
+     * Dessine les lignes de connexion du graphique de lineage
+     */
+    drawLineageConnections(relations, delay = 100, idSuffix = '') {
+        setTimeout(() => {
+            const svg = document.getElementById('lineageConnections' + idSuffix);
+            const body = document.getElementById('lineageGraphBody' + idSuffix);
+            if (!svg || !body) return;
+
+            // Calculer la taille du SVG
+            svg.setAttribute('width', body.scrollWidth);
+            svg.setAttribute('height', body.scrollHeight);
+
+            // Créer les lignes
+            let pathsHtml = '';
+            const drawnConnections = new Set();
+
+            relations.forEach(rel => {
+                const connectionKey = `${rel.from}-${rel.to}`;
+                if (drawnConnections.has(connectionKey)) return;
+                drawnConnections.add(connectionKey);
+
+                const fromNode = body.querySelector(`[data-type="${rel.fromType}"][data-name="${CSS.escape(rel.from)}"]`);
+                const toNode = body.querySelector(`[data-type="${rel.toType}"][data-name="${CSS.escape(rel.to)}"]`);
+
+                if (fromNode && toNode) {
+                    const fromRect = fromNode.getBoundingClientRect();
+                    const toRect = toNode.getBoundingClientRect();
+                    const bodyRect = body.getBoundingClientRect();
+
+                    const x1 = fromRect.right - bodyRect.left;
+                    const y1 = fromRect.top + fromRect.height / 2 - bodyRect.top;
+                    const x2 = toRect.left - bodyRect.left;
+                    const y2 = toRect.top + toRect.height / 2 - bodyRect.top;
+
+                    // Courbe de Bézier pour un effet plus agréable
+                    const midX = (x1 + x2) / 2;
+                    pathsHtml += `<path d="M ${x1} ${y1} C ${midX} ${y1}, ${midX} ${y2}, ${x2} ${y2}" class="lineage-connection-line" />`;
+                }
+            });
+
+            svg.innerHTML = pathsHtml;
+        }, delay);
     }
 
     showLineageModal(produit) {
         const fluxProduits = this.data.flux.filter(f => f.Produit === produit.Nom);
 
+        let content;
+        let relations = [];
+
         if (fluxProduits.length === 0) {
-            new Modal({
-                title: `Lineage : ${escapeHtml(produit.Nom || '')}`,
-                content: '<p class="empty-state">Aucun flux de migration défini pour ce produit.</p>',
-                size: 'md',
-                showFooter: false
-            }).show();
-            return;
+            content = `
+                <div class="lineage-popup-content">
+                    <p class="text-muted">Aucun flux de migration défini pour ce produit.</p>
+                </div>
+            `;
+        } else {
+            // Générer le graphique visuel de lineage avec suffixe unique pour la modale
+            const lineageGraph = this.renderLineageGraph(produit, fluxProduits, '_modal');
+            relations = lineageGraph.relations;
+
+            content = `
+                <div class="lineage-popup-content">
+                    ${lineageGraph.html}
+                </div>
+            `;
         }
 
-        let content = '<div class="lineage-content"><table class="synthese-table"><thead><tr>';
-        content += '<th>Shore/Gold</th><th>Projet DSS</th><th>Dataflow</th><th>Sprint</th>';
-        content += '</tr></thead><tbody>';
-
-        fluxProduits.forEach(flux => {
-            const shore = this.data.shores.find(s => s.Nom === flux['Shore/Gold']);
-            const projet = this.data.projetsDSS.find(p => p['Nom projet'] === flux['Projet DSS']);
-            const dataflow = this.data.dataflows.find(d => d.Nom === flux['DFNom DF']);
-
-            const shoreStatus = shore?.['Migré Tech'] || '';
-            const projetStatus = projet?.['Statut migration'] || '';
-            const dataflowStatus = dataflow?.['Statut migration'] || '';
-
-            const shoreClass = shoreStatus.toLowerCase() === 'oui' ? 'status-green' : 'status-red';
-            const projetClass = projetStatus.toLowerCase() === 'migré' ? 'status-green' : 'status-red';
-            const dataflowClass = dataflowStatus.toLowerCase() === 'migré' ? 'status-green' : 'status-red';
-
-            content += `<tr>
-                <td><span class="status-circle ${shoreClass}"></span> ${escapeHtml(flux['Shore/Gold'] || '-')}</td>
-                <td><span class="status-circle ${projetClass}"></span> ${escapeHtml(flux['Projet DSS'] || '-')}</td>
-                <td><span class="status-circle ${dataflowClass}"></span> ${escapeHtml(flux['DFNom DF'] || '-')}</td>
-                <td>${escapeHtml(flux.Sprint || '-')}</td>
-            </tr>`;
-        });
-
-        content += '</tbody></table></div>';
-
+        // Afficher la modale
         new Modal({
             title: `Lineage : ${escapeHtml(produit.Nom || '')}`,
             content: content,
             size: 'xl',
             showFooter: false
         }).show();
+
+        // Dessiner les lignes de connexion après que le DOM soit prêt (délai plus long pour la modale)
+        if (relations.length > 0) {
+            this.drawLineageConnections(relations, 400, '_modal');
+        }
     }
 }
 
