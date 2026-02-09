@@ -757,7 +757,7 @@ class RoadmapChantiersPage {
     }
 
     /**
-     * Rendu de la section statistiques (KPI + histogramme avancement)
+     * Rendu de la section statistiques (ligne compacte : KPI + badges avancement)
      */
     renderStats() {
         const container = document.getElementById('statsContainer');
@@ -770,27 +770,22 @@ class RoadmapChantiersPage {
         let totalJHVigie = 0;
         let totalJHPilotage = 0;
         filteredChantiers.forEach(c => {
-            const jhVigie = parseFloat(c['JH Vigie']) || 0;
-            const jhPilotage = parseFloat(c['JH Pilotage']) || 0;
-            totalJHVigie += jhVigie;
-            totalJHPilotage += jhPilotage;
+            totalJHVigie += parseFloat(c['JH Vigie']) || 0;
+            totalJHPilotage += parseFloat(c['JH Pilotage']) || 0;
         });
 
-        // Histogramme avancement : compter par statut
+        // Compter par statut d'avancement
         const avancementCounts = {};
         filteredChantiers.forEach(c => {
             const avancement = c['Avancement'] || '(Non rempli)';
             avancementCounts[avancement] = (avancementCounts[avancement] || 0) + 1;
         });
 
-        // Trier les statuts dans l'ordre logique
+        // Ordre logique et couleurs
         const ordreAvancements = [
             'Non démarré', 'En cadrage', 'Cadré', 'En développement',
             'Développé', 'En recette', 'Recetté', 'Terminé', '(Non rempli)'
         ];
-        const labels = [];
-        const values = [];
-        const colors = [];
         const colorMap = {
             'Non démarré': '#6c757d',
             'En cadrage': '#17a2b8',
@@ -803,64 +798,35 @@ class RoadmapChantiersPage {
             '(Non rempli)': '#adb5bd'
         };
 
-        // D'abord les statuts dans l'ordre, puis les éventuels statuts inconnus
+        // Construire les badges dans l'ordre
+        const badges = [];
         ordreAvancements.forEach(status => {
             if (avancementCounts[status]) {
-                labels.push(status);
-                values.push(avancementCounts[status]);
-                colors.push(colorMap[status] || '#6c757d');
+                badges.push({ label: status, count: avancementCounts[status], color: colorMap[status] || '#6c757d' });
             }
         });
         // Statuts non listés
         Object.keys(avancementCounts).forEach(status => {
             if (!ordreAvancements.includes(status)) {
-                labels.push(status);
-                values.push(avancementCounts[status]);
-                colors.push('#6c757d');
+                badges.push({ label: status, count: avancementCounts[status], color: '#6c757d' });
             }
         });
 
+        const badgesHtml = badges.map(b =>
+            `<span class="roadmap-stat-badge" style="border-left: 3px solid ${b.color};" title="${escapeHtml(b.label)}">${escapeHtml(b.label)} <strong>${b.count}</strong></span>`
+        ).join('');
+
         container.innerHTML = `
-            <div class="roadmap-stats">
-                <div class="roadmap-stats-kpis">
-                    <div class="kpi-card kpi-primary roadmap-stat-card">
-                        <div class="kpi-header">
-                            <div class="kpi-icon">&#128203;</div>
-                        </div>
-                        <div class="kpi-value">${nbChantiers}</div>
-                        <div class="kpi-label">Chantiers</div>
-                    </div>
-                    <div class="kpi-card kpi-warning roadmap-stat-card">
-                        <div class="kpi-header">
-                            <div class="kpi-icon">&#9201;</div>
-                        </div>
-                        <div class="kpi-value">${formatNumber(totalJHVigie)} <span class="unit">JH</span></div>
-                        <div class="kpi-label">Vigie</div>
-                    </div>
-                    <div class="kpi-card kpi-orange roadmap-stat-card">
-                        <div class="kpi-header">
-                            <div class="kpi-icon">&#128188;</div>
-                        </div>
-                        <div class="kpi-value">${formatNumber(totalJHPilotage)} <span class="unit">JH</span></div>
-                        <div class="kpi-label">Pilotage</div>
-                    </div>
-                </div>
-                <div class="roadmap-stats-chart">
-                    <div class="roadmap-histogram-title">Avancement</div>
-                    <div id="roadmapAvancementChart"></div>
-                </div>
+            <div class="roadmap-stats-bar">
+                <span class="roadmap-stat-item"><strong>${nbChantiers}</strong> chantiers</span>
+                <span class="roadmap-stat-separator"></span>
+                <span class="roadmap-stat-item">Vigie <strong>${formatNumber(totalJHVigie)}</strong> JH</span>
+                <span class="roadmap-stat-separator"></span>
+                <span class="roadmap-stat-item">Pilotage <strong>${formatNumber(totalJHPilotage)}</strong> JH</span>
+                <span class="roadmap-stat-separator"></span>
+                <div class="roadmap-stat-badges">${badgesHtml}</div>
             </div>
         `;
-
-        // Rendre l'histogramme
-        if (labels.length > 0) {
-            createBarChart('roadmapAvancementChart', { labels, values, colors }, {
-                horizontal: true,
-                barHeight: 22,
-                gap: 4,
-                showValues: true
-            });
-        }
     }
 
     /**

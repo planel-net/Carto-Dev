@@ -2490,80 +2490,59 @@
 }
 
 /* ===========================================
-   ROADMAP STATS - KPIs et histogramme
+   ROADMAP STATS - Barre compacte
    =========================================== */
 
-.roadmap-stats {
+.roadmap-stats-bar {
     display: flex;
-    gap: var(--spacing-md);
-    align-items: stretch;
-    flex-shrink: 0;
-}
-
-.roadmap-stats-kpis {
-    display: flex;
+    align-items: center;
     gap: var(--spacing-sm);
+    padding: var(--spacing-xs) var(--spacing-md);
+    background: var(--mh-blanc);
+    border: 1px solid #dee2e6;
+    border-radius: var(--border-radius-sm);
+    flex-shrink: 0;
+    flex-wrap: wrap;
+    font-size: var(--font-size-sm);
+    color: var(--mh-gris-fonce);
+}
+
+.roadmap-stat-item {
+    white-space: nowrap;
+}
+
+.roadmap-stat-item strong {
+    color: var(--mh-bleu-fonce);
+    font-weight: 700;
+}
+
+.roadmap-stat-separator {
+    width: 1px;
+    height: 16px;
+    background: #dee2e6;
     flex-shrink: 0;
 }
 
-.roadmap-stat-card {
-    padding: var(--spacing-sm) var(--spacing-md);
-    min-width: 110px;
+.roadmap-stat-badges {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    flex-wrap: wrap;
 }
 
-.roadmap-stat-card .kpi-header {
-    margin-bottom: var(--spacing-xs);
+.roadmap-stat-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    background: var(--mh-gris-clair);
+    border-radius: var(--border-radius-sm);
+    font-size: 12px;
+    white-space: nowrap;
 }
 
-.roadmap-stat-card .kpi-icon {
-    width: 36px;
-    height: 36px;
-    font-size: 18px;
-}
-
-.roadmap-stat-card .kpi-value {
-    font-size: var(--font-size-xl);
-}
-
-.roadmap-stat-card .kpi-label {
-    margin-bottom: 0;
-}
-
-.roadmap-stats-chart {
-    flex: 1;
-    min-width: 0;
-    background: var(--mh-blanc);
-    border-radius: var(--border-radius-md);
-    box-shadow: var(--shadow-sm);
-    padding: var(--spacing-sm) var(--spacing-md);
-    overflow: hidden;
-}
-
-.roadmap-histogram-title {
-    font-size: var(--font-size-sm);
-    font-weight: 600;
+.roadmap-stat-badge strong {
     color: var(--mh-bleu-fonce);
-    margin-bottom: var(--spacing-xs);
-}
-
-@media (max-width: 1024px) {
-    .roadmap-stats {
-        flex-direction: column;
-    }
-
-    .roadmap-stats-kpis {
-        flex-wrap: wrap;
-    }
-}
-
-@media (max-width: 576px) {
-    .roadmap-stats-kpis {
-        flex-direction: column;
-    }
-
-    .roadmap-stat-card {
-        min-width: auto;
-    }
 }
 
 /* ===========================================
