@@ -2505,6 +2505,8 @@
     flex-wrap: wrap;
     font-size: var(--font-size-sm);
     color: var(--mh-gris-fonce);
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .roadmap-stat-item {

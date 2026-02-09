@@ -367,6 +367,11 @@ const ChantierModal = {
         const phasesCount = chantierPhases.length;
 
         const content = `
+            <!-- Mini Roadmap (toujours visible au-dessus des onglets) -->
+            <div class="chantier-mini-roadmap" id="chantierMiniRoadmap">
+                <!-- Généré dynamiquement -->
+            </div>
+
             <!-- Onglets -->
             <div class="modal-tabs">
                 <button type="button" class="modal-tab active" data-tab="general" onclick="ChantierModal.switchTab('general')">
@@ -489,11 +494,6 @@ const ChantierModal = {
                         </div>
                     </div>
                 </form>
-
-                <!-- Mini Roadmap -->
-                <div class="chantier-mini-roadmap" id="chantierMiniRoadmapGeneral">
-                    <!-- Généré dynamiquement -->
-                </div>
             </div>
 
             <!-- Contenu onglet Phases -->
@@ -508,10 +508,6 @@ const ChantierModal = {
                     <div id="phasesTableContainer">
                         <!-- Tableau des phases -->
                     </div>
-                </div>
-                <!-- Mini Roadmap -->
-                <div class="chantier-mini-roadmap" id="chantierMiniRoadmap">
-                    <!-- Généré dynamiquement -->
                 </div>
             </div>
 
@@ -880,7 +876,7 @@ const ChantierModal = {
     // ==========================================
 
     _renderMiniRoadmap() {
-        const containers = document.querySelectorAll('#chantierMiniRoadmap, #chantierMiniRoadmapGeneral');
+        const containers = document.querySelectorAll('#chantierMiniRoadmap');
         if (containers.length === 0) return;
 
         const chantierPhases = this._data.phases
