@@ -162,22 +162,45 @@ class SynthesePage {
 
     async loadData() {
         try {
-            // Charger toutes les donnees necessaires
-            const [chantiers, produits, mae, acteurs, perimetres, processus, flux, shores, projetsDSS, dataflows, pdtProcess] = await Promise.all([
-                readTable(CONFIG.TABLES.CHANTIER.name),
-                readTable(CONFIG.TABLES.PRODUITS.name),
-                readTable(CONFIG.TABLES.MAE.name),
-                readTable(CONFIG.TABLES.ACTEURS.name),
-                readTable(CONFIG.TABLES.PERIMETRES.name),
-                readTable(CONFIG.TABLES.PROCESSUS.name),
-                readTable(CONFIG.TABLES.FLUX.name),
-                readTable(CONFIG.TABLES.SHORES.name),
-                readTable(CONFIG.TABLES.PROJETS_DSS.name),
-                readTable(CONFIG.TABLES.DATAFLOWS.name),
-                readTable(CONFIG.TABLES.PDT_PROCESS.name)
-            ]);
+            console.log('[Synthese] Chargement des données...');
 
-            this.data.chantiers = chantiers.filter(c => c.Archive !== 'Oui' && c.Archive !== true);
+            // Charger les tables une par une pour identifier les erreurs
+            console.log('[Synthese] Chargement chantiers...');
+            const chantiers = await readTable(CONFIG.TABLES.CHANTIER.name);
+
+            console.log('[Synthese] Chargement produits...');
+            const produits = await readTable(CONFIG.TABLES.PRODUITS.name);
+
+            console.log('[Synthese] Chargement mae...');
+            const mae = await readTable(CONFIG.TABLES.MAE.name);
+
+            console.log('[Synthese] Chargement acteurs...');
+            const acteurs = await readTable(CONFIG.TABLES.ACTEURS.name);
+
+            console.log('[Synthese] Chargement perimetres...');
+            const perimetres = await readTable(CONFIG.TABLES.PERIMETRES.name);
+
+            console.log('[Synthese] Chargement processus...');
+            const processus = await readTable(CONFIG.TABLES.PROCESSUS.name);
+
+            console.log('[Synthese] Chargement flux...');
+            const flux = await readTable(CONFIG.TABLES.FLUX.name);
+
+            console.log('[Synthese] Chargement shores...');
+            const shores = await readTable(CONFIG.TABLES.SHORES.name);
+
+            console.log('[Synthese] Chargement projetsDSS...');
+            const projetsDSS = await readTable(CONFIG.TABLES.PROJETS_DSS.name);
+
+            console.log('[Synthese] Chargement dataflows...');
+            const dataflows = await readTable(CONFIG.TABLES.DATAFLOWS.name);
+
+            console.log('[Synthese] Chargement pdtProcess...');
+            const pdtProcess = await readTable(CONFIG.TABLES.PDT_PROCESS.name);
+
+            console.log('[Synthese] Toutes les données chargées avec succès');
+
+            this.data.chantiers = chantiers.filter(c => c.Archivé !== 'Oui' && c.Archivé !== true);
             this.data.produits = produits;
             this.data.mae = mae;
             this.data.acteurs = acteurs;
@@ -189,8 +212,9 @@ class SynthesePage {
             this.data.dataflows = dataflows;
             this.data.pdtProcess = pdtProcess;
         } catch (error) {
-            console.error('Erreur chargement donnees synthese:', error);
-            showError('Erreur lors du chargement des données');
+            console.error('[Synthese] Erreur chargement donnees:', error);
+            console.error('[Synthese] Stack:', error.stack);
+            showError('Erreur lors du chargement des données: ' + error.message);
         }
     }
 
