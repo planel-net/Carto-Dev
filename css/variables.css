@@ -4,17 +4,56 @@
    =========================================== */
 
 :root {
-    /* Couleurs Malakoff Humanis */
-    --mh-bleu-fonce: #003366;
+    /* === Charte Graphique Malakoff Humanis === */
+
+    /* Gamme Intense (Titres et éléments clés) */
+    --mh-corail-brand: #E2250C;           /* Couleur principale, headers, accents */
+    --mh-bleu-dark: #1A283E;              /* Textes principaux, boutons primaires */
+    --mh-violet-dark: #5514C7;            /* Éléments secondaires, badges */
+    --mh-bleu-turquoise-dark: #006374;    /* Accents */
+    --mh-rose-dark: #D81E88;              /* Boutons danger */
+    --mh-jaune-dark: #F9BD00;             /* Avertissements, tags conseillés */
+    --mh-vert-dark: #008275;              /* Succès, validation */
+    --mh-gris-sable-dark: #E4D8C4;        /* Bordures */
+    --mh-rose-chair-light: #F0B7A5;       /* Fonds légers */
+    --mh-gris-sable-light: #EDE8E6;       /* Surfaces neutres */
+
+    /* Gamme Douce (Fonds d'objets et blocs) */
+    --mh-corail-dark: #F3A89E;            /* Fonds de blocs */
+    --mh-corail-light: #F9D3CE;           /* Fonds légers, états actifs */
+    --mh-bleu-light: #BDE3F2;             /* Fonds informatifs */
+    --mh-violet-light: #AA89E3;           /* Badges, états RDV */
+    --mh-bleu-turquoise-light: #5AD5D9;   /* Accents */
+    --mh-rose-light: #F4B5D4;             /* Fonds secondaires */
+    --mh-jaune-light: #F4EC5B;            /* Alertes warning */
+    --mh-vert-light: #03DFB2;             /* Succès, mode éco */
+    --mh-gris-sable-dark-40: #F4EFE7;     /* Surfaces */
+    --mh-rose-chair-light-40: #F9E2DB;    /* Fonds */
+    --mh-gris-sable-light-60: #F4F0EF;    /* Hover sur lignes */
+
+    /* Gamme Pastel (Fonds d'écran) */
+    --mh-corail-pastel: #FFF2F0;          /* Fond principal */
+    --mh-bleu-pastel: #E0F1F8;            /* Workflow, fonds */
+    --mh-violet-pastel: #EEE7F9;          /* Citations */
+    --mh-bleu-turquoise-pastel: #DEF7F7;  /* Fonds */
+    --mh-rose-pastel: #FDF0F7;            /* Fonds */
+    --mh-jaune-pastel: #F9F4B9;           /* Fonds */
+    --mh-vert-pastel: #E1FBF6;            /* Mode éco */
+    --mh-gris-sable-dark-20: #FAF7F3;     /* Fonds */
+    --mh-rose-chair-pastel: #F9EFEB;      /* Fonds */
+    --mh-gris-sable-pastel: #F9F7F6;      /* Fond principal */
+
+    /* Variables sémantiques (compatibilité) */
+    --mh-bleu-fonce: var(--mh-bleu-dark);
     --mh-bleu-clair: #0066CC;
     --mh-orange: #FF6600;
     --mh-gris-fonce: #333333;
     --mh-gris-moyen: #666666;
     --mh-gris-clair: #F5F5F5;
     --mh-blanc: #FFFFFF;
-    --mh-vert-succes: #28A745;
-    --mh-rouge-erreur: #DC3545;
-    --mh-jaune-warning: #FFC107;
+    --mh-vert-succes: var(--mh-vert-dark);
+    --mh-rouge-erreur: var(--mh-rose-dark);
+    --mh-jaune-warning: var(--mh-jaune-dark);
 
     /* Couleurs pour les statuts migration */
     --status-migre: #28A745;
