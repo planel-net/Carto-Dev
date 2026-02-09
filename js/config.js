@@ -267,6 +267,16 @@ const CONFIG = {
                 { field: 'Lien', label: 'URL', type: 'text' }
             ]
         },
+        PDTS_PERIMETRES: {
+            name: 'tPdtsPerimetres',
+            sheet: 'ProcessusProduits',
+            displayName: 'Produits-Périmètres',
+            icon: '&#128279;',
+            columns: [
+                { field: 'Produit', label: 'Produit', type: 'select', source: 'PRODUITS', sourceField: 'Nom', required: true },
+                { field: 'Périmètre', label: 'Périmètre', type: 'select', source: 'PERIMETRES', sourceField: 'Périmetre', required: true }
+            ]
+        },
         CHANTIER_PRODUIT: {
             name: 'tChantierProduit',
             sheet: 'ChantierProduit',
