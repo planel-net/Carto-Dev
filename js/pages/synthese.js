@@ -17,6 +17,7 @@ class SynthesePage {
             projetsDSS: [],
             dataflows: [],
             pdtProcess: [],
+            pdtsPerimetres: [],
             tablesMh: []
         };
 
@@ -183,6 +184,9 @@ class SynthesePage {
             console.log('[Synthese] Chargement pdtProcess...');
             const pdtProcess = await readTable(CONFIG.TABLES.PDT_PROCESS.name);
 
+            console.log('[Synthese] Chargement pdtsPerimetres...');
+            const pdtsPerimetres = await readTable(CONFIG.TABLES.PDTS_PERIMETRES.name);
+
             console.log('[Synthese] Chargement tablesMh...');
             const tablesMh = await readTable(CONFIG.TABLES.TABLES_MH.name);
 
@@ -200,6 +204,7 @@ class SynthesePage {
             const projetsDSSArray = projetsDSS.data || projetsDSS || [];
             const dataflowsArray = dataflows.data || dataflows || [];
             const pdtProcessArray = pdtProcess.data || pdtProcess || [];
+            const pdtsPerimetresArray = pdtsPerimetres.data || pdtsPerimetres || [];
             const tablesMhArray = tablesMh.data || tablesMh || [];
 
             this.data.chantiers = chantiersArray.filter(c => c.Archivé !== 'Oui' && c.Archivé !== true);
@@ -213,6 +218,7 @@ class SynthesePage {
             this.data.projetsDSS = projetsDSSArray;
             this.data.dataflows = dataflowsArray;
             this.data.pdtProcess = pdtProcessArray;
+            this.data.pdtsPerimetres = pdtsPerimetresArray;
             this.data.tablesMh = tablesMhArray;
         } catch (error) {
             console.error('[Synthese] Erreur chargement donnees:', error);
@@ -626,9 +632,16 @@ class SynthesePage {
             return [];
         }
 
+        // Construire l'ensemble des produits qui correspondent aux périmètres sélectionnés
+        const produitsParPerimetre = new Set(
+            this.data.pdtsPerimetres
+                .filter(pp => this.filters.selectedPerimetres.includes(pp['Périmètre']))
+                .map(pp => pp['Produit'])
+        );
+
         return this.data.produits.filter(produit => {
-            // Filtre Périmètre (multi-select)
-            if (!this.filters.selectedPerimetres.includes(produit['Perimétre fonctionnel'])) {
+            // Filtre Périmètre via tPdtsPerimetres (multi-select)
+            if (!produitsParPerimetre.has(produit.Nom)) {
                 return false;
             }
 
@@ -878,42 +891,13 @@ class SynthesePage {
         });
     }
 
-    showProductDetails(produit) {
+    async showProductDetails(produit) {
         console.log('[Synthese] showProductDetails appelé avec:', produit);
 
-        // Si l'instance de la page Parc existe, utiliser son formulaire
-        if (typeof parcPageInstance !== 'undefined' && parcPageInstance && typeof parcPageInstance.showEditProductForm === 'function') {
-            parcPageInstance.showEditProductForm(produit, produit._rowIndex);
-        } else {
-            // Fallback : afficher une modale simple
-            const formHtml = generateFormHtml('formEditProduct', CONFIG.TABLES.PRODUITS.columns, produit || {});
-            const formHtmlTwoCols = formHtml.replace('class="form"', 'class="form form-two-columns"');
-
-            new Modal({
-                title: `Modifier: ${escapeHtml(produit.Nom || '')}`,
-                content: formHtmlTwoCols,
-                size: 'xl',
-                confirmText: 'Modifier',
-                onConfirm: async () => {
-                    try {
-                        const form = document.getElementById('formEditProduct');
-                        const formData = new FormData(form);
-                        const updatedData = {};
-                        for (const [key, value] of formData.entries()) {
-                            updatedData[key] = value;
-                        }
-                        await updateTableRow(CONFIG.TABLES.PRODUITS.name, produit._rowIndex, updatedData);
-                        showSuccess('Produit modifié avec succès');
-                        await this.loadData();
-                        this.applyFiltersAndRender();
-                        return true;
-                    } catch (error) {
-                        showError('Erreur lors de la modification : ' + error.message);
-                        return false;
-                    }
-                }
-            }).show();
-        }
+        await ProductModal.showEditModal(produit, produit._rowIndex, async () => {
+            await this.loadData();
+            this.applyFiltersAndRender();
+        });
     }
 
     /**

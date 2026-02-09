@@ -22,8 +22,6 @@ class ParcPage {
             selectedProcessus: [], // Processus selectionnes (vide = tous)
             selectedSubProcessus: [] // Sous-processus selectionnes (vide = tous)
         };
-        // Etat pour la modale produit (perimetres assignes)
-        this._selectedPerimetres = [];
     }
 
     /**
@@ -1382,244 +1380,21 @@ class ParcPage {
     }
 
     /**
-     * Affiche le formulaire d'ajout de produit (avec section perimetres)
+     * Affiche le formulaire d'ajout de produit
      */
-    showAddProductForm() {
-        this._selectedPerimetres = [];
-        this._showProductModal('Ajouter un produit', null, null);
-    }
-
-    /**
-     * Affiche le formulaire d'edition de produit (avec section perimetres)
-     */
-    showEditProductForm(produit, index) {
-        // Charger les perimetres deja assignes
-        this._selectedPerimetres = this.pdtsPerimetres
-            .filter(pp => pp['Produit'] === produit['Nom'])
-            .map(pp => pp['Périmètre']);
-        this._showProductModal(`Modifier: ${produit.Nom}`, produit, index);
-    }
-
-    /**
-     * Affiche la modale produit avec formulaire + section perimetres
-     */
-    _showProductModal(title, produit, rowIndex) {
-        const isEdit = produit !== null;
-        const formId = 'modal_form_' + generateId();
-        const formHtml = generateFormHtml(formId, CONFIG.TABLES.PRODUITS.columns, produit || {});
-
-        // Injecter la classe two-columns dans le formulaire
-        const formHtmlTwoCols = formHtml.replace('class="form"', 'class="form form-two-columns"');
-
-        const content = `
-            ${formHtmlTwoCols}
-            <div class="assigned-section" style="margin-top: var(--spacing-md);">
-                <div class="assigned-section-header">
-                    <h4>&#127758; Périmètres associés</h4>
-                    <button type="button" class="btn btn-sm btn-primary" onclick="parcPageInstance._showSelectPerimetresModal()">
-                        Assigner
-                    </button>
-                </div>
-                <div class="assigned-items-list" id="assignedPerimetresProduit">
-                    <div class="assigned-items-empty">Aucun périmètre assigné</div>
-                </div>
-            </div>
-        `;
-
-        const modal = new Modal({
-            title,
-            size: 'lg',
-            content,
-            confirmText: isEdit ? 'Modifier' : 'Ajouter',
-            onConfirm: async () => {
-                const form = document.getElementById(formId);
-                if (!validateForm(form)) {
-                    return false;
-                }
-                const formData = getFormData(form);
-                return await this._saveProduct(formData, isEdit, rowIndex, produit);
-            }
-        }).show();
-
-        // Charger les options dynamiques et afficher les perimetres
-        setTimeout(async () => {
-            const form = document.getElementById(formId);
-            if (form) {
-                await loadDynamicSelectOptions(form);
-                if (isEdit) {
-                    setFormData(form, produit);
-                }
-            }
-            this._renderAssignedPerimetres();
-        }, 100);
-
-        return modal;
-    }
-
-    /**
-     * Sauvegarde le produit et ses associations perimetres
-     */
-    async _saveProduct(formData, isEdit, rowIndex, originalProduit) {
-        try {
-            if (isEdit) {
-                await updateTableRow('tProduits', rowIndex, formData);
-
-                // Supprimer les anciens liens perimetres (en ordre inverse)
-                const oldLinks = this.pdtsPerimetres
-                    .filter(pp => pp['Produit'] === originalProduit['Nom'])
-                    .sort((a, b) => (b._rowIndex ?? 0) - (a._rowIndex ?? 0));
-
-                for (const pp of oldLinks) {
-                    if (pp._rowIndex !== undefined && pp._rowIndex !== null) {
-                        await deleteTableRow('tPdtsPerimetres', pp._rowIndex);
-                    }
-                }
-            } else {
-                await addTableRow('tProduits', formData);
-            }
-            invalidateCache('tProduits');
-
-            // Ajouter les nouveaux liens produit-perimetre
-            const produitName = formData['Nom'];
-            for (const perimetre of this._selectedPerimetres) {
-                await addTableRow('tPdtsPerimetres', {
-                    'Produit': produitName,
-                    'Périmètre': perimetre
-                });
-            }
-            invalidateCache('tPdtsPerimetres');
-
-            showSuccess(isEdit ? 'Produit modifié avec succès' : 'Produit ajouté avec succès');
+    async showAddProductForm() {
+        await ProductModal.showAddModal(async () => {
             await this.refresh();
-            return true;
-        } catch (error) {
-            console.error('Erreur sauvegarde produit:', error);
-            showError(isEdit ? 'Erreur lors de la modification' : 'Erreur lors de l\'ajout');
-            return false;
-        }
-    }
-
-    /**
-     * Affiche les perimetres assignes dans la modale produit
-     */
-    _renderAssignedPerimetres() {
-        const container = document.getElementById('assignedPerimetresProduit');
-        if (!container) return;
-
-        if (this._selectedPerimetres.length === 0) {
-            container.innerHTML = '<div class="assigned-items-empty">Aucun périmètre assigné</div>';
-            return;
-        }
-
-        container.innerHTML = this._selectedPerimetres.map(perimetre => `
-            <div class="assigned-item">
-                <div class="assigned-item-info">
-                    <div class="assigned-item-name">${escapeHtml(perimetre)}</div>
-                </div>
-                <div class="assigned-item-actions">
-                    <button type="button" class="btn btn-icon btn-xs btn-danger" title="Enlever" onclick="parcPageInstance._removePerimetre('${escapeJsString(perimetre)}')">&#10005;</button>
-                </div>
-            </div>
-        `).join('');
-    }
-
-    /**
-     * Retire un perimetre de la selection
-     */
-    _removePerimetre(perimetre) {
-        const idx = this._selectedPerimetres.indexOf(perimetre);
-        if (idx > -1) {
-            this._selectedPerimetres.splice(idx, 1);
-            this._renderAssignedPerimetres();
-        }
-    }
-
-    /**
-     * Affiche la modale de selection des perimetres
-     */
-    _showSelectPerimetresModal() {
-        const allPerimetres = this.perimetres.map(p => p['Périmetre']).filter(Boolean).sort();
-        const selected = this._selectedPerimetres;
-
-        const selectedList = allPerimetres.filter(p => selected.includes(p));
-        const unselectedList = allPerimetres.filter(p => !selected.includes(p));
-
-        const renderList = (searchTerm = '') => {
-            const list = document.getElementById('selectionPerimetresList');
-            if (!list) return;
-
-            const term = searchTerm.toLowerCase();
-            const filteredSelected = selectedList.filter(p => p.toLowerCase().includes(term));
-            const filteredUnselected = unselectedList.filter(p => p.toLowerCase().includes(term));
-
-            let html = '';
-
-            if (filteredSelected.length > 0) {
-                html += '<div class="selection-separator">Sélectionnés</div>';
-                html += filteredSelected.map(p => `
-                    <label class="selection-item selected">
-                        <input type="checkbox" value="${escapeHtml(p)}" checked>
-                        <div class="selection-item-info">
-                            <div class="selection-item-name">${escapeHtml(p)}</div>
-                        </div>
-                    </label>
-                `).join('');
-            }
-
-            if (filteredUnselected.length > 0) {
-                html += '<div class="selection-separator">Disponibles</div>';
-                html += filteredUnselected.map(p => `
-                    <label class="selection-item">
-                        <input type="checkbox" value="${escapeHtml(p)}">
-                        <div class="selection-item-info">
-                            <div class="selection-item-name">${escapeHtml(p)}</div>
-                        </div>
-                    </label>
-                `).join('');
-            }
-
-            if (html === '') {
-                html = '<div class="assigned-items-empty">Aucun périmètre trouvé</div>';
-            }
-
-            list.innerHTML = html;
-        };
-
-        const content = `
-            <div class="selection-modal">
-                <div class="selection-search">
-                    <input type="text" class="form-control" id="searchPerimetresInput" placeholder="Rechercher un périmètre...">
-                </div>
-                <div class="selection-list" id="selectionPerimetresList"></div>
-            </div>
-        `;
-
-        showModal({
-            title: 'Sélectionner des périmètres',
-            content: content,
-            size: 'md',
-            buttons: [
-                { label: 'Annuler', class: 'btn-secondary', action: 'close' },
-                {
-                    label: 'Valider',
-                    class: 'btn-primary',
-                    action: (modal) => {
-                        const checkboxes = document.querySelectorAll('#selectionPerimetresList input[type="checkbox"]:checked');
-                        this._selectedPerimetres = Array.from(checkboxes).map(cb => cb.value);
-                        this._renderAssignedPerimetres();
-                        return true;
-                    }
-                }
-            ]
         });
+    }
 
-        setTimeout(() => {
-            renderList();
-            const searchInput = document.getElementById('searchPerimetresInput');
-            if (searchInput) {
-                searchInput.addEventListener('input', (e) => renderList(e.target.value));
-            }
-        }, 100);
+    /**
+     * Affiche le formulaire d'edition de produit
+     */
+    async showEditProductForm(produit, index) {
+        await ProductModal.showEditModal(produit, index, async () => {
+            await this.refresh();
+        });
     }
 
     /**

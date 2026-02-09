@@ -6,7 +6,7 @@
 const CONFIG = {
     // Nom de l'application
     APP_NAME: 'Carto',
-    APP_VERSION: '1.5.10',
+    APP_VERSION: '1.5.11',
 
     // Valeur spéciale pour filtrer les éléments sans valeur (périmètre/responsable vide)
     EMPTY_FILTER_VALUE: '(Non rempli)',
@@ -88,7 +88,6 @@ const CONFIG = {
                 { field: 'Responsable', label: 'Responsable', type: 'select', source: 'ACTEURS', sourceField: 'Mail' },
                 { field: 'Backup', label: 'Backup', type: 'select', source: 'ACTEURS', sourceField: 'Mail' },
                 { field: 'Type de rapport', label: 'Type de rapport', type: 'text' },
-                { field: 'Perimétre fonctionnel', label: 'Périmètre fonctionnel', type: 'select', source: 'PERIMETRES', sourceField: 'Périmetre' },
                 { field: 'Périmétre des données (SI)', label: 'Périmètre données (SI)', type: 'text' },
                 { field: 'PBI / PowerAPP', label: 'PBI / PowerApp', type: 'select', options: ['PBI', 'Power BI', 'PowerApp', 'Power Apps', 'Autre', ''] },
                 { field: 'Frequence', label: 'Fréquence', type: 'select', options: ['Quotidienne', 'Hebdomadaire', 'Mensuelle', 'Trimestrielle', 'Semestrielle', 'Annuelle', ''] },
