@@ -577,20 +577,33 @@ class SynthesePage {
     }
 
     filterChantiers() {
+        // Si aucun périmètre sélectionné, retourner tableau vide
+        if (this.filters.selectedPerimetres.length === 0) {
+            return [];
+        }
+
+        // Si aucun processus sélectionné, retourner tableau vide
+        if (this.filters.selectedProcessus.length === 0) {
+            return [];
+        }
+
         return this.data.chantiers.filter(chantier => {
             // Filtre Périmètre (multi-select)
-            if (this.filters.selectedPerimetres.length > 0 && !this.filters.selectedPerimetres.includes(chantier.Perimetre)) {
+            if (!this.filters.selectedPerimetres.includes(chantier.Perimetre)) {
                 return false;
             }
 
             // Filtre Processus (multi-select)
-            if (this.filters.selectedProcessus.length > 0 && !this.filters.selectedProcessus.includes(chantier.Processus)) {
+            if (!this.filters.selectedProcessus.includes(chantier.Processus)) {
                 return false;
             }
 
-            // Filtre Sous-processus (multi-select)
-            if (this.filters.selectedSousProcessus.length > 0 && !this.filters.selectedSousProcessus.includes(chantier['Sous-processus'])) {
-                return false;
+            // Filtre Sous-processus (multi-select) - uniquement si des sous-processus sont disponibles et sélectionnés
+            const availableSousProcessus = this.getAvailableSousProcessus();
+            if (availableSousProcessus.length > 0 && this.filters.selectedSousProcessus.length > 0) {
+                if (!this.filters.selectedSousProcessus.includes(chantier['Sous-processus'])) {
+                    return false;
+                }
             }
 
             // Filtre Avancement
@@ -603,9 +616,19 @@ class SynthesePage {
     }
 
     filterProduits() {
+        // Si aucun périmètre sélectionné, retourner tableau vide
+        if (this.filters.selectedPerimetres.length === 0) {
+            return [];
+        }
+
+        // Si aucun processus sélectionné, retourner tableau vide
+        if (this.filters.selectedProcessus.length === 0) {
+            return [];
+        }
+
         return this.data.produits.filter(produit => {
             // Filtre Périmètre (multi-select)
-            if (this.filters.selectedPerimetres.length > 0 && !this.filters.selectedPerimetres.includes(produit['Perimétre fonctionnel'])) {
+            if (!this.filters.selectedPerimetres.includes(produit['Perimétre fonctionnel'])) {
                 return false;
             }
 
@@ -615,26 +638,37 @@ class SynthesePage {
             }
 
             // Filtre Processus/Sous-processus via tPdtProcess (multi-select)
-            if (this.filters.selectedProcessus.length > 0 || this.filters.selectedSousProcessus.length > 0) {
-                const pdtProcessEntries = this.data.pdtProcess.filter(pp => pp.Produit === produit.Nom);
+            const pdtProcessEntries = this.data.pdtProcess.filter(pp => pp.Produit === produit.Nom);
 
-                if (pdtProcessEntries.length === 0) {
-                    return false;
+            if (pdtProcessEntries.length === 0) {
+                return false;
+            }
+
+            // Vérifier si le produit match au moins un processus sélectionné
+            let matchesProcessus = false;
+            for (const entry of pdtProcessEntries) {
+                if (this.filters.selectedProcessus.includes(entry.Processus)) {
+                    matchesProcessus = true;
+                    break;
                 }
+            }
 
-                let matchesProcessus = this.filters.selectedProcessus.length === 0;
-                let matchesSousProcessus = this.filters.selectedSousProcessus.length === 0;
+            if (!matchesProcessus) {
+                return false;
+            }
 
+            // Filtre Sous-processus uniquement si des sous-processus sont disponibles et sélectionnés
+            const availableSousProcessus = this.getAvailableSousProcessus();
+            if (availableSousProcessus.length > 0 && this.filters.selectedSousProcessus.length > 0) {
+                let matchesSousProcessus = false;
                 for (const entry of pdtProcessEntries) {
-                    if (this.filters.selectedProcessus.length > 0 && this.filters.selectedProcessus.includes(entry.Processus)) {
-                        matchesProcessus = true;
-                    }
-                    if (this.filters.selectedSousProcessus.length > 0 && this.filters.selectedSousProcessus.includes(entry['Sous-processus'])) {
+                    if (this.filters.selectedSousProcessus.includes(entry['Sous-processus'])) {
                         matchesSousProcessus = true;
+                        break;
                     }
                 }
 
-                if (!matchesProcessus || !matchesSousProcessus) {
+                if (!matchesSousProcessus) {
                     return false;
                 }
             }
@@ -644,6 +678,16 @@ class SynthesePage {
     }
 
     filterMAE() {
+        // Si aucun périmètre sélectionné, retourner tableau vide
+        if (this.filters.selectedPerimetres.length === 0) {
+            return [];
+        }
+
+        // Si aucun processus sélectionné, retourner tableau vide
+        if (this.filters.selectedProcessus.length === 0) {
+            return [];
+        }
+
         return this.data.mae.filter(mae => {
             // Filtre État
             if (this.filters.etat && mae.Etat !== this.filters.etat) {
@@ -651,17 +695,23 @@ class SynthesePage {
             }
 
             // Filtres globaux : on filtre via le chantier associé (multi-select)
-            if (this.filters.selectedPerimetres.length > 0 || this.filters.selectedProcessus.length > 0 || this.filters.selectedSousProcessus.length > 0) {
-                const chantier = this.data.chantiers.find(c => c.Chantier === mae.Chantier);
-                if (!chantier) return false;
+            const chantier = this.data.chantiers.find(c => c.Chantier === mae.Chantier);
+            if (!chantier) return false;
 
-                if (this.filters.selectedPerimetres.length > 0 && !this.filters.selectedPerimetres.includes(chantier.Perimetre)) {
-                    return false;
-                }
-                if (this.filters.selectedProcessus.length > 0 && !this.filters.selectedProcessus.includes(chantier.Processus)) {
-                    return false;
-                }
-                if (this.filters.selectedSousProcessus.length > 0 && !this.filters.selectedSousProcessus.includes(chantier['Sous-processus'])) {
+            // Filtre Périmètre
+            if (!this.filters.selectedPerimetres.includes(chantier.Perimetre)) {
+                return false;
+            }
+
+            // Filtre Processus
+            if (!this.filters.selectedProcessus.includes(chantier.Processus)) {
+                return false;
+            }
+
+            // Filtre Sous-processus uniquement si des sous-processus sont disponibles et sélectionnés
+            const availableSousProcessus = this.getAvailableSousProcessus();
+            if (availableSousProcessus.length > 0 && this.filters.selectedSousProcessus.length > 0) {
+                if (!this.filters.selectedSousProcessus.includes(chantier['Sous-processus'])) {
                     return false;
                 }
             }
