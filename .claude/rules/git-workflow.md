@@ -47,5 +47,11 @@ Exemples :
 - **Mineur (Y)** : nouvelle fonctionnalite, nouvelle page
 - **Patch (Z)** : correction de bug, ajustement CSS
 
+### Regle obligatoire
+**A chaque commit pousse, incrementer la version** :
+1. Mettre a jour `APP_VERSION` dans `js/config.js`
+2. Mettre a jour le cache bust (`?v=X.Y.Z`) dans `html/app.html`
+3. Ne jamais pousser sans avoir incremente la version
+
 ## Deploiement
 Apres chaque push sur `main`, GitHub Pages deploie automatiquement. Penser a mettre a jour le cache bust dans les HTML avant le push.

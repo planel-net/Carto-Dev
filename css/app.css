@@ -284,6 +284,7 @@
     flex-direction: column;
     min-height: 100vh;
     transition: margin-left var(--transition-normal);
+    overflow-x: hidden;
 }
 
 .sidebar.collapsed ~ .main-content {
@@ -472,6 +473,8 @@
     flex: 1;
     padding: var(--spacing-lg);
     overflow-y: auto;
+    overflow-x: hidden;
+    min-width: 0;
 }
 
 /* Page container */
