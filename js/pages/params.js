@@ -23,6 +23,20 @@ class ParamsPage {
                 allPersonnes: []
             };
         }
+
+        // Chantier specific: filter state
+        this._chantierFilters = null;
+        this._chantierFiltersInitialized = false;
+        if (tableKey === 'CHANTIER') {
+            this._chantierFilters = {
+                perimetres: new Set(),
+                responsables: new Set(),
+                avancements: new Set(),
+                allPerimetres: [],
+                allResponsables: [],
+                allAvancements: []
+            };
+        }
     }
 
     /**
@@ -39,6 +53,7 @@ class ParamsPage {
         }
 
         const isDataAna = this.tableKey === 'DATAANA';
+        const isChantier = this.tableKey === 'CHANTIER';
 
         // Bouton Copie Jira
         const jiraButtonHtml = this.tableConfig.jiraSheet ? `
@@ -47,7 +62,7 @@ class ParamsPage {
             </button>
         ` : '';
 
-        // Barre du haut : filtres (DataAna) ou toolbar simple
+        // Barre du haut : filtres (DataAna / Chantier) ou toolbar simple
         let topBarHtml = '';
         if (isDataAna) {
             topBarHtml = `
@@ -83,6 +98,53 @@ class ParamsPage {
                     ${jiraButtonHtml ? `<div class="mae-filters-actions">${jiraButtonHtml}</div>` : ''}
                 </div>
             `;
+        } else if (isChantier) {
+            topBarHtml = `
+                <div class="mae-filters" id="chantierFilters">
+                    <div class="mae-filter-group" id="filterGroupPerimetre">
+                        <label>Périmètre</label>
+                        <div class="mae-filter-trigger" id="filterTriggerPerimetre">
+                            <span class="filter-text">Chargement...</span>
+                            <span class="arrow">&#9660;</span>
+                        </div>
+                        <div class="mae-filter-dropdown" id="filterDropdownPerimetre">
+                            <div class="mae-filter-dropdown-actions">
+                                <button data-action="all">Tous</button>
+                                <button data-action="none">Aucun</button>
+                            </div>
+                            <div class="mae-filter-options" id="filterOptionsPerimetre"></div>
+                        </div>
+                    </div>
+                    <div class="mae-filter-group" id="filterGroupResponsable">
+                        <label>Responsable</label>
+                        <div class="mae-filter-trigger" id="filterTriggerResponsable">
+                            <span class="filter-text">Chargement...</span>
+                            <span class="arrow">&#9660;</span>
+                        </div>
+                        <div class="mae-filter-dropdown" id="filterDropdownResponsable">
+                            <div class="mae-filter-dropdown-actions">
+                                <button data-action="all">Tous</button>
+                                <button data-action="none">Aucun</button>
+                            </div>
+                            <div class="mae-filter-options" id="filterOptionsResponsable"></div>
+                        </div>
+                    </div>
+                    <div class="mae-filter-group" id="filterGroupAvancement">
+                        <label>Avancement</label>
+                        <div class="mae-filter-trigger" id="filterTriggerAvancement">
+                            <span class="filter-text">Chargement...</span>
+                            <span class="arrow">&#9660;</span>
+                        </div>
+                        <div class="mae-filter-dropdown" id="filterDropdownAvancement">
+                            <div class="mae-filter-dropdown-actions">
+                                <button data-action="all">Tous</button>
+                                <button data-action="none">Aucun</button>
+                            </div>
+                            <div class="mae-filter-options" id="filterOptionsAvancement"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
         } else if (jiraButtonHtml) {
             topBarHtml = `<div class="params-toolbar">${jiraButtonHtml}</div>`;
         }
@@ -107,6 +169,11 @@ class ParamsPage {
         // Attacher les événements des filtres DataAna
         if (isDataAna) {
             this._attachDataAnaFilterEvents();
+        }
+
+        // Attacher les événements des filtres Chantier
+        if (isChantier) {
+            this._attachChantierFilterEvents();
         }
 
         await this.renderTable();
@@ -165,10 +232,17 @@ class ParamsPage {
         const container = document.getElementById('tableParams');
         if (!container) return;
 
+        // Colonnes visibles : pour CHANTIER, masquer certains champs du tableau
+        let visibleColumns = this.tableConfig.columns;
+        if (this.tableKey === 'CHANTIER') {
+            const hiddenFields = ['Archivé', 'Processus', 'Enjeux', 'Description'];
+            visibleColumns = this.tableConfig.columns.filter(c => !hiddenFields.includes(c.field));
+        }
+
         const options = {
             tableName: this.tableConfig.name,
             tableConfig: this.tableConfig,
-            columns: this.tableConfig.columns,
+            columns: visibleColumns,
             showToolbar: true,
             showPagination: true,
             editable: true,
@@ -190,6 +264,32 @@ class ParamsPage {
                 });
             };
             options.onDataLoaded = (data) => this._populateDataAnaFilters(data);
+        }
+
+        // Chantier : ajouter filtre externe et callback chargement
+        if (this.tableKey === 'CHANTIER') {
+            options.externalFilter = (data) => {
+                if (!this._chantierFiltersInitialized) return data;
+                return data.filter(row => {
+                    const perimetre = String(row['Perimetre'] || '').trim();
+                    const responsable = String(row['Responsable'] || '').trim();
+                    const avancement = String(row['Avancement'] || '').trim();
+                    if (this._chantierFilters.perimetres.size > 0 || this._chantierFilters.allPerimetres.length > 0) {
+                        if (perimetre && !this._chantierFilters.perimetres.has(perimetre)) return false;
+                        if (!perimetre && !this._chantierFilters.perimetres.has('(Non rempli)')) return false;
+                    }
+                    if (this._chantierFilters.responsables.size > 0 || this._chantierFilters.allResponsables.length > 0) {
+                        if (responsable && !this._chantierFilters.responsables.has(responsable)) return false;
+                        if (!responsable && !this._chantierFilters.responsables.has('(Non rempli)')) return false;
+                    }
+                    if (this._chantierFilters.avancements.size > 0 || this._chantierFilters.allAvancements.length > 0) {
+                        if (avancement && !this._chantierFilters.avancements.has(avancement)) return false;
+                        if (!avancement && !this._chantierFilters.avancements.has('(Non rempli)')) return false;
+                    }
+                    return true;
+                });
+            };
+            options.onDataLoaded = (data) => this._populateChantierFilters(data);
         }
 
         this.dataTable = new DataTable(container, options);
@@ -316,18 +416,32 @@ class ParamsPage {
             </label>
         `).join('');
 
+        // Déterminer si c'est un filtre DataAna ou Chantier
+        const isChantierFilter = ['Perimetre', 'Responsable', 'Avancement'].includes(type);
+
         // Attacher les événements des checkboxes
         container.querySelectorAll('input[type="checkbox"]').forEach(cb => {
             cb.addEventListener('change', (e) => {
                 e.stopPropagation();
-                const field = type === 'Etat' ? 'etats' : 'personnes';
-                if (cb.checked) {
-                    this._dataAnaFilters[field].add(cb.value);
+                if (isChantierFilter) {
+                    const field = this._chantierFilterField(type);
+                    if (cb.checked) {
+                        this._chantierFilters[field].add(cb.value);
+                    } else {
+                        this._chantierFilters[field].delete(cb.value);
+                    }
+                    this._updateChantierFilterLabel(type);
+                    this._applyChantierFilters();
                 } else {
-                    this._dataAnaFilters[field].delete(cb.value);
+                    const field = type === 'Etat' ? 'etats' : 'personnes';
+                    if (cb.checked) {
+                        this._dataAnaFilters[field].add(cb.value);
+                    } else {
+                        this._dataAnaFilters[field].delete(cb.value);
+                    }
+                    this._updateFilterLabel(type);
+                    this._applyDataAnaFilters();
                 }
-                this._updateFilterLabel(type);
-                this._applyDataAnaFilters();
             });
         });
     }
@@ -380,6 +494,175 @@ class ParamsPage {
     }
 
     // ── Fin DataAna Filters ─────────────────────────────────────
+
+    // ── Chantier Filters ──────────────────────────────────────
+
+    /**
+     * Peuple les filtres Périmètre / Responsable / Avancement à partir des données chargées
+     */
+    _populateChantierFilters(data) {
+        const perimetresSet = new Set();
+        const responsablesSet = new Set();
+        const avancementsSet = new Set();
+        let hasEmptyPerimetre = false;
+        let hasEmptyResponsable = false;
+        let hasEmptyAvancement = false;
+
+        data.forEach(row => {
+            const perimetre = String(row['Perimetre'] || '').trim();
+            const responsable = String(row['Responsable'] || '').trim();
+            const avancement = String(row['Avancement'] || '').trim();
+            if (perimetre) perimetresSet.add(perimetre); else hasEmptyPerimetre = true;
+            if (responsable) responsablesSet.add(responsable); else hasEmptyResponsable = true;
+            if (avancement) avancementsSet.add(avancement); else hasEmptyAvancement = true;
+        });
+
+        const newAllPerimetres = [...perimetresSet].sort();
+        if (hasEmptyPerimetre) newAllPerimetres.push('(Non rempli)');
+        const newAllResponsables = [...responsablesSet].sort();
+        if (hasEmptyResponsable) newAllResponsables.push('(Non rempli)');
+        const newAllAvancements = [...avancementsSet].sort();
+        if (hasEmptyAvancement) newAllAvancements.push('(Non rempli)');
+
+        if (!this._chantierFiltersInitialized) {
+            this._chantierFilters.perimetres = new Set(newAllPerimetres);
+            this._chantierFilters.responsables = new Set(newAllResponsables);
+            this._chantierFilters.avancements = new Set(newAllAvancements);
+            this._chantierFiltersInitialized = true;
+        } else {
+            // Ajouter les nouvelles valeurs, retirer celles qui n'existent plus
+            this._chantierFilters.perimetres = new Set(
+                [...this._chantierFilters.perimetres].filter(v => newAllPerimetres.includes(v))
+            );
+            this._chantierFilters.responsables = new Set(
+                [...this._chantierFilters.responsables].filter(v => newAllResponsables.includes(v))
+            );
+            this._chantierFilters.avancements = new Set(
+                [...this._chantierFilters.avancements].filter(v => newAllAvancements.includes(v))
+            );
+        }
+
+        this._chantierFilters.allPerimetres = newAllPerimetres;
+        this._chantierFilters.allResponsables = newAllResponsables;
+        this._chantierFilters.allAvancements = newAllAvancements;
+
+        this._renderFilterOptions('Perimetre', this._chantierFilters.allPerimetres, this._chantierFilters.perimetres);
+        this._renderFilterOptions('Responsable', this._chantierFilters.allResponsables, this._chantierFilters.responsables);
+        this._renderFilterOptions('Avancement', this._chantierFilters.allAvancements, this._chantierFilters.avancements);
+        this._updateChantierFilterLabel('Perimetre');
+        this._updateChantierFilterLabel('Responsable');
+        this._updateChantierFilterLabel('Avancement');
+    }
+
+    /**
+     * Attache les événements des filtres Chantier (dropdowns, Tous/Aucun)
+     */
+    _attachChantierFilterEvents() {
+        ['Perimetre', 'Responsable', 'Avancement'].forEach(type => {
+            const trigger = document.getElementById(`filterTrigger${type}`);
+            const dropdown = document.getElementById(`filterDropdown${type}`);
+            if (!trigger || !dropdown) return;
+
+            trigger.addEventListener('click', (e) => {
+                e.stopPropagation();
+                document.querySelectorAll('#chantierFilters .mae-filter-dropdown.open').forEach(d => {
+                    if (d !== dropdown) d.classList.remove('open');
+                });
+                document.querySelectorAll('#chantierFilters .mae-filter-trigger.open').forEach(t => {
+                    if (t !== trigger) t.classList.remove('open');
+                });
+                dropdown.classList.toggle('open');
+                trigger.classList.toggle('open');
+            });
+
+            dropdown.querySelectorAll('.mae-filter-dropdown-actions button').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const action = e.target.dataset.action;
+                    const field = this._chantierFilterField(type);
+                    const allValues = this._chantierFilters[`all${this._chantierFilterAllKey(type)}`];
+
+                    if (action === 'all') {
+                        this._chantierFilters[field] = new Set(allValues);
+                    } else {
+                        this._chantierFilters[field] = new Set();
+                    }
+                    this._updateChantierFilterCheckboxes(type);
+                    this._updateChantierFilterLabel(type);
+                    this._applyChantierFilters();
+                });
+            });
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.mae-filter-group')) {
+                document.querySelectorAll('#chantierFilters .mae-filter-dropdown.open').forEach(d => d.classList.remove('open'));
+                document.querySelectorAll('#chantierFilters .mae-filter-trigger.open').forEach(t => t.classList.remove('open'));
+            }
+        });
+    }
+
+    _chantierFilterField(type) {
+        return type === 'Perimetre' ? 'perimetres' : type === 'Responsable' ? 'responsables' : 'avancements';
+    }
+
+    _chantierFilterAllKey(type) {
+        return type === 'Perimetre' ? 'Perimetres' : type === 'Responsable' ? 'Responsables' : 'Avancements';
+    }
+
+    /**
+     * Génère les options (checkboxes) d'un dropdown filtre Chantier
+     * (Réutilise _renderFilterOptions qui est partagé avec DataAna)
+     */
+
+    /**
+     * Met à jour l'état des checkboxes d'un dropdown Chantier
+     */
+    _updateChantierFilterCheckboxes(type) {
+        const field = this._chantierFilterField(type);
+        const container = document.getElementById(`filterOptions${type}`);
+        if (!container) return;
+
+        container.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+            cb.checked = this._chantierFilters[field].has(cb.value);
+        });
+    }
+
+    /**
+     * Met à jour le libellé du filtre Chantier (trigger)
+     */
+    _updateChantierFilterLabel(type) {
+        const field = this._chantierFilterField(type);
+        const allKey = `all${this._chantierFilterAllKey(type)}`;
+        const trigger = document.getElementById(`filterTrigger${type}`);
+        if (!trigger) return;
+
+        const textEl = trigger.querySelector('.filter-text');
+        const selected = this._chantierFilters[field];
+        const total = this._chantierFilters[allKey].length;
+
+        if (selected.size === 0) {
+            textEl.textContent = 'Aucun';
+        } else if (selected.size === total) {
+            textEl.textContent = 'Tous';
+        } else if (selected.size <= 2) {
+            textEl.textContent = [...selected].join(', ');
+        } else {
+            textEl.textContent = `${selected.size} / ${total}`;
+        }
+    }
+
+    /**
+     * Applique les filtres Chantier sur le DataTable
+     */
+    _applyChantierFilters() {
+        if (this.dataTable) {
+            this.dataTable.currentPage = 1;
+            this.dataTable.applyFilters();
+        }
+    }
+
+    // ── Fin Chantier Filters ──────────────────────────────────
 
     /**
      * Affiche le formulaire d'ajout

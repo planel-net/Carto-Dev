@@ -12,6 +12,7 @@ const ChantierModal = {
     _data: {
         acteurs: [],
         perimetres: [],
+        programmes: [],
         processus: [],
         produits: [],
         dataAnas: [],
@@ -53,6 +54,7 @@ const ChantierModal = {
             const [
                 acteursData,
                 perimetresData,
+                programmesData,
                 processusData,
                 produitsData,
                 dataAnasData,
@@ -68,6 +70,7 @@ const ChantierModal = {
             ] = await Promise.all([
                 readTable('tActeurs'),
                 readTable('tPerimetres'),
+                readTable('tProgrammes'),
                 readTable('tProcessus'),
                 readTable('tProduits'),
                 readTable('tDataAnas'),
@@ -84,6 +87,7 @@ const ChantierModal = {
 
             this._data.acteurs = acteursData.data || [];
             this._data.perimetres = perimetresData.data || [];
+            this._data.programmes = programmesData.data || [];
             this._data.processus = processusData.data || [];
             this._data.produits = produitsData.data || [];
             this._data.dataAnas = dataAnasData.data || [];
@@ -172,6 +176,8 @@ const ChantierModal = {
         this._state.renderMAE = () => this._renderAssignedMAE('Add');
         this._state.renderLiens = () => this._renderLiensList('Add');
 
+        const avancementOptions = ['Non démarré', 'En cadrage', 'Cadré', 'En développement', 'Développé', 'En recette', 'Recetté', 'Terminé'];
+
         const content = `
             <form id="formChantierModal" class="form">
                 <div class="chantier-form-grid">
@@ -198,11 +204,29 @@ const ChantierModal = {
                         </select>
                     </div>
                     <div class="form-group">
+                        <label class="form-label">Programme</label>
+                        <select class="form-control" name="Programme">
+                            <option value="">-- Sélectionner --</option>
+                            ${this._data.programmes.map(p => `
+                                <option value="${escapeHtml(p['Programme'])}">${escapeHtml(p['Programme'])}</option>
+                            `).join('')}
+                        </select>
+                    </div>
+                    <div class="form-group">
                         <label class="form-label">Processus</label>
                         <select class="form-control" name="Processus">
                             <option value="">-- Sélectionner --</option>
                             ${this.getOrderedProcessus().map(p => `
                                 <option value="${escapeHtml(p)}">${escapeHtml(p)}</option>
+                            `).join('')}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Avancement</label>
+                        <select class="form-control" name="Avancement">
+                            <option value="">-- Sélectionner --</option>
+                            ${avancementOptions.map(o => `
+                                <option value="${escapeHtml(o)}">${escapeHtml(o)}</option>
                             `).join('')}
                         </select>
                     </div>
@@ -217,16 +241,36 @@ const ChantierModal = {
                         </label>
                     </div>
                 </div>
-                <div class="form-group">
-                    <label class="form-label">Enjeux</label>
-                    <div class="rich-text-toolbar">
-                        <button type="button" class="rich-text-btn" onclick="ChantierModal.execEnjeuxCommand('bold')" title="Gras"><strong>G</strong></button>
-                        <button type="button" class="rich-text-btn" onclick="ChantierModal.execEnjeuxCommand('italic')" title="Italique"><em>I</em></button>
-                        <span class="rich-text-separator"></span>
-                        <button type="button" class="rich-text-btn" onclick="ChantierModal.execEnjeuxCommand('insertUnorderedList')" title="Liste">&#8226;</button>
-                        <button type="button" class="rich-text-btn" onclick="ChantierModal.execEnjeuxCommand('insertOrderedList')" title="Liste numérotée">1.</button>
+                <div class="chantier-compact-row">
+                    <div class="form-group">
+                        <label class="form-label">Code</label>
+                        <input type="text" class="form-control" name="Code">
                     </div>
-                    <div class="rich-text-editor" id="enjeuxEditor" contenteditable="true" style="min-height: 100px; resize: vertical; overflow: auto;"></div>
+                    <div class="form-group">
+                        <label class="form-label">JH Vigie</label>
+                        <input type="number" class="form-control" name="JH Vigie" step="0.5" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">JH Pilotage</label>
+                        <input type="number" class="form-control" name="JH Pilotage" step="0.5" min="0">
+                    </div>
+                </div>
+                <div class="chantier-textarea-grid">
+                    <div class="form-group">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" name="Description" rows="4" style="resize: vertical;"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Enjeux</label>
+                        <div class="rich-text-toolbar">
+                            <button type="button" class="rich-text-btn" onclick="ChantierModal.execEnjeuxCommand('bold')" title="Gras"><strong>G</strong></button>
+                            <button type="button" class="rich-text-btn" onclick="ChantierModal.execEnjeuxCommand('italic')" title="Italique"><em>I</em></button>
+                            <span class="rich-text-separator"></span>
+                            <button type="button" class="rich-text-btn" onclick="ChantierModal.execEnjeuxCommand('insertUnorderedList')" title="Liste">&#8226;</button>
+                            <button type="button" class="rich-text-btn" onclick="ChantierModal.execEnjeuxCommand('insertOrderedList')" title="Liste numérotée">1.</button>
+                        </div>
+                        <div class="rich-text-editor" id="enjeuxEditor" contenteditable="true" style="min-height: 100px; resize: vertical; overflow: auto;"></div>
+                    </div>
                 </div>
             </form>
         `;
@@ -370,12 +414,34 @@ const ChantierModal = {
                             </select>
                         </div>
                         <div class="form-group">
+                            <label class="form-label">Programme</label>
+                            <select class="form-control" name="Programme">
+                                <option value="">-- Sélectionner --</option>
+                                ${this._data.programmes.map(p => `
+                                    <option value="${escapeHtml(p['Programme'])}" ${p['Programme'] === chantier['Programme'] ? 'selected' : ''}>
+                                        ${escapeHtml(p['Programme'])}
+                                    </option>
+                                `).join('')}
+                            </select>
+                        </div>
+                        <div class="form-group">
                             <label class="form-label">Processus</label>
                             <select class="form-control" name="Processus">
                                 <option value="">-- Sélectionner --</option>
                                 ${this.getOrderedProcessus().map(p => `
                                     <option value="${escapeHtml(p)}" ${p === chantier['Processus'] ? 'selected' : ''}>
                                         ${escapeHtml(p)}
+                                    </option>
+                                `).join('')}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Avancement</label>
+                            <select class="form-control" name="Avancement">
+                                <option value="">-- Sélectionner --</option>
+                                ${['Non démarré', 'En cadrage', 'Cadré', 'En développement', 'Développé', 'En recette', 'Recetté', 'Terminé'].map(o => `
+                                    <option value="${escapeHtml(o)}" ${o === chantier['Avancement'] ? 'selected' : ''}>
+                                        ${escapeHtml(o)}
                                     </option>
                                 `).join('')}
                             </select>
@@ -391,16 +457,36 @@ const ChantierModal = {
                             </label>
                         </div>
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">Enjeux</label>
-                        <div class="rich-text-toolbar">
-                            <button type="button" class="rich-text-btn" onclick="ChantierModal.execEnjeuxCommand('bold')" title="Gras"><strong>G</strong></button>
-                            <button type="button" class="rich-text-btn" onclick="ChantierModal.execEnjeuxCommand('italic')" title="Italique"><em>I</em></button>
-                            <span class="rich-text-separator"></span>
-                            <button type="button" class="rich-text-btn" onclick="ChantierModal.execEnjeuxCommand('insertUnorderedList')" title="Liste">&#8226;</button>
-                            <button type="button" class="rich-text-btn" onclick="ChantierModal.execEnjeuxCommand('insertOrderedList')" title="Liste numérotée">1.</button>
+                    <div class="chantier-compact-row">
+                        <div class="form-group">
+                            <label class="form-label">Code</label>
+                            <input type="text" class="form-control" name="Code" value="${escapeHtml(chantier['Code'] || '')}">
                         </div>
-                        <div class="rich-text-editor" id="enjeuxEditor" contenteditable="true" style="min-height: 100px; resize: vertical; overflow: auto;">${chantier['Enjeux'] || ''}</div>
+                        <div class="form-group">
+                            <label class="form-label">JH Vigie</label>
+                            <input type="number" class="form-control" name="JH Vigie" step="0.5" min="0" value="${chantier['JH Vigie'] || ''}">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">JH Pilotage</label>
+                            <input type="number" class="form-control" name="JH Pilotage" step="0.5" min="0" value="${chantier['JH Pilotage'] || ''}">
+                        </div>
+                    </div>
+                    <div class="chantier-textarea-grid">
+                        <div class="form-group">
+                            <label class="form-label">Description</label>
+                            <textarea class="form-control" name="Description" rows="4" style="resize: vertical;">${escapeHtml(chantier['Description'] || '')}</textarea>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Enjeux</label>
+                            <div class="rich-text-toolbar">
+                                <button type="button" class="rich-text-btn" onclick="ChantierModal.execEnjeuxCommand('bold')" title="Gras"><strong>G</strong></button>
+                                <button type="button" class="rich-text-btn" onclick="ChantierModal.execEnjeuxCommand('italic')" title="Italique"><em>I</em></button>
+                                <span class="rich-text-separator"></span>
+                                <button type="button" class="rich-text-btn" onclick="ChantierModal.execEnjeuxCommand('insertUnorderedList')" title="Liste">&#8226;</button>
+                                <button type="button" class="rich-text-btn" onclick="ChantierModal.execEnjeuxCommand('insertOrderedList')" title="Liste numérotée">1.</button>
+                            </div>
+                            <div class="rich-text-editor" id="enjeuxEditor" contenteditable="true" style="min-height: 100px; resize: vertical; overflow: auto;">${chantier['Enjeux'] || ''}</div>
+                        </div>
                     </div>
                 </form>
 
@@ -1601,10 +1687,16 @@ const ChantierModal = {
 
         const chantierData = {
             'Chantier': formData.get('Chantier'),
+            'Code': formData.get('Code') || '',
+            'Description': formData.get('Description') || '',
             'Responsable': formData.get('Responsable'),
             'Perimetre': formData.get('Perimetre'),
+            'Programme': formData.get('Programme') || '',
             'Processus': formData.get('Processus'),
+            'Avancement': formData.get('Avancement') || '',
             'Date fin souhaitée': formData.get('Date fin souhaitée') || '',
+            'JH Vigie': formData.get('JH Vigie') ? parseFloat(formData.get('JH Vigie')) : '',
+            'JH Pilotage': formData.get('JH Pilotage') ? parseFloat(formData.get('JH Pilotage')) : '',
             'Archivé': form.querySelector('input[name="Archivé"]').checked ? true : false,
             'Enjeux': enjeuxValue
         };

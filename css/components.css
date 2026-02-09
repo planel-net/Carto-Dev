@@ -1318,6 +1318,33 @@ tr.drag-over {
     }
 }
 
+.chantier-compact-row {
+    display: flex;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+}
+
+.chantier-compact-row .form-group {
+    flex: 1;
+    min-width: 0;
+}
+
+.chantier-textarea-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-lg);
+}
+
+@media (max-width: 700px) {
+    .chantier-compact-row {
+        flex-direction: column;
+    }
+
+    .chantier-textarea-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 /* ===========================================
    CHANTIER MODAL - Onglet Phases
    =========================================== */

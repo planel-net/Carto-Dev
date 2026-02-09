@@ -6,7 +6,7 @@
 const CONFIG = {
     // Nom de l'application
     APP_NAME: 'Carto',
-    APP_VERSION: '1.4.0',
+    APP_VERSION: '1.4.2',
 
     // Valeur spéciale pour filtrer les éléments sans valeur (périmètre/responsable vide)
     EMPTY_FILTER_VALUE: '(Non rempli)',
@@ -134,6 +134,16 @@ const CONFIG = {
                 { field: 'Périmetre', label: 'Périmètre', type: 'text', required: true }
             ]
         },
+        PROGRAMMES: {
+            name: 'tProgrammes',
+            sheet: 'Programmes',
+            displayName: 'Programmes',
+            icon: '&#128218;',
+            columns: [
+                { field: 'Programme', label: 'Programme', type: 'text', required: true },
+                { field: 'Périmètre', label: 'Périmètre', type: 'select', source: 'PERIMETRES', sourceField: 'Périmetre' }
+            ]
+        },
         FLUX: {
             name: 'tFlux',
             sheet: 'Flux',
@@ -212,12 +222,18 @@ const CONFIG = {
             icon: '&#128736;',
             columns: [
                 { field: 'NumChantier', label: 'N° Chantier', type: 'text' },
+                { field: 'Code', label: 'Code', type: 'text' },
                 { field: 'Chantier', label: 'Chantier', type: 'text', required: true },
+                { field: 'Description', label: 'Description', type: 'textarea' },
                 { field: 'Responsable', label: 'Responsable', type: 'select', source: 'ACTEURS', sourceField: 'Mail' },
-                { field: 'Archivé', label: 'Archivé', type: 'checkbox' },
                 { field: 'Perimetre', label: 'Périmètre', type: 'select', source: 'PERIMETRES', sourceField: 'Périmetre' },
+                { field: 'Programme', label: 'Programme', type: 'select', source: 'PROGRAMMES', sourceField: 'Programme' },
                 { field: 'Processus', label: 'Processus', type: 'select', source: 'PROCESSUS', sourceField: 'Processus' },
+                { field: 'Avancement', label: 'Avancement', type: 'select', options: ['Non démarré', 'En cadrage', 'Cadré', 'En développement', 'Développé', 'En recette', 'Recetté', 'Terminé'] },
                 { field: 'Date fin souhaitée', label: 'Date fin souhaitée', type: 'date' },
+                { field: 'JH Vigie', label: 'JH Vigie', type: 'number' },
+                { field: 'JH Pilotage', label: 'JH Pilotage', type: 'number' },
+                { field: 'Archivé', label: 'Archivé', type: 'checkbox' },
                 { field: 'Enjeux', label: 'Enjeux', type: 'textarea' }
             ]
         },
@@ -414,6 +430,7 @@ const CONFIG = {
             { id: 'dataflows', label: 'Dataflows', icon: '&#128260;', table: 'DATAFLOWS' },
             { id: 'processus', label: 'Processus', icon: '&#128736;', table: 'PROCESSUS' },
             { id: 'perimetres', label: 'Périmètres', icon: '&#127758;', table: 'PERIMETRES' },
+            { id: 'programmes', label: 'Programmes', icon: '&#128218;', table: 'PROGRAMMES' },
             { id: 'sprints', label: 'Sprints', icon: '&#128197;', table: 'SPRINTS' },
             { id: 'capacite', label: 'Capacité', icon: '&#128200;', table: 'CAPACITE' },
             { id: 'chantiers', label: 'Chantiers', icon: '&#128736;', table: 'CHANTIER' },

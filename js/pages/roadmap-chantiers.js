@@ -39,6 +39,7 @@ class RoadmapChantiersPage {
             dateFin: new Date(new Date().setMonth(new Date().getMonth() + 3)),
             perimetres: [],
             responsables: [],
+            avancements: [],
             perimetreProcessus: []
         };
 
@@ -61,6 +62,9 @@ class RoadmapChantiersPage {
                 <!-- Filtres -->
                 <div class="filters-container" id="filtersContainer"></div>
 
+                <!-- Statistiques -->
+                <div id="statsContainer"></div>
+
                 <!-- Boutons d'action -->
                 <div class="action-buttons" id="actionButtons"></div>
 
@@ -76,6 +80,7 @@ class RoadmapChantiersPage {
         await this.loadData();
         this.renderLegend();
         this.renderFilters();
+        this.renderStats();
         this.renderActionButtons();
         this.renderGantt();
         this.attachEvents();
@@ -148,6 +153,7 @@ class RoadmapChantiersPage {
             // Initialiser les filtres avec toutes les valeurs (pour afficher tout par défaut, y compris "Non rempli")
             this.filters.perimetres = this.getAllPerimetres();
             this.filters.responsables = this.getAllResponsables();
+            this.filters.avancements = this.getAllAvancements();
             this.filters.perimetreProcessus = this.getAllPerimetreProcessus();
 
         } catch (error) {
@@ -218,6 +224,23 @@ class RoadmapChantiersPage {
         // Ajouter l'option "(Non rempli)" si des chantiers n'ont pas de responsable
         const hasEmptyResponsable = this.chantiers.some(c => !c['Responsable']);
         if (hasEmptyResponsable) {
+            result.push(CONFIG.EMPTY_FILTER_VALUE);
+        }
+
+        return result;
+    }
+
+    /**
+     * Retourne la liste des avancements uniques des chantiers actifs
+     * Inclut "(Non rempli)" si des chantiers n'ont pas d'avancement
+     */
+    getAllAvancements() {
+        const avancements = [...new Set(this.chantiers.map(c => c['Avancement']).filter(Boolean))];
+        const result = avancements.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+
+        // Ajouter l'option "(Non rempli)" si des chantiers n'ont pas d'avancement
+        const hasEmptyAvancement = this.chantiers.some(c => !c['Avancement']);
+        if (hasEmptyAvancement) {
             result.push(CONFIG.EMPTY_FILTER_VALUE);
         }
 
@@ -576,9 +599,10 @@ class RoadmapChantiersPage {
             return d.toISOString().split('T')[0];
         };
 
-        // Liste unique des périmètres, responsables et couples périmètre-processus (filtrés par périmètre)
+        // Liste unique des périmètres, responsables, avancements et couples périmètre-processus (filtrés par périmètre)
         const perimetresList = this.getAllPerimetres();
         const responsablesList = this.getAllResponsables();
+        const avancementsList = this.getAllAvancements();
         const perimetreProcessusList = this.getFilteredPerimetreProcessus();
 
         // Calcul des labels
@@ -589,6 +613,10 @@ class RoadmapChantiersPage {
         const responsableAllSelected = this.filters.responsables.length === responsablesList.length;
         const responsableLabel = responsableAllSelected ? 'Tous' :
             (this.filters.responsables.length === 0 ? 'Aucun' : this.filters.responsables.length + ' sélectionné(s)');
+
+        const avancementAllSelected = this.filters.avancements.length === avancementsList.length;
+        const avancementLabel = avancementAllSelected ? 'Tous' :
+            (this.filters.avancements.length === 0 ? 'Aucun' : this.filters.avancements.length + ' sélectionné(s)');
 
         const perimProcessAllSelected = this.filters.perimetreProcessus.length === perimetreProcessusList.length;
         const perimProcessLabel = perimProcessAllSelected ? 'Tous' :
@@ -651,6 +679,31 @@ class RoadmapChantiersPage {
                     </div>
                 </div>
             </div>
+            <div class="filter-group">
+                <label>Avancement :</label>
+                <div class="multi-select-wrapper" id="avancementFilterWrapper">
+                    <div class="multi-select-trigger" onclick="roadmapChantiersPageInstance.toggleMultiSelect('avancement')">
+                        <span class="multi-select-label">${avancementLabel}</span>
+                        <span class="multi-select-arrow">&#9662;</span>
+                    </div>
+                    <div class="multi-select-dropdown" id="avancementDropdown">
+                        <div class="multi-select-actions">
+                            <button class="btn btn-xs" onclick="roadmapChantiersPageInstance.selectAllAvancements()">Tous</button>
+                            <button class="btn btn-xs" onclick="roadmapChantiersPageInstance.clearAvancementsFilter()">Aucun</button>
+                        </div>
+                        <div class="multi-select-options">
+                            ${avancementsList.map(a => `
+                                <label class="multi-select-option${a === CONFIG.EMPTY_FILTER_VALUE ? ' empty-option' : ''}">
+                                    <input type="checkbox" value="${escapeHtml(a)}"
+                                        ${this.filters.avancements.includes(a) ? 'checked' : ''}
+                                        onchange="roadmapChantiersPageInstance.onAvancementCheckChange()">
+                                    <span>${escapeHtml(a)}</span>
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            </div>
             <div class="filter-group filter-group-wide">
                 <label>Périmètre-Processus :</label>
                 <div class="multi-select-wrapper multi-select-wide" id="perimetreProcessusFilterWrapper">
@@ -704,6 +757,113 @@ class RoadmapChantiersPage {
     }
 
     /**
+     * Rendu de la section statistiques (KPI + histogramme avancement)
+     */
+    renderStats() {
+        const container = document.getElementById('statsContainer');
+        if (!container) return;
+
+        const filteredChantiers = this.getFilteredChantiers();
+        const nbChantiers = filteredChantiers.length;
+
+        // Calcul des totaux JH
+        let totalJHVigie = 0;
+        let totalJHPilotage = 0;
+        filteredChantiers.forEach(c => {
+            const jhVigie = parseFloat(c['JH Vigie']) || 0;
+            const jhPilotage = parseFloat(c['JH Pilotage']) || 0;
+            totalJHVigie += jhVigie;
+            totalJHPilotage += jhPilotage;
+        });
+
+        // Histogramme avancement : compter par statut
+        const avancementCounts = {};
+        filteredChantiers.forEach(c => {
+            const avancement = c['Avancement'] || '(Non rempli)';
+            avancementCounts[avancement] = (avancementCounts[avancement] || 0) + 1;
+        });
+
+        // Trier les statuts dans l'ordre logique
+        const ordreAvancements = [
+            'Non démarré', 'En cadrage', 'Cadré', 'En développement',
+            'Développé', 'En recette', 'Recetté', 'Terminé', '(Non rempli)'
+        ];
+        const labels = [];
+        const values = [];
+        const colors = [];
+        const colorMap = {
+            'Non démarré': '#6c757d',
+            'En cadrage': '#17a2b8',
+            'Cadré': '#0066CC',
+            'En développement': '#FF6600',
+            'Développé': '#FFC107',
+            'En recette': '#9C27B0',
+            'Recetté': '#28A745',
+            'Terminé': '#155724',
+            '(Non rempli)': '#adb5bd'
+        };
+
+        // D'abord les statuts dans l'ordre, puis les éventuels statuts inconnus
+        ordreAvancements.forEach(status => {
+            if (avancementCounts[status]) {
+                labels.push(status);
+                values.push(avancementCounts[status]);
+                colors.push(colorMap[status] || '#6c757d');
+            }
+        });
+        // Statuts non listés
+        Object.keys(avancementCounts).forEach(status => {
+            if (!ordreAvancements.includes(status)) {
+                labels.push(status);
+                values.push(avancementCounts[status]);
+                colors.push('#6c757d');
+            }
+        });
+
+        container.innerHTML = `
+            <div class="roadmap-stats">
+                <div class="roadmap-stats-kpis">
+                    <div class="kpi-card kpi-primary roadmap-stat-card">
+                        <div class="kpi-header">
+                            <div class="kpi-icon">&#128203;</div>
+                        </div>
+                        <div class="kpi-value">${nbChantiers}</div>
+                        <div class="kpi-label">Chantiers</div>
+                    </div>
+                    <div class="kpi-card kpi-warning roadmap-stat-card">
+                        <div class="kpi-header">
+                            <div class="kpi-icon">&#9201;</div>
+                        </div>
+                        <div class="kpi-value">${formatNumber(totalJHVigie)} <span class="unit">JH</span></div>
+                        <div class="kpi-label">Vigie</div>
+                    </div>
+                    <div class="kpi-card kpi-orange roadmap-stat-card">
+                        <div class="kpi-header">
+                            <div class="kpi-icon">&#128188;</div>
+                        </div>
+                        <div class="kpi-value">${formatNumber(totalJHPilotage)} <span class="unit">JH</span></div>
+                        <div class="kpi-label">Pilotage</div>
+                    </div>
+                </div>
+                <div class="roadmap-stats-chart">
+                    <div class="roadmap-histogram-title">Avancement</div>
+                    <div id="roadmapAvancementChart"></div>
+                </div>
+            </div>
+        `;
+
+        // Rendre l'histogramme
+        if (labels.length > 0) {
+            createBarChart('roadmapAvancementChart', { labels, values, colors }, {
+                horizontal: true,
+                barHeight: 22,
+                gap: 4,
+                showValues: true
+            });
+        }
+    }
+
+    /**
      * Formate le nom d'un acteur à partir de son email
      */
     formatActorName(email) {
@@ -739,6 +899,7 @@ class RoadmapChantiersPage {
             .map(p => (p || '').toLowerCase());
         const includeEmptyPerimetre = this.filters.perimetres.includes(CONFIG.EMPTY_FILTER_VALUE);
         const includeEmptyResponsable = this.filters.responsables.includes(CONFIG.EMPTY_FILTER_VALUE);
+        const includeEmptyAvancement = this.filters.avancements.includes(CONFIG.EMPTY_FILTER_VALUE);
         const includeEmptyPerimProcessus = this.filters.perimetreProcessus.includes(CONFIG.EMPTY_FILTER_VALUE);
 
         // Préparer les valeurs du filtre périmètre-processus en lowercase
@@ -768,6 +929,18 @@ class RoadmapChantiersPage {
                 ? includeEmptyResponsable
                 : this.filters.responsables.includes(chantierResponsable);
             if (!responsableMatch) {
+                return false;
+            }
+
+            // Filtre par avancement (vide = afficher aucun)
+            if (this.filters.avancements.length === 0) {
+                return false;
+            }
+            const chantierAvancement = chantier['Avancement'];
+            const avancementMatch = !chantierAvancement
+                ? includeEmptyAvancement
+                : this.filters.avancements.includes(chantierAvancement);
+            if (!avancementMatch) {
                 return false;
             }
 
@@ -1807,6 +1980,41 @@ class RoadmapChantiersPage {
         }
     }
 
+    selectAllAvancements() {
+        const checkboxes = document.querySelectorAll('#avancementDropdown input[type="checkbox"]');
+        checkboxes.forEach(cb => cb.checked = true);
+        this.filters.avancements = this.getAllAvancements();
+        this.updateAvancementLabel();
+        this.applyFiltersWithoutRenderingFilters();
+    }
+
+    clearAvancementsFilter() {
+        const checkboxes = document.querySelectorAll('#avancementDropdown input[type="checkbox"]');
+        checkboxes.forEach(cb => cb.checked = false);
+        this.filters.avancements = [];
+        this.updateAvancementLabel();
+        this.applyFiltersWithoutRenderingFilters();
+    }
+
+    onAvancementCheckChange() {
+        const checkboxes = document.querySelectorAll('#avancementDropdown input[type="checkbox"]');
+        this.filters.avancements = Array.from(checkboxes)
+            .filter(cb => cb.checked)
+            .map(cb => cb.value);
+        this.updateAvancementLabel();
+        this.applyFiltersWithoutRenderingFilters();
+    }
+
+    updateAvancementLabel() {
+        const label = document.querySelector('#avancementFilterWrapper .multi-select-label');
+        if (label) {
+            const allAvancements = this.getAllAvancements();
+            const allSelected = this.filters.avancements.length === allAvancements.length;
+            label.textContent = allSelected ? 'Tous' :
+                (this.filters.avancements.length === 0 ? 'Aucun' : this.filters.avancements.length + ' sélectionné(s)');
+        }
+    }
+
     selectAllPerimetreProcessus() {
         const checkboxes = document.querySelectorAll('#perimetreProcessusDropdown input[type="checkbox"]');
         checkboxes.forEach(cb => cb.checked = true);
@@ -1845,6 +2053,7 @@ class RoadmapChantiersPage {
     }
 
     applyFiltersWithoutRenderingFilters() {
+        this.renderStats();
         this.renderGantt();
         // attachCellEvents est appelé dans renderGantt, pas besoin de l'appeler ici
     }
@@ -1852,18 +2061,20 @@ class RoadmapChantiersPage {
     applyFilters() {
         this.renderFilters();
         this.attachFilterEvents();
+        this.renderStats();
         this.renderGantt();
         // attachCellEvents est appelé dans renderGantt, pas besoin de l'appeler ici
     }
 
     resetFilters() {
         // Réinitialiser avec les dates par défaut (1 mois avant à 3 mois après)
-        // et tous les périmètres/responsables/périmètre-processus sélectionnés (y compris "Non rempli")
+        // et tous les périmètres/responsables/avancements/périmètre-processus sélectionnés (y compris "Non rempli")
         this.filters = {
             dateDebut: new Date(new Date().setMonth(new Date().getMonth() - 1)),
             dateFin: new Date(new Date().setMonth(new Date().getMonth() + 3)),
             perimetres: this.getAllPerimetres(),
             responsables: this.getAllResponsables(),
+            avancements: this.getAllAvancements(),
             perimetreProcessus: this.getAllPerimetreProcessus()
         };
         this.applyFilters();
@@ -2425,6 +2636,7 @@ class RoadmapChantiersPage {
                     // Re-rendre immédiatement
                     this.renderFilters();
                     this.attachFilterEvents();
+                    this.renderStats();
                     this.renderGantt();
 
                     showSuccess('Chantier archivé');
@@ -2630,6 +2842,7 @@ class RoadmapChantiersPage {
             setTimeout(() => {
                 self.renderFilters();
                 self.attachFilterEvents();
+                self.renderStats();
                 self.renderGantt();
             }, 350);
 
@@ -3154,6 +3367,7 @@ class RoadmapChantiersPage {
         await this.loadData();
         this.renderFilters();
         this.attachFilterEvents();
+        this.renderStats();
         this.renderGantt();
         // attachCellEvents est appelé dans renderGantt, pas besoin de l'appeler ici
 

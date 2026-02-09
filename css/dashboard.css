@@ -2490,6 +2490,83 @@
 }
 
 /* ===========================================
+   ROADMAP STATS - KPIs et histogramme
+   =========================================== */
+
+.roadmap-stats {
+    display: flex;
+    gap: var(--spacing-md);
+    align-items: stretch;
+    flex-shrink: 0;
+}
+
+.roadmap-stats-kpis {
+    display: flex;
+    gap: var(--spacing-sm);
+    flex-shrink: 0;
+}
+
+.roadmap-stat-card {
+    padding: var(--spacing-sm) var(--spacing-md);
+    min-width: 110px;
+}
+
+.roadmap-stat-card .kpi-header {
+    margin-bottom: var(--spacing-xs);
+}
+
+.roadmap-stat-card .kpi-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+}
+
+.roadmap-stat-card .kpi-value {
+    font-size: var(--font-size-xl);
+}
+
+.roadmap-stat-card .kpi-label {
+    margin-bottom: 0;
+}
+
+.roadmap-stats-chart {
+    flex: 1;
+    min-width: 0;
+    background: var(--mh-blanc);
+    border-radius: var(--border-radius-md);
+    box-shadow: var(--shadow-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    overflow: hidden;
+}
+
+.roadmap-histogram-title {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--mh-bleu-fonce);
+    margin-bottom: var(--spacing-xs);
+}
+
+@media (max-width: 1024px) {
+    .roadmap-stats {
+        flex-direction: column;
+    }
+
+    .roadmap-stats-kpis {
+        flex-wrap: wrap;
+    }
+}
+
+@media (max-width: 576px) {
+    .roadmap-stats-kpis {
+        flex-direction: column;
+    }
+
+    .roadmap-stat-card {
+        min-width: auto;
+    }
+}
+
+/* ===========================================
    BACKLOG PAGE - Table avec filtres et tri
    =========================================== */
 
