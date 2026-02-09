@@ -363,11 +363,12 @@ function showModal(options) {
     const modalId = 'modal_' + generateId();
     const container = document.getElementById('modalContainer') || document.body;
 
-    // Calculer le z-index basé sur la profondeur de la pile
-    const stackDepth = _modalStack.length;
+    // Calculer le z-index basé sur les modales existantes (classe Modal + pile showModal)
+    const existingModals = document.querySelectorAll('.modal.show, .modal-backdrop.show');
+    const stackDepth = Math.floor(existingModals.length / 2) + _modalStack.length;
     const baseZIndex = 1000;
-    const backdropZIndex = baseZIndex + (stackDepth * 10);
-    const modalZIndex = baseZIndex + (stackDepth * 10) + 1;
+    const backdropZIndex = baseZIndex + (stackDepth * 10) + 5;
+    const modalZIndex = baseZIndex + (stackDepth * 10) + 6;
 
     // Créer le backdrop
     const backdrop = document.createElement('div');

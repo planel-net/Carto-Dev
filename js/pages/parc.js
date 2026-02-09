@@ -1154,8 +1154,11 @@ class ParcPage {
         const formId = 'modal_form_' + generateId();
         const formHtml = generateFormHtml(formId, CONFIG.TABLES.PRODUITS.columns, produit || {});
 
+        // Injecter la classe two-columns dans le formulaire
+        const formHtmlTwoCols = formHtml.replace('class="form"', 'class="form form-two-columns"');
+
         const content = `
-            ${formHtml}
+            ${formHtmlTwoCols}
             <div class="assigned-section" style="margin-top: var(--spacing-md);">
                 <div class="assigned-section-header">
                     <h4>&#127758; Périmètres associés</h4>
@@ -1171,7 +1174,7 @@ class ParcPage {
 
         const modal = new Modal({
             title,
-            size: 'md',
+            size: 'lg',
             content,
             confirmText: isEdit ? 'Modifier' : 'Ajouter',
             onConfirm: async () => {

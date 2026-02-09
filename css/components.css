@@ -252,6 +252,22 @@ textarea.form-control {
     resize: vertical;
 }
 
+/* Formulaire 2 colonnes */
+.form-two-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 var(--spacing-lg);
+}
+
+.form-two-columns .form-group {
+    margin-bottom: var(--spacing-md);
+}
+
+/* Les textareas et la section assignee occupent toute la largeur */
+.form-two-columns .form-group:has(textarea) {
+    grid-column: 1 / -1;
+}
+
 /* ===========================================
    CARTES
    =========================================== */
