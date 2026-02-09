@@ -234,7 +234,9 @@ class SynthesePage {
     populateFilters() {
         // Remplir le filtre Perimetre
         const perimetreSelect = document.getElementById('filterPerimetre');
+        console.log('[Synthese] Perimetres data:', this.data.perimetres);
         const perimetresUniques = [...new Set(this.data.perimetres.map(p => p.Perimetre))].filter(Boolean).sort();
+        console.log('[Synthese] Perimetres uniques:', perimetresUniques);
         perimetresUniques.forEach(p => {
             const option = document.createElement('option');
             option.value = p;
@@ -519,8 +521,8 @@ class SynthesePage {
         // Orange si shore/gold migré mais pas les autres
         // Vert si produit migré
 
-        const produitMigre = produit['Migré (Oui, Non, En cours)'];
-        if (produitMigre && (produitMigre.toLowerCase() === 'oui' || produitMigre.toLowerCase() === 'migré' || produitMigre.toLowerCase() === 'terminé')) {
+        const statutMigration = produit['Statut Migration'];
+        if (statutMigration && (statutMigration.toLowerCase() === 'migré' || statutMigration.toLowerCase() === 'terminé')) {
             return 'migrated';
         }
 
@@ -532,9 +534,11 @@ class SynthesePage {
         // Verifier les flux associes
         const flux = this.data.flux.filter(f => f.Produit === produit.Nom);
         const hasMigratedFlux = flux.some(f => {
-            const projetMigre = this.data.projetsDSS.find(p => p['Nom Projet DSS'] === f['Projet DSS'])?.['Migré (Oui, Non, En cours)'];
-            const dataflowMigre = this.data.dataflows.find(d => d.Dataflow === f.Dataflow)?.['Migré (Oui, Non, En cours)'];
-            return projetMigre && projetMigre.toLowerCase() === 'oui' && dataflowMigre && dataflowMigre.toLowerCase() === 'oui';
+            const projet = this.data.projetsDSS.find(p => p['Nom projet'] === f['Projet DSS']);
+            const dataflow = this.data.dataflows.find(d => d.Nom === f['DFNom DF']);
+            const projetMigre = projet?.['Statut migration'];
+            const dataflowMigre = dataflow?.['Statut migration'];
+            return projetMigre && projetMigre.toLowerCase() === 'migré' && dataflowMigre && dataflowMigre.toLowerCase() === 'migré';
         });
 
         if (shoreMigre && !hasMigratedFlux) {
@@ -583,9 +587,11 @@ class SynthesePage {
     }
 
     showProductDetails(produit) {
+        console.log('[Synthese] showProductDetails appelé avec:', produit);
         const responsable = formatActorName(produit.Responsable);
         const backup = formatActorName(produit.Backup);
         const status = this.getProductMigrationStatus(produit);
+        console.log('[Synthese] Statut migration:', status);
         const statusText = status === 'migrated' ? 'Migré' : status === 'partial' ? 'Partiellement migré' : 'Non migré';
         const statusClass = status === 'migrated' ? 'status-green' : status === 'partial' ? 'status-orange' : 'status-red';
 
@@ -647,22 +653,22 @@ class SynthesePage {
         content += '</tr></thead><tbody>';
 
         fluxProduits.forEach(flux => {
-            const shore = this.data.shores.find(s => s.Nom === flux['Shore / Gold']);
-            const projet = this.data.projetsDSS.find(p => p['Nom Projet DSS'] === flux['Projet DSS']);
-            const dataflow = this.data.dataflows.find(d => d.Dataflow === flux.Dataflow);
+            const shore = this.data.shores.find(s => s.Nom === flux['Shore/Gold']);
+            const projet = this.data.projetsDSS.find(p => p['Nom projet'] === flux['Projet DSS']);
+            const dataflow = this.data.dataflows.find(d => d.Nom === flux['DFNom DF']);
 
             const shoreStatus = shore?.['Migré Tech'] || '';
-            const projetStatus = projet?.['Migré (Oui, Non, En cours)'] || '';
-            const dataflowStatus = dataflow?.['Migré (Oui, Non, En cours)'] || '';
+            const projetStatus = projet?.['Statut migration'] || '';
+            const dataflowStatus = dataflow?.['Statut migration'] || '';
 
             const shoreClass = shoreStatus.toLowerCase() === 'oui' ? 'status-green' : 'status-red';
-            const projetClass = projetStatus.toLowerCase() === 'oui' ? 'status-green' : 'status-red';
-            const dataflowClass = dataflowStatus.toLowerCase() === 'oui' ? 'status-green' : 'status-red';
+            const projetClass = projetStatus.toLowerCase() === 'migré' ? 'status-green' : 'status-red';
+            const dataflowClass = dataflowStatus.toLowerCase() === 'migré' ? 'status-green' : 'status-red';
 
             content += `<tr>
-                <td><span class="status-circle ${shoreClass}"></span> ${escapeHtml(flux['Shore / Gold'] || '-')}</td>
+                <td><span class="status-circle ${shoreClass}"></span> ${escapeHtml(flux['Shore/Gold'] || '-')}</td>
                 <td><span class="status-circle ${projetClass}"></span> ${escapeHtml(flux['Projet DSS'] || '-')}</td>
-                <td><span class="status-circle ${dataflowClass}"></span> ${escapeHtml(flux.Dataflow || '-')}</td>
+                <td><span class="status-circle ${dataflowClass}"></span> ${escapeHtml(flux['DFNom DF'] || '-')}</td>
                 <td>${escapeHtml(flux.Sprint || '-')}</td>
             </tr>`;
         });
