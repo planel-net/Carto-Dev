@@ -21,9 +21,9 @@ class SynthesePage {
         };
 
         this.filters = {
-            perimetre: '',
-            processus: '',
-            sousProcessus: '',
+            selectedPerimetres: [],
+            selectedProcessus: [],
+            selectedSousProcessus: [],
             avancement: '',
             responsable: '',
             etat: ''
@@ -40,25 +40,8 @@ class SynthesePage {
                 </div>
 
                 <!-- Filtres globaux -->
-                <div class="synthese-filters-global">
-                    <div class="filter-group">
-                        <label>Périmètre</label>
-                        <select id="filterPerimetre" class="filter-select">
-                            <option value="">Tous les périmètres</option>
-                        </select>
-                    </div>
-                    <div class="filter-group">
-                        <label>Processus</label>
-                        <select id="filterProcessus" class="filter-select">
-                            <option value="">Tous les processus</option>
-                        </select>
-                    </div>
-                    <div class="filter-group">
-                        <label>Sous-processus</label>
-                        <select id="filterSousProcessus" class="filter-select" disabled>
-                            <option value="">Tous les sous-processus</option>
-                        </select>
-                    </div>
+                <div class="synthese-filters-global" id="filtersGlobal">
+                    <!-- Les filtres multi-select seront générés par renderFilters() -->
                 </div>
 
                 <!-- Trois colonnes -->
@@ -156,7 +139,8 @@ class SynthesePage {
             </div>
         `;
 
-        this.populateFilters();
+        this.initializeFilters();
+        this.renderFilters();
         this.attachEvents();
         this.applyFiltersAndRender();
     }
@@ -237,97 +221,349 @@ class SynthesePage {
         }
     }
 
-    populateFilters() {
-        // Remplir le filtre Perimetre
-        const perimetreSelect = document.getElementById('filterPerimetre');
-        console.log('[Synthese] Perimetres data:', this.data.perimetres);
-        const perimetresUniques = [...new Set(this.data.perimetres.map(p => p.Périmetre))].filter(Boolean).sort();
-        console.log('[Synthese] Perimetres uniques:', perimetresUniques);
-        perimetresUniques.forEach(p => {
-            const option = document.createElement('option');
-            option.value = p;
-            option.textContent = p;
-            perimetreSelect.appendChild(option);
-        });
+    /**
+     * Initialise les valeurs des filtres au chargement
+     */
+    initializeFilters() {
+        // Initialiser avec tous les périmètres sélectionnés
+        const allPerimetres = [...new Set(this.data.perimetres.map(p => p.Périmetre))].filter(Boolean).sort();
+        this.filters.selectedPerimetres = [...allPerimetres];
 
-        // Remplir le filtre Processus
-        const processusSelect = document.getElementById('filterProcessus');
-        const processusUniques = [...new Set(this.data.processus.map(p => p.Processus))].filter(Boolean).sort();
-        processusUniques.forEach(p => {
-            const option = document.createElement('option');
-            option.value = p;
-            option.textContent = p;
-            processusSelect.appendChild(option);
-        });
+        // Initialiser avec tous les processus sélectionnés
+        const allProcessus = [...new Set(this.data.processus.map(p => p.Processus))].filter(Boolean).sort();
+        this.filters.selectedProcessus = [...allProcessus];
 
-        // Remplir le filtre Responsable
-        const responsableSelect = document.getElementById('filterResponsable');
-        const responsablesUniques = [...new Set(this.data.acteurs.map(a => a.Mail))].filter(Boolean).sort();
-        responsablesUniques.forEach(mail => {
-            const acteur = this.data.acteurs.find(a => a.Mail === mail);
-            const option = document.createElement('option');
-            option.value = mail;
-            option.textContent = formatActorName(mail);
-            responsableSelect.appendChild(option);
-        });
+        // Initialiser les sous-processus (vide au départ)
+        this.filters.selectedSousProcessus = [];
+    }
+
+    /**
+     * Rendu des filtres multi-select
+     */
+    renderFilters() {
+        const container = document.getElementById('filtersGlobal');
+
+        const allPerimetres = [...new Set(this.data.perimetres.map(p => p.Périmetre))].filter(Boolean).sort();
+        const allProcessus = [...new Set(this.data.processus.map(p => p.Processus))].filter(Boolean).sort();
+        const availableSousProcessus = this.getAvailableSousProcessus();
+
+        container.innerHTML = `
+            <div class="filter-group">
+                <label>Périmètre</label>
+                <div class="multi-select-wrapper" id="perimetreFilterWrapper">
+                    <div class="multi-select-trigger" onclick="synthesePageInstance.toggleMultiSelect('perimetre')">
+                        <span class="multi-select-label">${this.getPerimetreLabel()}</span>
+                        <span class="multi-select-arrow">&#9662;</span>
+                    </div>
+                    <div class="multi-select-dropdown" id="perimetreDropdown">
+                        <div class="multi-select-actions">
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="synthesePageInstance.selectAllPerimetres()">Tous</button>
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="synthesePageInstance.clearPerimetres()">Aucun</button>
+                        </div>
+                        <div class="multi-select-options">
+                            ${allPerimetres.map(p => `
+                                <label class="multi-select-option">
+                                    <input type="checkbox" value="${escapeHtml(p)}"
+                                        ${this.filters.selectedPerimetres.includes(p) ? 'checked' : ''}
+                                        onchange="synthesePageInstance.onPerimetresChange()">
+                                    <span>${escapeHtml(p)}</span>
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="filter-group">
+                <label>Processus</label>
+                <div class="multi-select-wrapper" id="processusFilterWrapper">
+                    <div class="multi-select-trigger" onclick="synthesePageInstance.toggleMultiSelect('processus')">
+                        <span class="multi-select-label">${this.getProcessusLabel()}</span>
+                        <span class="multi-select-arrow">&#9662;</span>
+                    </div>
+                    <div class="multi-select-dropdown" id="processusDropdown">
+                        <div class="multi-select-actions">
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="synthesePageInstance.selectAllProcessus()">Tous</button>
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="synthesePageInstance.clearProcessus()">Aucun</button>
+                        </div>
+                        <div class="multi-select-options">
+                            ${allProcessus.map(p => `
+                                <label class="multi-select-option">
+                                    <input type="checkbox" value="${escapeHtml(p)}"
+                                        ${this.filters.selectedProcessus.includes(p) ? 'checked' : ''}
+                                        onchange="synthesePageInstance.onProcessusChange()">
+                                    <span>${escapeHtml(p)}</span>
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="filter-group">
+                <label>Sous-processus</label>
+                <div class="multi-select-wrapper" id="sousProcessusFilterWrapper">
+                    <div class="multi-select-trigger" onclick="synthesePageInstance.toggleMultiSelect('sousProcessus')">
+                        <span class="multi-select-label">${this.getSousProcessusLabel()}</span>
+                        <span class="multi-select-arrow">&#9662;</span>
+                    </div>
+                    <div class="multi-select-dropdown" id="sousProcessusDropdown">
+                        <div class="multi-select-actions">
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="synthesePageInstance.selectAllSousProcessus()">Tous</button>
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="synthesePageInstance.clearSousProcessus()">Aucun</button>
+                        </div>
+                        <div class="multi-select-options">
+                            ${availableSousProcessus.length > 0 ? availableSousProcessus.map(sp => `
+                                <label class="multi-select-option">
+                                    <input type="checkbox" value="${escapeHtml(sp)}"
+                                        ${this.filters.selectedSousProcessus.includes(sp) ? 'checked' : ''}
+                                        onchange="synthesePageInstance.onSousProcessusChange()">
+                                    <span>${escapeHtml(sp)}</span>
+                                </label>
+                            `).join('') : '<div style="padding: var(--spacing-sm); color: var(--mh-gris-moyen); font-style: italic;">Aucun sous-processus disponible</div>'}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Obtient les sous-processus disponibles basés sur les processus sélectionnés
+     */
+    getAvailableSousProcessus() {
+        if (this.filters.selectedProcessus.length === 0) return [];
+
+        const sousProcessus = this.data.processus
+            .filter(p => this.filters.selectedProcessus.includes(p.Processus))
+            .map(p => p['Sous-processus'])
+            .filter(Boolean);
+
+        return [...new Set(sousProcessus)].sort();
+    }
+
+    /**
+     * Labels des filtres multi-select
+     */
+    getPerimetreLabel() {
+        const all = [...new Set(this.data.perimetres.map(p => p.Périmetre))].filter(Boolean);
+        if (this.filters.selectedPerimetres.length === all.length) return 'Tous';
+        if (this.filters.selectedPerimetres.length === 0) return 'Aucun';
+        return this.filters.selectedPerimetres.length + ' sélectionné(s)';
+    }
+
+    getProcessusLabel() {
+        const all = [...new Set(this.data.processus.map(p => p.Processus))].filter(Boolean);
+        if (this.filters.selectedProcessus.length === all.length) return 'Tous';
+        if (this.filters.selectedProcessus.length === 0) return 'Aucun';
+        return this.filters.selectedProcessus.length + ' sélectionné(s)';
+    }
+
+    getSousProcessusLabel() {
+        const available = this.getAvailableSousProcessus();
+        if (available.length === 0) return 'Aucun disponible';
+        if (this.filters.selectedSousProcessus.length === available.length) return 'Tous';
+        if (this.filters.selectedSousProcessus.length === 0) return 'Aucun';
+        return this.filters.selectedSousProcessus.length + ' sélectionné(s)';
     }
 
     attachEvents() {
-        // Filtres globaux
-        document.getElementById('filterPerimetre').addEventListener('change', () => {
-            this.filters.perimetre = document.getElementById('filterPerimetre').value;
-            this.applyFiltersAndRender();
+        // Fermer les dropdowns en cliquant en dehors
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.multi-select-wrapper')) {
+                document.querySelectorAll('.multi-select-dropdown').forEach(dd => {
+                    dd.classList.remove('open');
+                });
+            }
         });
 
-        document.getElementById('filterProcessus').addEventListener('change', () => {
-            this.filters.processus = document.getElementById('filterProcessus').value;
-            this.updateSousProcessusFilter();
-            this.applyFiltersAndRender();
-        });
+        // Filtres spécifiques des colonnes
+        const filterAvancement = document.getElementById('filterAvancement');
+        if (filterAvancement) {
+            filterAvancement.addEventListener('change', () => {
+                this.filters.avancement = filterAvancement.value;
+                this.applyFiltersAndRender();
+            });
+        }
 
-        document.getElementById('filterSousProcessus').addEventListener('change', () => {
-            this.filters.sousProcessus = document.getElementById('filterSousProcessus').value;
-            this.applyFiltersAndRender();
-        });
+        const filterResponsable = document.getElementById('filterResponsable');
+        if (filterResponsable) {
+            filterResponsable.addEventListener('change', () => {
+                this.filters.responsable = filterResponsable.value;
+                this.applyFiltersAndRender();
+            });
+        }
 
-        // Filtres specifiques
-        document.getElementById('filterAvancement').addEventListener('change', () => {
-            this.filters.avancement = document.getElementById('filterAvancement').value;
-            this.applyFiltersAndRender();
-        });
-
-        document.getElementById('filterResponsable').addEventListener('change', () => {
-            this.filters.responsable = document.getElementById('filterResponsable').value;
-            this.applyFiltersAndRender();
-        });
-
-        document.getElementById('filterEtat').addEventListener('change', () => {
-            this.filters.etat = document.getElementById('filterEtat').value;
-            this.applyFiltersAndRender();
-        });
+        const filterEtat = document.getElementById('filterEtat');
+        if (filterEtat) {
+            filterEtat.addEventListener('change', () => {
+                this.filters.etat = filterEtat.value;
+                this.applyFiltersAndRender();
+            });
+        }
     }
 
-    updateSousProcessusFilter() {
-        const sousProcessusSelect = document.getElementById('filterSousProcessus');
-        sousProcessusSelect.innerHTML = '<option value="">Tous les sous-processus</option>';
+    // === Gestion des multi-select ===
 
-        if (this.filters.processus) {
-            sousProcessusSelect.disabled = false;
-            const sousProcessus = this.data.processus
-                .filter(p => p.Processus === this.filters.processus)
-                .map(p => p['Sous-processus'])
-                .filter(Boolean);
-            const sousProcessusUniques = [...new Set(sousProcessus)].sort();
-            sousProcessusUniques.forEach(sp => {
-                const option = document.createElement('option');
-                option.value = sp;
-                option.textContent = sp;
-                sousProcessusSelect.appendChild(option);
-            });
-        } else {
-            sousProcessusSelect.disabled = true;
+    /**
+     * Toggle l'affichage d'un dropdown multi-select
+     */
+    toggleMultiSelect(type) {
+        const dropdownIds = {
+            perimetre: 'perimetreDropdown',
+            processus: 'processusDropdown',
+            sousProcessus: 'sousProcessusDropdown'
+        };
+        const dropdownId = dropdownIds[type];
+        const dropdown = document.getElementById(dropdownId);
+
+        // Fermer tous les autres dropdowns
+        Object.entries(dropdownIds).forEach(([key, id]) => {
+            if (key !== type) {
+                const other = document.getElementById(id);
+                if (other) other.classList.remove('open');
+            }
+        });
+
+        // Toggle le dropdown actuel
+        if (dropdown) {
+            dropdown.classList.toggle('open');
         }
-        this.filters.sousProcessus = '';
+    }
+
+    // === Périmètre ===
+
+    selectAllPerimetres() {
+        const checkboxes = document.querySelectorAll('#perimetreDropdown input[type="checkbox"]');
+        checkboxes.forEach(cb => cb.checked = true);
+        const all = [...new Set(this.data.perimetres.map(p => p.Périmetre))].filter(Boolean);
+        this.filters.selectedPerimetres = [...all];
+        this.updatePerimetreLabel();
+        this.applyFiltersAndRender();
+    }
+
+    clearPerimetres() {
+        const checkboxes = document.querySelectorAll('#perimetreDropdown input[type="checkbox"]');
+        checkboxes.forEach(cb => cb.checked = false);
+        this.filters.selectedPerimetres = [];
+        this.updatePerimetreLabel();
+        this.applyFiltersAndRender();
+    }
+
+    onPerimetresChange() {
+        const checkboxes = document.querySelectorAll('#perimetreDropdown input[type="checkbox"]');
+        this.filters.selectedPerimetres = Array.from(checkboxes)
+            .filter(cb => cb.checked)
+            .map(cb => cb.value);
+        this.updatePerimetreLabel();
+        this.applyFiltersAndRender();
+    }
+
+    updatePerimetreLabel() {
+        const label = document.querySelector('#perimetreFilterWrapper .multi-select-label');
+        if (label) {
+            label.textContent = this.getPerimetreLabel();
+        }
+    }
+
+    // === Processus ===
+
+    selectAllProcessus() {
+        const checkboxes = document.querySelectorAll('#processusDropdown input[type="checkbox"]');
+        checkboxes.forEach(cb => cb.checked = true);
+        const all = [...new Set(this.data.processus.map(p => p.Processus))].filter(Boolean);
+        this.filters.selectedProcessus = [...all];
+        this.updateProcessusLabel();
+        this.updateSousProcessusOptions();
+        this.applyFiltersAndRender();
+    }
+
+    clearProcessus() {
+        const checkboxes = document.querySelectorAll('#processusDropdown input[type="checkbox"]');
+        checkboxes.forEach(cb => cb.checked = false);
+        this.filters.selectedProcessus = [];
+        this.updateProcessusLabel();
+        this.updateSousProcessusOptions();
+        this.applyFiltersAndRender();
+    }
+
+    onProcessusChange() {
+        const checkboxes = document.querySelectorAll('#processusDropdown input[type="checkbox"]');
+        this.filters.selectedProcessus = Array.from(checkboxes)
+            .filter(cb => cb.checked)
+            .map(cb => cb.value);
+        this.updateProcessusLabel();
+        this.updateSousProcessusOptions();
+        this.applyFiltersAndRender();
+    }
+
+    updateProcessusLabel() {
+        const label = document.querySelector('#processusFilterWrapper .multi-select-label');
+        if (label) {
+            label.textContent = this.getProcessusLabel();
+        }
+    }
+
+    // === Sous-processus ===
+
+    selectAllSousProcessus() {
+        const checkboxes = document.querySelectorAll('#sousProcessusDropdown input[type="checkbox"]');
+        checkboxes.forEach(cb => cb.checked = true);
+        const available = this.getAvailableSousProcessus();
+        this.filters.selectedSousProcessus = [...available];
+        this.updateSousProcessusLabel();
+        this.applyFiltersAndRender();
+    }
+
+    clearSousProcessus() {
+        const checkboxes = document.querySelectorAll('#sousProcessusDropdown input[type="checkbox"]');
+        checkboxes.forEach(cb => cb.checked = false);
+        this.filters.selectedSousProcessus = [];
+        this.updateSousProcessusLabel();
+        this.applyFiltersAndRender();
+    }
+
+    onSousProcessusChange() {
+        const checkboxes = document.querySelectorAll('#sousProcessusDropdown input[type="checkbox"]');
+        this.filters.selectedSousProcessus = Array.from(checkboxes)
+            .filter(cb => cb.checked)
+            .map(cb => cb.value);
+        this.updateSousProcessusLabel();
+        this.applyFiltersAndRender();
+    }
+
+    updateSousProcessusLabel() {
+        const label = document.querySelector('#sousProcessusFilterWrapper .multi-select-label');
+        if (label) {
+            label.textContent = this.getSousProcessusLabel();
+        }
+    }
+
+    /**
+     * Met à jour les options disponibles pour le filtre sous-processus
+     */
+    updateSousProcessusOptions() {
+        const available = this.getAvailableSousProcessus();
+        const container = document.querySelector('#sousProcessusDropdown .multi-select-options');
+
+        if (!container) return;
+
+        // Filtrer les sous-processus sélectionnés pour ne garder que ceux encore disponibles
+        this.filters.selectedSousProcessus = this.filters.selectedSousProcessus.filter(sp => available.includes(sp));
+
+        // Re-générer les options
+        if (available.length === 0) {
+            container.innerHTML = '<div style="padding: var(--spacing-sm); color: var(--mh-gris-moyen); font-style: italic;">Aucun sous-processus disponible</div>';
+        } else {
+            container.innerHTML = available.map(sp => `
+                <label class="multi-select-option">
+                    <input type="checkbox" value="${escapeHtml(sp)}"
+                        ${this.filters.selectedSousProcessus.includes(sp) ? 'checked' : ''}
+                        onchange="synthesePageInstance.onSousProcessusChange()">
+                    <span>${escapeHtml(sp)}</span>
+                </label>
+            `).join('');
+        }
+
+        this.updateSousProcessusLabel();
     }
 
     applyFiltersAndRender() {
@@ -342,18 +578,18 @@ class SynthesePage {
 
     filterChantiers() {
         return this.data.chantiers.filter(chantier => {
-            // Filtre Perimetre
-            if (this.filters.perimetre && chantier.Perimetre !== this.filters.perimetre) {
+            // Filtre Périmètre (multi-select)
+            if (this.filters.selectedPerimetres.length > 0 && !this.filters.selectedPerimetres.includes(chantier.Perimetre)) {
                 return false;
             }
 
-            // Filtre Processus
-            if (this.filters.processus && chantier.Processus !== this.filters.processus) {
+            // Filtre Processus (multi-select)
+            if (this.filters.selectedProcessus.length > 0 && !this.filters.selectedProcessus.includes(chantier.Processus)) {
                 return false;
             }
 
-            // Filtre Sous-processus
-            if (this.filters.sousProcessus && chantier['Sous-processus'] !== this.filters.sousProcessus) {
+            // Filtre Sous-processus (multi-select)
+            if (this.filters.selectedSousProcessus.length > 0 && !this.filters.selectedSousProcessus.includes(chantier['Sous-processus'])) {
                 return false;
             }
 
@@ -368,8 +604,8 @@ class SynthesePage {
 
     filterProduits() {
         return this.data.produits.filter(produit => {
-            // Filtre Perimetre
-            if (this.filters.perimetre && produit['Perimétre fonctionnel'] !== this.filters.perimetre) {
+            // Filtre Périmètre (multi-select)
+            if (this.filters.selectedPerimetres.length > 0 && !this.filters.selectedPerimetres.includes(produit['Perimétre fonctionnel'])) {
                 return false;
             }
 
@@ -378,22 +614,22 @@ class SynthesePage {
                 return false;
             }
 
-            // Filtre Processus/Sous-processus via tPdtProcess
-            if (this.filters.processus || this.filters.sousProcessus) {
+            // Filtre Processus/Sous-processus via tPdtProcess (multi-select)
+            if (this.filters.selectedProcessus.length > 0 || this.filters.selectedSousProcessus.length > 0) {
                 const pdtProcessEntries = this.data.pdtProcess.filter(pp => pp.Produit === produit.Nom);
 
                 if (pdtProcessEntries.length === 0) {
                     return false;
                 }
 
-                let matchesProcessus = !this.filters.processus;
-                let matchesSousProcessus = !this.filters.sousProcessus;
+                let matchesProcessus = this.filters.selectedProcessus.length === 0;
+                let matchesSousProcessus = this.filters.selectedSousProcessus.length === 0;
 
                 for (const entry of pdtProcessEntries) {
-                    if (this.filters.processus && entry.Processus === this.filters.processus) {
+                    if (this.filters.selectedProcessus.length > 0 && this.filters.selectedProcessus.includes(entry.Processus)) {
                         matchesProcessus = true;
                     }
-                    if (this.filters.sousProcessus && entry['Sous-processus'] === this.filters.sousProcessus) {
+                    if (this.filters.selectedSousProcessus.length > 0 && this.filters.selectedSousProcessus.includes(entry['Sous-processus'])) {
                         matchesSousProcessus = true;
                     }
                 }
@@ -409,23 +645,23 @@ class SynthesePage {
 
     filterMAE() {
         return this.data.mae.filter(mae => {
-            // Filtre Etat
+            // Filtre État
             if (this.filters.etat && mae.Etat !== this.filters.etat) {
                 return false;
             }
 
-            // Filtres globaux : on filtre via le chantier associe
-            if (this.filters.perimetre || this.filters.processus || this.filters.sousProcessus) {
+            // Filtres globaux : on filtre via le chantier associé (multi-select)
+            if (this.filters.selectedPerimetres.length > 0 || this.filters.selectedProcessus.length > 0 || this.filters.selectedSousProcessus.length > 0) {
                 const chantier = this.data.chantiers.find(c => c.Chantier === mae.Chantier);
                 if (!chantier) return false;
 
-                if (this.filters.perimetre && chantier.Perimetre !== this.filters.perimetre) {
+                if (this.filters.selectedPerimetres.length > 0 && !this.filters.selectedPerimetres.includes(chantier.Perimetre)) {
                     return false;
                 }
-                if (this.filters.processus && chantier.Processus !== this.filters.processus) {
+                if (this.filters.selectedProcessus.length > 0 && !this.filters.selectedProcessus.includes(chantier.Processus)) {
                     return false;
                 }
-                if (this.filters.sousProcessus && chantier['Sous-processus'] !== this.filters.sousProcessus) {
+                if (this.filters.selectedSousProcessus.length > 0 && !this.filters.selectedSousProcessus.includes(chantier['Sous-processus'])) {
                     return false;
                 }
             }
