@@ -1412,9 +1412,7 @@ tr.drag-over {
    =========================================== */
 
 .chantier-mini-roadmap {
-    margin-top: var(--spacing-lg);
-    padding-top: var(--spacing-md);
-    border-top: 2px solid #dee2e6;
+    margin-bottom: var(--spacing-sm);
 }
 
 .mini-gantt-label {
