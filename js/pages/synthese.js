@@ -707,11 +707,11 @@ class SynthesePage {
                 return false;
             }
 
-            // Filtres globaux : on filtre via le chantier associé (multi-select)
-            const chantier = this.data.chantiers.find(c => c.Chantier === mae.Chantier);
+            // Filtre Périmètre directement sur le champ "Périmètre - MAE"
+            const perimetreMae = mae['Périmètre - MAE'];
 
-            // Si pas de chantier associé : inclure uniquement si tous les filtres sont "Tous"
-            if (!chantier) {
+            // Si pas de périmètre défini sur la MAE : inclure uniquement si tous les filtres sont "Tous"
+            if (!perimetreMae) {
                 // Vérifier si tous les périmètres sont sélectionnés
                 const allPerimetres = [...new Set(this.data.perimetres.map(p => p.Périmetre))].filter(Boolean);
                 const allPerimetresSelected = this.filters.selectedPerimetres.length === allPerimetres.length;
@@ -730,12 +730,20 @@ class SynthesePage {
                 return allPerimetresSelected && allProcessusSelected && noSousProcessusFilter;
             }
 
-            // Filtre Périmètre
-            if (!this.filters.selectedPerimetres.includes(chantier.Perimetre)) {
+            // Filtre Périmètre sur le champ "Périmètre - MAE"
+            if (!this.filters.selectedPerimetres.includes(perimetreMae)) {
                 return false;
             }
 
-            // Filtre Processus
+            // Pour les filtres Processus et Sous-processus, on utilise le chantier associé s'il existe
+            const chantier = this.data.chantiers.find(c => c.Chantier === mae.Chantier);
+
+            // Si pas de chantier, on inclut la MAE (le périmètre a déjà été vérifié ci-dessus)
+            if (!chantier) {
+                return true;
+            }
+
+            // Filtre Processus via le chantier
             if (!this.filters.selectedProcessus.includes(chantier.Processus)) {
                 return false;
             }
