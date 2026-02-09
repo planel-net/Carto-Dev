@@ -258,7 +258,14 @@ const ChantierModal = {
                 <div class="chantier-textarea-grid">
                     <div class="form-group">
                         <label class="form-label">Description</label>
-                        <textarea class="form-control" name="Description" rows="4" style="resize: vertical;"></textarea>
+                        <div class="rich-text-toolbar">
+                            <button type="button" class="rich-text-btn" onclick="ChantierModal.execDescriptionCommand('bold')" title="Gras"><strong>G</strong></button>
+                            <button type="button" class="rich-text-btn" onclick="ChantierModal.execDescriptionCommand('italic')" title="Italique"><em>I</em></button>
+                            <span class="rich-text-separator"></span>
+                            <button type="button" class="rich-text-btn" onclick="ChantierModal.execDescriptionCommand('insertUnorderedList')" title="Liste">&#8226;</button>
+                            <button type="button" class="rich-text-btn" onclick="ChantierModal.execDescriptionCommand('insertOrderedList')" title="Liste numérotée">1.</button>
+                        </div>
+                        <div class="rich-text-editor" id="descriptionEditor" contenteditable="true" style="min-height: 100px; resize: vertical; overflow: auto;"></div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Enjeux</label>
@@ -479,7 +486,14 @@ const ChantierModal = {
                     <div class="chantier-textarea-grid">
                         <div class="form-group">
                             <label class="form-label">Description</label>
-                            <textarea class="form-control" name="Description" rows="4" style="resize: vertical;">${escapeHtml(chantier['Description'] || '')}</textarea>
+                            <div class="rich-text-toolbar">
+                                <button type="button" class="rich-text-btn" onclick="ChantierModal.execDescriptionCommand('bold')" title="Gras"><strong>G</strong></button>
+                                <button type="button" class="rich-text-btn" onclick="ChantierModal.execDescriptionCommand('italic')" title="Italique"><em>I</em></button>
+                                <span class="rich-text-separator"></span>
+                                <button type="button" class="rich-text-btn" onclick="ChantierModal.execDescriptionCommand('insertUnorderedList')" title="Liste">&#8226;</button>
+                                <button type="button" class="rich-text-btn" onclick="ChantierModal.execDescriptionCommand('insertOrderedList')" title="Liste numérotée">1.</button>
+                            </div>
+                            <div class="rich-text-editor" id="descriptionEditor" contenteditable="true" style="min-height: 100px; resize: vertical; overflow: auto;">${chantier['Description'] || ''}</div>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Enjeux</label>
@@ -1154,6 +1168,16 @@ const ChantierModal = {
     },
 
     // ==========================================
+    // DESCRIPTION - ÉDITEUR RICHE
+    // ==========================================
+
+    execDescriptionCommand(command) {
+        document.execCommand(command, false, null);
+        const editor = document.getElementById('descriptionEditor');
+        if (editor) editor.focus();
+    },
+
+    // ==========================================
     // ENJEUX - ÉDITEUR RICHE
     // ==========================================
 
@@ -1675,6 +1699,11 @@ const ChantierModal = {
 
         const formData = new FormData(form);
 
+        // Récupérer le contenu Description depuis l'éditeur riche
+        const descriptionEditor = document.getElementById('descriptionEditor');
+        const descriptionContent = descriptionEditor ? descriptionEditor.innerHTML.trim() : '';
+        const descriptionValue = (descriptionContent === '<br>' || descriptionContent === '<br/>' || descriptionContent === '') ? '' : descriptionContent;
+
         // Récupérer le contenu Enjeux depuis l'éditeur riche
         const enjeuxEditor = document.getElementById('enjeuxEditor');
         const enjeuxContent = enjeuxEditor ? enjeuxEditor.innerHTML.trim() : '';
@@ -1684,7 +1713,7 @@ const ChantierModal = {
         const chantierData = {
             'Chantier': formData.get('Chantier'),
             'Code': formData.get('Code') || '',
-            'Description': formData.get('Description') || '',
+            'Description': descriptionValue,
             'Responsable': formData.get('Responsable'),
             'Perimetre': formData.get('Perimetre'),
             'Programme': formData.get('Programme') || '',
