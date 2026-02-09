@@ -629,22 +629,24 @@ class SynthesePage {
             </div>
         `;
 
-        openModal(`Produit : ${escapeHtml(produit.Nom || '')}`, content, {
+        new Modal({
+            title: `Produit : ${escapeHtml(produit.Nom || '')}`,
+            content: content,
             size: 'md',
-            buttons: [
-                { label: 'Fermer', class: 'btn-secondary', action: 'close' }
-            ]
-        });
+            showFooter: false
+        }).show();
     }
 
     showLineageModal(produit) {
         const fluxProduits = this.data.flux.filter(f => f.Produit === produit.Nom);
 
         if (fluxProduits.length === 0) {
-            openModal(`Lineage : ${escapeHtml(produit.Nom || '')}`,
-                '<p class="empty-state">Aucun flux de migration défini pour ce produit.</p>',
-                { size: 'md', buttons: [{ label: 'Fermer', class: 'btn-secondary', action: 'close' }] }
-            );
+            new Modal({
+                title: `Lineage : ${escapeHtml(produit.Nom || '')}`,
+                content: '<p class="empty-state">Aucun flux de migration défini pour ce produit.</p>',
+                size: 'md',
+                showFooter: false
+            }).show();
             return;
         }
 
@@ -675,10 +677,12 @@ class SynthesePage {
 
         content += '</tbody></table></div>';
 
-        openModal(`Lineage : ${escapeHtml(produit.Nom || '')}`, content, {
+        new Modal({
+            title: `Lineage : ${escapeHtml(produit.Nom || '')}`,
+            content: content,
             size: 'xl',
-            buttons: [{ label: 'Fermer', class: 'btn-secondary', action: 'close' }]
-        });
+            showFooter: false
+        }).show();
     }
 }
 
