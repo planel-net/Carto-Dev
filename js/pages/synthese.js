@@ -36,10 +36,6 @@ class SynthesePage {
 
         container.innerHTML = `
             <div class="page-synthese">
-                <div class="page-header">
-                    <h1>Synthèse</h1>
-                </div>
-
                 <!-- Filtres globaux -->
                 <div class="synthese-filters-global" id="filtersGlobal">
                     <!-- Les filtres multi-select seront générés par renderFilters() -->
@@ -792,6 +788,19 @@ class SynthesePage {
                 return true;
             }
 
+            // Si le chantier n'a pas de processus défini, l'inclure seulement si tous les filtres sont sur "Tous"
+            if (!chantier.Processus) {
+                const allProcessus = [...new Set(this.data.processus.map(p => p.Processus))].filter(Boolean);
+                const allProcessusSelected = this.filters.selectedProcessus.length === allProcessus.length;
+
+                const availableSousProcessus = this.getAvailableSousProcessus();
+                const allSousProcessusSelected = availableSousProcessus.length === 0 ||
+                                                 this.filters.selectedSousProcessus.length === 0 ||
+                                                 this.filters.selectedSousProcessus.length === availableSousProcessus.length;
+
+                return allProcessusSelected && allSousProcessusSelected;
+            }
+
             // Filtre Processus via le chantier
             if (!this.filters.selectedProcessus.includes(chantier.Processus)) {
                 return false;
@@ -853,7 +862,14 @@ class SynthesePage {
             return;
         }
 
-        tbody.innerHTML = produits.map(produit => {
+        // Trier par ordre alphabétique sur le nom
+        const produitsTries = [...produits].sort((a, b) => {
+            const nomA = (a.Nom || '').toLowerCase();
+            const nomB = (b.Nom || '').toLowerCase();
+            return nomA.localeCompare(nomB);
+        });
+
+        tbody.innerHTML = produitsTries.map(produit => {
             const status = this.getProductMigrationStatus(produit);
             const statusClass = status === 'migrated' ? 'status-green' : status === 'partial' ? 'status-orange' : 'status-red';
             const statusIcon = `<span class="status-circle ${statusClass}"></span>`;

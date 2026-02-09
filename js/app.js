@@ -290,6 +290,7 @@ function updatePageTitle(page, table) {
     if (!pageTitle) return;
 
     const pageTitles = {
+        synthese: { title: 'Synthèse', subtitle: 'Vue d\'ensemble des chantiers, produits et demandes' },
         migration: { title: 'Cartographie', subtitle: 'Vue d\'ensemble de la migration du parc applicatif' },
         parc: { title: 'Parc Applicatif', subtitle: 'Cartographie des rapports et applications' },
         'roadmap-gantt': { title: 'Roadmap', subtitle: 'Visualisation des projets et phases' },
