@@ -200,17 +200,30 @@ class SynthesePage {
 
             console.log('[Synthese] Toutes les données chargées avec succès');
 
-            this.data.chantiers = chantiers.filter(c => c.Archivé !== 'Oui' && c.Archivé !== true);
-            this.data.produits = produits;
-            this.data.mae = mae;
-            this.data.acteurs = acteurs;
-            this.data.perimetres = perimetres;
-            this.data.processus = processus;
-            this.data.flux = flux;
-            this.data.shores = shores;
-            this.data.projetsDSS = projetsDSS;
-            this.data.dataflows = dataflows;
-            this.data.pdtProcess = pdtProcess;
+            // Extraire les tableaux depuis les résultats (format {data: [...], ...})
+            const chantiersArray = chantiers.data || chantiers || [];
+            const produitsArray = produits.data || produits || [];
+            const maeArray = mae.data || mae || [];
+            const acteursArray = acteurs.data || acteurs || [];
+            const perimetresArray = perimetres.data || perimetres || [];
+            const processusArray = processus.data || processus || [];
+            const fluxArray = flux.data || flux || [];
+            const shoresArray = shores.data || shores || [];
+            const projetsDSSArray = projetsDSS.data || projetsDSS || [];
+            const dataflowsArray = dataflows.data || dataflows || [];
+            const pdtProcessArray = pdtProcess.data || pdtProcess || [];
+
+            this.data.chantiers = chantiersArray.filter(c => c.Archivé !== 'Oui' && c.Archivé !== true);
+            this.data.produits = produitsArray;
+            this.data.mae = maeArray;
+            this.data.acteurs = acteursArray;
+            this.data.perimetres = perimetresArray;
+            this.data.processus = processusArray;
+            this.data.flux = fluxArray;
+            this.data.shores = shoresArray;
+            this.data.projetsDSS = projetsDSSArray;
+            this.data.dataflows = dataflowsArray;
+            this.data.pdtProcess = pdtProcessArray;
         } catch (error) {
             console.error('[Synthese] Erreur chargement donnees:', error);
             console.error('[Synthese] Stack:', error.stack);
