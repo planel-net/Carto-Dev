@@ -372,7 +372,7 @@ class SynthesePage {
 
             // Filtre Processus/Sous-processus via tPdtProcess
             if (this.filters.processus || this.filters.sousProcessus) {
-                const pdtProcessEntries = this.data.pdtProcess.filter(pp => pp.Produit === produit.Produit);
+                const pdtProcessEntries = this.data.pdtProcess.filter(pp => pp.Produit === produit.Nom);
 
                 if (pdtProcessEntries.length === 0) {
                     return false;
@@ -441,7 +441,7 @@ class SynthesePage {
             <tr class="clickable-row" data-chantier="${escapeHtml(chantier.Chantier || '')}">
                 <td>${escapeHtml(chantier.NumChantier || '')}</td>
                 <td>${escapeHtml(chantier.Chantier || '')}</td>
-                <td>${chantier['Date fin'] ? formatDate(chantier['Date fin']) : ''}</td>
+                <td>${chantier['Date fin souhaitée'] ? formatDate(chantier['Date fin souhaitée']) : ''}</td>
             </tr>
         `).join('');
 
@@ -476,12 +476,12 @@ class SynthesePage {
             const statusIcon = `<span class="status-circle ${statusClass}"></span>`;
 
             return `
-                <tr class="clickable-row" data-produit="${escapeHtml(produit.Produit || '')}">
-                    <td>${escapeHtml(produit.Produit || '')}</td>
-                    <td>${escapeHtml(produit['Type de Produit'] || '')}</td>
+                <tr class="clickable-row" data-produit="${escapeHtml(produit.Nom || '')}">
+                    <td>${escapeHtml(produit.Nom || '')}</td>
+                    <td>${escapeHtml(produit['Type de rapport'] || '')}</td>
                     <td>${statusIcon}</td>
                     <td>
-                        <button class="btn-lineage btn-secondary btn-sm" data-produit="${escapeHtml(produit.Produit || '')}"
+                        <button class="btn-lineage btn-secondary btn-sm" data-produit="${escapeHtml(produit.Nom || '')}"
                                 onclick="event.stopPropagation()">
                             Lineage
                         </button>
@@ -495,7 +495,7 @@ class SynthesePage {
             row.addEventListener('click', (e) => {
                 if (e.target.classList.contains('btn-lineage')) return;
                 const produitName = row.dataset.produit;
-                const produit = this.data.produits.find(p => p.Produit === produitName);
+                const produit = this.data.produits.find(p => p.Nom === produitName);
                 if (produit) {
                     this.showProductDetails(produit);
                 }
@@ -506,7 +506,7 @@ class SynthesePage {
         tbody.querySelectorAll('.btn-lineage').forEach(btn => {
             btn.addEventListener('click', () => {
                 const produitName = btn.dataset.produit;
-                const produit = this.data.produits.find(p => p.Produit === produitName);
+                const produit = this.data.produits.find(p => p.Nom === produitName);
                 if (produit) {
                     this.showLineageModal(produit);
                 }
@@ -530,7 +530,7 @@ class SynthesePage {
         const shoreMigre = shore && shore['Migré Tech'] && shore['Migré Tech'].toLowerCase() === 'oui';
 
         // Verifier les flux associes
-        const flux = this.data.flux.filter(f => f.Produit === produit.Produit);
+        const flux = this.data.flux.filter(f => f.Produit === produit.Nom);
         const hasMigratedFlux = flux.some(f => {
             const projetMigre = this.data.projetsDSS.find(p => p['Nom Projet DSS'] === f['Projet DSS'])?.['Migré (Oui, Non, En cours)'];
             const dataflowMigre = this.data.dataflows.find(d => d.Dataflow === f.Dataflow)?.['Migré (Oui, Non, En cours)'];
@@ -557,7 +557,7 @@ class SynthesePage {
 
         tbody.innerHTML = mae.map(m => {
             const cleJira = escapeHtml(m['Clé'] || '');
-            const jiraUrl = cleJira ? `https://jira.malakoffhumanis.com/browse/${cleJira}` : '#';
+            const jiraUrl = cleJira ? `https://malakoffhumanis.atlassian.net/browse/${cleJira}` : '#';
             const cleHtml = cleJira ? `<a href="${jiraUrl}" target="_blank" rel="noopener noreferrer">${cleJira}</a>` : '';
 
             return `
@@ -594,7 +594,7 @@ class SynthesePage {
                 <div class="detail-grid">
                     <div class="detail-row">
                         <span class="detail-label">Type:</span>
-                        <span class="detail-value">${escapeHtml(produit['Type de Produit'] || '-')}</span>
+                        <span class="detail-value">${escapeHtml(produit['Type de rapport'] || '-')}</span>
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Périmètre:</span>
@@ -623,7 +623,7 @@ class SynthesePage {
             </div>
         `;
 
-        openModal(`Produit : ${escapeHtml(produit.Produit || '')}`, content, {
+        openModal(`Produit : ${escapeHtml(produit.Nom || '')}`, content, {
             size: 'md',
             buttons: [
                 { label: 'Fermer', class: 'btn-secondary', action: 'close' }
@@ -632,10 +632,10 @@ class SynthesePage {
     }
 
     showLineageModal(produit) {
-        const fluxProduits = this.data.flux.filter(f => f.Produit === produit.Produit);
+        const fluxProduits = this.data.flux.filter(f => f.Produit === produit.Nom);
 
         if (fluxProduits.length === 0) {
-            openModal(`Lineage : ${escapeHtml(produit.Produit || '')}`,
+            openModal(`Lineage : ${escapeHtml(produit.Nom || '')}`,
                 '<p class="empty-state">Aucun flux de migration défini pour ce produit.</p>',
                 { size: 'md', buttons: [{ label: 'Fermer', class: 'btn-secondary', action: 'close' }] }
             );
@@ -669,7 +669,7 @@ class SynthesePage {
 
         content += '</tbody></table></div>';
 
-        openModal(`Lineage : ${escapeHtml(produit.Produit || '')}`, content, {
+        openModal(`Lineage : ${escapeHtml(produit.Nom || '')}`, content, {
             size: 'xl',
             buttons: [{ label: 'Fermer', class: 'btn-secondary', action: 'close' }]
         });
