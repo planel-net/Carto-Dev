@@ -326,12 +326,12 @@ class CarrouselPage {
      * Génère le SVG du carrousel
      */
     generateSVG(processusWithProducts, produitsParProcessus) {
-        const cx = 500; // Centre X
-        const cy = 500; // Centre Y
+        const cx = 550; // Centre X
+        const cy = 550; // Centre Y
         const innerRadius = 120; // Rayon intérieur (processus)
         const outerRadius = 200; // Rayon extérieur (fin des arcs processus)
         const productRadius = 350; // Rayon pour les cercles produits
-        const textRadius = 430; // Rayon pour les textes des produits
+        const textRadius = 480; // Rayon pour les textes des produits (augmenté pour plus d'espace)
 
         // Calculer le nombre total de produits pour répartir l'espace proportionnellement
         const totalProducts = processusWithProducts.reduce((sum, proc) => {
@@ -339,7 +339,7 @@ class CarrouselPage {
         }, 0);
 
         let svgParts = [];
-        svgParts.push(`<svg viewBox="0 0 1000 1000" class="carrousel-svg">`);
+        svgParts.push(`<svg viewBox="0 0 1100 1100" class="carrousel-svg">`);
 
         // Commencer en haut et tourner dans le sens horaire (angle positif)
         let currentAngle = -Math.PI / 2;
