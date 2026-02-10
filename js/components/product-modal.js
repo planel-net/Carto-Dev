@@ -126,16 +126,16 @@ const ProductModal = {
                     </div>
                 </div>
 
-                <!-- Processus associés -->
+                <!-- Sous-processus associés -->
                 <div class="assigned-section">
                     <div class="assigned-section-header">
-                        <h4>&#128736; Processus associés</h4>
+                        <h4>&#128736; Sous-processus associés</h4>
                         <button type="button" class="btn btn-sm btn-primary" onclick="ProductModal._showSelectProcessusModal()">
                             Assigner
                         </button>
                     </div>
                     <div class="assigned-items-list" id="assignedProcessusProduit">
-                        <div class="assigned-items-empty">Aucun processus assigné</div>
+                        <div class="assigned-items-empty">Aucun sous-processus assigné</div>
                     </div>
                 </div>
             </div>
@@ -366,27 +366,35 @@ const ProductModal = {
     },
 
     /**
-     * Affiche les processus assignés dans la modale produit
+     * Affiche les sous-processus assignés dans la modale produit
      */
     _renderAssignedProcessus() {
         const container = document.getElementById('assignedProcessusProduit');
         if (!container) return;
 
         if (this._state.selectedProcessus.length === 0) {
-            container.innerHTML = '<div class="assigned-items-empty">Aucun processus assigné</div>';
+            container.innerHTML = '<div class="assigned-items-empty">Aucun sous-processus assigné</div>';
             return;
         }
 
-        container.innerHTML = this._state.selectedProcessus.map(processus => `
-            <div class="assigned-item">
-                <div class="assigned-item-info">
-                    <div class="assigned-item-name">${escapeHtml(processus)}</div>
+        container.innerHTML = this._state.selectedProcessus.map(sousProcessus => {
+            // Trouver le processus parent pour afficher "Processus - Sous-processus"
+            const proc = this._data.processus.find(p => p['Sous-processus'] === sousProcessus);
+            const displayName = proc
+                ? `${proc['Processus']} - ${sousProcessus}`
+                : sousProcessus;
+
+            return `
+                <div class="assigned-item">
+                    <div class="assigned-item-info">
+                        <div class="assigned-item-name">${escapeHtml(displayName)}</div>
+                    </div>
+                    <div class="assigned-item-actions">
+                        <button type="button" class="btn btn-icon btn-xs btn-danger" title="Enlever" onclick="ProductModal._removeProcessus('${escapeJsString(sousProcessus)}')">&#10005;</button>
+                    </div>
                 </div>
-                <div class="assigned-item-actions">
-                    <button type="button" class="btn btn-icon btn-xs btn-danger" title="Enlever" onclick="ProductModal._removeProcessus('${escapeJsString(processus)}')">&#10005;</button>
-                </div>
-            </div>
-        `).join('');
+            `;
+        }).join('');
     },
 
     /**
@@ -401,25 +409,31 @@ const ProductModal = {
     },
 
     /**
-     * Affiche la modale de sélection des processus
+     * Affiche la modale de sélection des sous-processus
      */
     _showSelectProcessusModal() {
-        const allProcessus = this._data.processus
-            .map(p => p['Processus'])
-            .filter(Boolean)
-            .sort();
+        // Récupérer tous les sous-processus avec leur processus parent
+        const allSousProcessus = this._data.processus
+            .filter(p => p['Sous-processus']) // Uniquement ceux qui ont un sous-processus
+            .map(p => ({
+                sousProcessus: p['Sous-processus'],
+                processus: p['Processus'],
+                displayName: `${p['Processus']} - ${p['Sous-processus']}`
+            }))
+            .sort((a, b) => a.displayName.localeCompare(b.displayName));
+
         const selected = this._state.selectedProcessus;
 
-        const selectedList = allProcessus.filter(p => selected.includes(p));
-        const unselectedList = allProcessus.filter(p => !selected.includes(p));
+        const selectedList = allSousProcessus.filter(p => selected.includes(p.sousProcessus));
+        const unselectedList = allSousProcessus.filter(p => !selected.includes(p.sousProcessus));
 
         const renderList = (searchTerm = '') => {
             const list = document.getElementById('selectionProcessusList');
             if (!list) return;
 
             const term = searchTerm.toLowerCase();
-            const filteredSelected = selectedList.filter(p => p.toLowerCase().includes(term));
-            const filteredUnselected = unselectedList.filter(p => p.toLowerCase().includes(term));
+            const filteredSelected = selectedList.filter(p => p.displayName.toLowerCase().includes(term));
+            const filteredUnselected = unselectedList.filter(p => p.displayName.toLowerCase().includes(term));
 
             let html = '';
 
@@ -427,9 +441,9 @@ const ProductModal = {
                 html += '<div class="selection-separator">Sélectionnés</div>';
                 html += filteredSelected.map(p => `
                     <label class="selection-item selected">
-                        <input type="checkbox" value="${escapeHtml(p)}" checked>
+                        <input type="checkbox" value="${escapeHtml(p.sousProcessus)}" checked>
                         <div class="selection-item-info">
-                            <div class="selection-item-name">${escapeHtml(p)}</div>
+                            <div class="selection-item-name">${escapeHtml(p.displayName)}</div>
                         </div>
                     </label>
                 `).join('');
@@ -439,16 +453,16 @@ const ProductModal = {
                 html += '<div class="selection-separator">Disponibles</div>';
                 html += filteredUnselected.map(p => `
                     <label class="selection-item">
-                        <input type="checkbox" value="${escapeHtml(p)}">
+                        <input type="checkbox" value="${escapeHtml(p.sousProcessus)}">
                         <div class="selection-item-info">
-                            <div class="selection-item-name">${escapeHtml(p)}</div>
+                            <div class="selection-item-name">${escapeHtml(p.displayName)}</div>
                         </div>
                     </label>
                 `).join('');
             }
 
             if (html === '') {
-                html = '<div class="assigned-items-empty">Aucun processus trouvé</div>';
+                html = '<div class="assigned-items-empty">Aucun sous-processus trouvé</div>';
             }
 
             list.innerHTML = html;
@@ -457,14 +471,14 @@ const ProductModal = {
         const content = `
             <div class="selection-modal">
                 <div class="selection-search">
-                    <input type="text" class="form-control" id="searchProcessusInput" placeholder="Rechercher un processus...">
+                    <input type="text" class="form-control" id="searchProcessusInput" placeholder="Rechercher un sous-processus...">
                 </div>
                 <div class="selection-list" id="selectionProcessusList"></div>
             </div>
         `;
 
         showModal({
-            title: 'Sélectionner des processus',
+            title: 'Sélectionner des sous-processus',
             content: content,
             size: 'md',
             buttons: [

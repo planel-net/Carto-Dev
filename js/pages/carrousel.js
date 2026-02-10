@@ -230,7 +230,7 @@ class CarrouselPage {
         let svgParts = [];
         svgParts.push(`<svg viewBox="0 0 1000 1000" class="carrousel-svg">`);
 
-        // Commencer en haut et tourner dans le sens horaire (angle négatif)
+        // Commencer en haut et tourner dans le sens horaire (angle positif)
         let currentAngle = -Math.PI / 2;
 
         // Générer les arcs de processus (cercle intérieur)
@@ -239,10 +239,10 @@ class CarrouselPage {
             const productCount = produits.length;
 
             // L'angle est proportionnel au nombre de produits
-            // Sens horaire : angle négatif (soustraire au lieu d'ajouter)
+            // Sens horaire : ajouter l'angle (rotation positive)
             const angleSpan = (productCount / totalProducts) * (2 * Math.PI);
             const startAngle = currentAngle;
-            const endAngle = currentAngle - angleSpan;
+            const endAngle = currentAngle + angleSpan;
             const midAngle = (startAngle + endAngle) / 2;
 
             // Récupérer la palette de couleurs pour ce processus
@@ -271,7 +271,10 @@ class CarrouselPage {
             // Calculer l'angle de rotation pour que le texte soit lisible
             let textAngle = (midAngle * 180 / Math.PI);
             // Ajuster pour que le texte soit toujours lisible (pas à l'envers)
+            // Si l'angle est entre 90° et 270°, le texte serait à l'envers, donc on le retourne
             if (textAngle > 90 && textAngle < 270) {
+                textAngle += 180;
+            } else if (textAngle < -90 && textAngle > -270) {
                 textAngle += 180;
             }
 
@@ -293,8 +296,8 @@ class CarrouselPage {
             const anglePerProduct = angleSpan / (productCount + 1);
 
             produits.forEach((produit, pIndex) => {
-                // Sens horaire : soustraire l'angle
-                const productAngle = startAngle - anglePerProduct * (pIndex + 1);
+                // Sens horaire : ajouter l'angle
+                const productAngle = startAngle + anglePerProduct * (pIndex + 1);
                 const productX = cx + productRadius * Math.cos(productAngle);
                 const productY = cy + productRadius * Math.sin(productAngle);
 
@@ -387,7 +390,9 @@ class CarrouselPage {
         const x4 = cx + innerRadius * Math.cos(endAngle);
         const y4 = cy + innerRadius * Math.sin(endAngle);
 
-        const largeArcFlag = endAngle - startAngle > Math.PI ? 1 : 0;
+        // Pour le sens horaire, on vérifie si l'arc est > 180°
+        const angleSpan = endAngle - startAngle;
+        const largeArcFlag = Math.abs(angleSpan) > Math.PI ? 1 : 0;
 
         return `
             M ${x1} ${y1}
@@ -448,22 +453,34 @@ class CarrouselPage {
                 }
             });
 
-            // Hover effect : agrandir le cercle et mettre le texte en gras
+            // Hover effect : agrandir le cercle et mettre le texte en gras et plus gros
             group.addEventListener('mouseenter', () => {
                 group.classList.add('hovered');
-                // Mettre le texte correspondant en gras
+                // Agrandir le cercle en changeant son rayon
+                const circle = group.querySelector('.carrousel-product-circle');
+                if (circle) {
+                    circle.setAttribute('r', '20');
+                }
+                // Mettre le texte correspondant en gras et plus gros
                 const textElement = document.querySelector(`.carrousel-product-label[data-product-id="${productId}"]`);
                 if (textElement) {
                     textElement.style.fontWeight = '700';
+                    textElement.style.fontSize = '13px';
                 }
             });
 
             group.addEventListener('mouseleave', () => {
                 group.classList.remove('hovered');
-                // Remettre le texte en poids normal
+                // Remettre le cercle à sa taille normale
+                const circle = group.querySelector('.carrousel-product-circle');
+                if (circle) {
+                    circle.setAttribute('r', '15');
+                }
+                // Remettre le texte en poids et taille normaux
                 const textElement = document.querySelector(`.carrousel-product-label[data-product-id="${productId}"]`);
                 if (textElement) {
                     textElement.style.fontWeight = '600';
+                    textElement.style.fontSize = '11px';
                 }
             });
         });
