@@ -554,7 +554,7 @@ class CarrouselPage {
         const innerRadius = 100; // Rayon intérieur (processus)
         const outerRadius = 260; // Rayon extérieur (fin des arcs processus)
         const productRadius = 290; // Rayon pour les cercles produits
-        const textRadius = 420; // Rayon pour les textes des produits
+        const textRadius = 380; // Rayon pour les textes des produits (rapproché des cercles)
 
         // Calculer le nombre total de produits pour répartir l'espace proportionnellement
         const totalProducts = processusWithProducts.reduce((sum, proc) => {
@@ -635,24 +635,9 @@ class CarrouselPage {
                 const productX = cx + productRadius * Math.cos(productAngle);
                 const productY = cy + productRadius * Math.sin(productAngle);
 
-                // Normaliser l'angle entre 0 et 2π
-                const normalizedAngle = ((productAngle % (2 * Math.PI)) + (2 * Math.PI)) % (2 * Math.PI);
-
-                // Déterminer si le label est en zone de chevauchement (haut ou bas)
-                // Haut : -45° à 45° (soit 315° à 45° en radians normalisés)
-                // Bas : 135° à 225° (soit 2.36 à 3.93 radians)
-                const inTopZone = normalizedAngle < Math.PI / 4 || normalizedAngle > (7 * Math.PI / 4);
-                const inBottomZone = normalizedAngle > (3 * Math.PI / 4) && normalizedAngle < (5 * Math.PI / 4);
-
-                // Alterner le rayon pour les labels en zone de chevauchement
-                let labelRadius = textRadius;
-                if ((inTopZone || inBottomZone) && pIndex % 2 === 1) {
-                    labelRadius = textRadius + 35; // Décalage radial pour les labels impairs
-                }
-
-                // Position du texte (avec décalage si nécessaire)
-                const textX = cx + labelRadius * Math.cos(productAngle);
-                const textY = cy + labelRadius * Math.sin(productAngle);
+                // Position du texte (rapproché des cercles)
+                const textX = cx + textRadius * Math.cos(productAngle);
+                const textY = cy + textRadius * Math.sin(productAngle);
 
                 // Couleurs du produit selon la palette du processus
                 const productCircleColor = colorScheme.douce;   // Gamme douce pour le cercle
