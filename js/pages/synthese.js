@@ -85,6 +85,7 @@ class SynthesePage {
                                 <label>Responsable</label>
                                 <select id="filterResponsable" class="filter-select">
                                     <option value="">Tous</option>
+                                    ${this.getResponsablesOptions()}
                                 </select>
                             </div>
                         </div>
@@ -365,6 +366,32 @@ class SynthesePage {
         if (this.filters.selectedSousProcessus.length === available.length) return 'Tous';
         if (this.filters.selectedSousProcessus.length === 0) return 'Aucun';
         return this.filters.selectedSousProcessus.length + ' sélectionné(s)';
+    }
+
+    /**
+     * Génère les options du filtre Responsable pour les produits
+     * @returns {string} HTML des options
+     */
+    getResponsablesOptions() {
+        // Extraire les responsables uniques des produits
+        const responsablesEmails = [...new Set(
+            this.data.produits
+                .map(p => p.Responsable)
+                .filter(Boolean)
+        )];
+
+        // Formater avec "Prénom N." et trier
+        const responsablesFormattes = responsablesEmails
+            .map(email => ({
+                email: email,
+                label: formatActorName(email, this.data.acteurs)
+            }))
+            .sort((a, b) => a.label.localeCompare(b.label));
+
+        // Générer les options HTML
+        return responsablesFormattes
+            .map(r => `<option value="${escapeHtml(r.email)}">${escapeHtml(r.label)}</option>`)
+            .join('');
     }
 
     attachEvents() {
@@ -747,8 +774,8 @@ class SynthesePage {
         }
 
         return this.data.mae.filter(mae => {
-            // Filtre État
-            if (this.filters.etat && mae.Etat !== this.filters.etat) {
+            // Filtre État (avec accent !)
+            if (this.filters.etat && mae['État'] !== this.filters.etat) {
                 return false;
             }
 
