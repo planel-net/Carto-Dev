@@ -552,7 +552,7 @@ class CarrouselPage {
         const cx = 550; // Centre X
         const cy = 550; // Centre Y
         const innerRadius = 120; // Rayon intérieur (processus)
-        const outerRadius = 200; // Rayon extérieur (fin des arcs processus)
+        const outerRadius = 320; // Rayon extérieur (fin des arcs processus) - étendu vers les produits
         const productRadius = 350; // Rayon pour les cercles produits
         const textRadius = 530; // Rayon pour les textes des produits (augmenté pour meilleure lisibilité)
 
