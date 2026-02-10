@@ -6,7 +6,7 @@
 const CONFIG = {
     // Nom de l'application
     APP_NAME: 'Carto',
-    APP_VERSION: '1.5.41',
+    APP_VERSION: '1.5.43',
 
     // Valeur spéciale pour filtrer les éléments sans valeur (périmètre/responsable vide)
     EMPTY_FILTER_VALUE: '(Non rempli)',
@@ -130,7 +130,8 @@ const CONFIG = {
             displayName: 'Périmètres',
             icon: '&#127758;',
             columns: [
-                { field: 'Périmetre', label: 'Périmètre', type: 'text', required: true }
+                { field: 'Périmetre', label: 'Périmètre', type: 'text', required: true },
+                { field: 'Groupe', label: 'Groupe', type: 'text', required: true }
             ]
         },
         PROGRAMMES: {

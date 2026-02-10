@@ -12,8 +12,10 @@ class MAEPage {
         this.acteurs = [];
         this.notes = [];
         this.liens = [];
+        this.perimetres = [];
 
         this.filters = {
+            selectedGroupes: [],
             perimetres: [],
             statuts: [],
             priorites: [],
@@ -54,17 +56,19 @@ class MAEPage {
 
     async loadData() {
         try {
-            const [demandesData, acteursData, notesData, liensData] = await Promise.all([
+            const [demandesData, acteursData, notesData, liensData, perimetresData] = await Promise.all([
                 readTable('tMAE'),
                 readTable('tActeurs'),
                 readTable('tMAENote'),
-                readTable('tMAELien')
+                readTable('tMAELien'),
+                readTable('tPerimetres')
             ]);
 
             this.demandes = demandesData.data || [];
             this.acteurs = acteursData.data || [];
             this.notes = notesData.data || [];
             this.liens = liensData.data || [];
+            this.perimetres = perimetresData.data || [];
 
             // Initialiser les filtres (tout selectionne par defaut)
             this._initFilters();
@@ -75,6 +79,10 @@ class MAEPage {
     }
 
     _initFilters() {
+        // Groupes : initialiser avec tous les groupes
+        const allGroupes = this.getAllGroupes();
+        this.filters.selectedGroupes = [...allGroupes];
+
         // Perimetres : extraits des donnees
         const perimSet = new Set();
         this.demandes.forEach(d => {
@@ -121,6 +129,37 @@ class MAEPage {
         this._allStatuts = allStatuts;
         this._allPriorites = allPriorites;
         this._allAssignees = allAssignees;
+    }
+
+    // ---- Helpers pour les filtres ----
+
+    /**
+     * Retourne la liste unique des groupes triés
+     */
+    getAllGroupes() {
+        return [...new Set(this.perimetres.map(p => p.Groupe))].filter(Boolean).sort();
+    }
+
+    /**
+     * Retourne les périmètres filtrés par les groupes sélectionnés
+     */
+    getFilteredPerimetres() {
+        if (this.filters.selectedGroupes.length === 0) {
+            return [];
+        }
+        const allGroupes = this.getAllGroupes();
+        if (this.filters.selectedGroupes.length === allGroupes.length) {
+            // Tous les groupes sélectionnés = tous les périmètres
+            return [...this._allPerimetres];
+        }
+        // Filtrer les périmètres par groupes sélectionnés
+        const perimetresFromGroupes = this.perimetres
+            .filter(p => this.filters.selectedGroupes.includes(p.Groupe))
+            .map(p => p.Périmetre)
+            .filter(Boolean);
+
+        // Ne garder que les périmètres qui sont aussi dans _allPerimetres
+        return this._allPerimetres.filter(p => perimetresFromGroupes.includes(p)).sort();
     }
 
     // ---- Utilitaires ----
@@ -199,8 +238,32 @@ class MAEPage {
         const container = document.getElementById('maeFilters');
         if (!container) return;
 
+        const allGroupes = this.getAllGroupes();
+        const filteredPerimetres = this.getFilteredPerimetres();
+
         container.innerHTML = `
             <div class="mae-filters">
+                <!-- Filtre Groupe -->
+                <div class="mae-filter-group" data-filter="groupe">
+                    <label>Groupe</label>
+                    <div class="mae-filter-trigger" onclick="maePageInstance.toggleFilter('groupe')">
+                        <span id="maeFilterGroupeLabel">${this._getFilterLabel('groupe')}</span>
+                        <span class="arrow">&#9660;</span>
+                    </div>
+                    <div class="mae-filter-dropdown" id="maeFilterGroupeDropdown">
+                        <div class="mae-filter-dropdown-actions">
+                            <button onclick="maePageInstance.selectAll('groupe')">Tous</button>
+                            <button onclick="maePageInstance.clearFilter('groupe')">Aucun</button>
+                        </div>
+                        ${allGroupes.map(g => `
+                            <label class="mae-filter-option">
+                                <input type="checkbox" value="${escapeHtml(g)}" ${this.filters.selectedGroupes.includes(g) ? 'checked' : ''} onchange="maePageInstance.onFilterChange('groupe')">
+                                <span>${escapeHtml(g)}</span>
+                            </label>
+                        `).join('')}
+                    </div>
+                </div>
+
                 <!-- Filtre Perimetre -->
                 <div class="mae-filter-group" data-filter="perimetre">
                     <label>Périmètre</label>
@@ -213,7 +276,7 @@ class MAEPage {
                             <button onclick="maePageInstance.selectAll('perimetre')">Tout</button>
                             <button onclick="maePageInstance.clearFilter('perimetre')">Aucun</button>
                         </div>
-                        ${this._allPerimetres.map(p => `
+                        ${filteredPerimetres.map(p => `
                             <label class="mae-filter-option">
                                 <input type="checkbox" value="${escapeHtml(p)}" ${this.filters.perimetres.includes(p) ? 'checked' : ''} onchange="maePageInstance.onFilterChange('perimetre')">
                                 <span>${escapeHtml(p)}</span>
@@ -335,6 +398,11 @@ class MAEPage {
         const values = Array.from(checked).map(cb => cb.value);
 
         switch (filterType) {
+            case 'groupe':
+                this.filters.selectedGroupes = values;
+                this._updateFilterLabel(filterType);
+                this.refreshPerimetreDropdown();
+                break;
             case 'perimetre': this.filters.perimetres = values; break;
             case 'statut': this.filters.statuts = values; break;
             case 'priorite': this.filters.priorites = values; break;
@@ -348,7 +416,13 @@ class MAEPage {
 
     selectAll(filterType) {
         switch (filterType) {
-            case 'perimetre': this.filters.perimetres = [...this._allPerimetres]; break;
+            case 'groupe':
+                this.filters.selectedGroupes = [...this.getAllGroupes()];
+                this._recheckFilterCheckboxes(filterType);
+                this._updateFilterLabel(filterType);
+                this.refreshPerimetreDropdown();
+                break;
+            case 'perimetre': this.filters.perimetres = [...this.getFilteredPerimetres()]; break;
             case 'statut': this.filters.statuts = [...this._allStatuts]; break;
             case 'priorite': this.filters.priorites = [...this._allPriorites]; break;
             case 'assignee': this.filters.assignees = [...this._allAssignees]; break;
@@ -361,6 +435,12 @@ class MAEPage {
 
     clearFilter(filterType) {
         switch (filterType) {
+            case 'groupe':
+                this.filters.selectedGroupes = [];
+                this._recheckFilterCheckboxes(filterType);
+                this._updateFilterLabel(filterType);
+                this.refreshPerimetreDropdown();
+                break;
             case 'perimetre': this.filters.perimetres = []; break;
             case 'statut': this.filters.statuts = []; break;
             case 'priorite': this.filters.priorites = []; break;
@@ -378,6 +458,7 @@ class MAEPage {
         if (!dropdown) return;
 
         const map = {
+            groupe: this.filters.selectedGroupes,
             perimetre: this.filters.perimetres,
             statut: this.filters.statuts,
             priorite: this.filters.priorites,
@@ -397,17 +478,46 @@ class MAEPage {
         }
     }
 
+    refreshPerimetreDropdown() {
+        const dropdown = document.getElementById('maeFilterPerimetreDropdown');
+        if (!dropdown) return;
+
+        const filteredPerimetres = this.getFilteredPerimetres();
+
+        // Reconstruire les options
+        dropdown.innerHTML = `
+            <div class="mae-filter-dropdown-actions">
+                <button onclick="maePageInstance.selectAll('perimetre')">Tout</button>
+                <button onclick="maePageInstance.clearFilter('perimetre')">Aucun</button>
+            </div>
+            ${filteredPerimetres.map(p => `
+                <label class="mae-filter-option">
+                    <input type="checkbox" value="${escapeHtml(p)}"
+                        ${this.filters.perimetres.includes(p) ? 'checked' : ''}
+                        onchange="maePageInstance.onFilterChange('perimetre')">
+                    <span>${escapeHtml(p)}</span>
+                </label>
+            `).join('')}
+        `;
+
+        // Mettre à jour le filtre avec les périmètres filtrés (tout coché par défaut)
+        this.filters.perimetres = [...filteredPerimetres];
+        this._updateFilterLabel('perimetre');
+    }
+
     resetFilters() {
+        this.filters.selectedGroupes = [...this.getAllGroupes()];
         this.filters.perimetres = [...this._allPerimetres];
         this.filters.statuts = [...this._allStatuts];
         this.filters.priorites = [...this._allPriorites];
         this.filters.assignees = [...this._allAssignees];
 
-        ['perimetre', 'statut', 'priorite', 'assignee'].forEach(f => {
+        ['groupe', 'perimetre', 'statut', 'priorite', 'assignee'].forEach(f => {
             this._recheckFilterCheckboxes(f);
             this._updateFilterLabel(f);
         });
 
+        this.refreshPerimetreDropdown();
         this.renderPipeline();
         this.renderTable();
     }

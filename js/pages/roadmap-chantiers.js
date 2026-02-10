@@ -37,6 +37,7 @@ class RoadmapChantiersPage {
         this.filters = {
             dateDebut: new Date(new Date().setMonth(new Date().getMonth() - 1)),
             dateFin: new Date(new Date().setMonth(new Date().getMonth() + 3)),
+            selectedGroupes: [],
             perimetres: [],
             responsables: [],
             avancements: [],
@@ -151,6 +152,7 @@ class RoadmapChantiersPage {
             });
 
             // Initialiser les filtres avec toutes les valeurs (pour afficher tout par défaut, y compris "Non rempli")
+            this.filters.selectedGroupes = this.getAllGroupes();
             this.filters.perimetres = this.getAllPerimetres();
             this.filters.responsables = this.getAllResponsables();
             this.filters.avancements = this.getAllAvancements();
@@ -181,6 +183,64 @@ class RoadmapChantiersPage {
      */
     getNoteCount(chantierName) {
         return this.chantierNotes.filter(n => n['Chantier'] === chantierName).length;
+    }
+
+    /**
+     * Retourne la liste unique des groupes triés
+     */
+    getAllGroupes() {
+        const groupes = [...new Set(this.perimetres.map(p => p['Groupe']).filter(Boolean))];
+        return groupes.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+    }
+
+    /**
+     * Retourne les périmètres filtrés par les groupes sélectionnés
+     */
+    getFilteredPerimetres() {
+        if (this.filters.selectedGroupes.length === 0) {
+            return [];
+        }
+        const allGroupes = this.getAllGroupes();
+        if (this.filters.selectedGroupes.length === allGroupes.length) {
+            // Tous les groupes sélectionnés = tous les périmètres
+            return this.getAllPerimetres();
+        }
+        // Filtrer les périmètres par groupes sélectionnés
+        const perimetresFromTable = this.perimetres
+            .filter(p => this.filters.selectedGroupes.includes(p['Groupe']))
+            .map(p => p['Périmetre'])
+            .filter(Boolean);
+
+        // Créer un Set des périmètres appartenant aux groupes sélectionnés (comparaison insensible à la casse)
+        const allowedPerimetresLower = new Set(
+            perimetresFromTable.map(p => p.toLowerCase())
+        );
+
+        // Inclure aussi les périmètres des chantiers qui appartiennent aux groupes sélectionnés
+        const perimetresFromChantiers = this.chantiers
+            .map(c => c['Perimetre'])
+            .filter(p => p && allowedPerimetresLower.has(p.toLowerCase()));
+
+        const allPerimetres = [...perimetresFromTable, ...perimetresFromChantiers];
+
+        // Dédupliquer en ignorant la casse (garder la première occurrence)
+        const seen = new Map();
+        allPerimetres.forEach(p => {
+            const lower = p.toLowerCase();
+            if (!seen.has(lower)) {
+                seen.set(lower, p);
+            }
+        });
+
+        const result = [...seen.values()].sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+
+        // Ajouter l'option "(Non rempli)" si des chantiers n'ont pas de périmètre
+        const hasEmptyPerimetre = this.chantiers.some(c => !c['Perimetre']);
+        if (hasEmptyPerimetre) {
+            result.push(CONFIG.EMPTY_FILTER_VALUE);
+        }
+
+        return result;
     }
 
     /**
@@ -599,13 +659,18 @@ class RoadmapChantiersPage {
             return d.toISOString().split('T')[0];
         };
 
-        // Liste unique des périmètres, responsables, avancements et couples périmètre-processus (filtrés par périmètre)
-        const perimetresList = this.getAllPerimetres();
+        // Liste unique des groupes, périmètres, responsables, avancements et couples périmètre-processus (filtrés par périmètre)
+        const groupesList = this.getAllGroupes();
+        const perimetresList = this.getFilteredPerimetres();
         const responsablesList = this.getAllResponsables();
         const avancementsList = this.getAllAvancements();
         const perimetreProcessusList = this.getFilteredPerimetreProcessus();
 
         // Calcul des labels
+        const groupeAllSelected = this.filters.selectedGroupes.length === groupesList.length;
+        const groupeLabel = groupeAllSelected ? 'Tous' :
+            (this.filters.selectedGroupes.length === 0 ? 'Aucun' : this.filters.selectedGroupes.length + ' sélectionné(s)');
+
         const perimetreAllSelected = this.filters.perimetres.length === perimetresList.length;
         const perimetreLabel = perimetreAllSelected ? 'Tous' :
             (this.filters.perimetres.length === 0 ? 'Aucun' : this.filters.perimetres.length + ' sélectionné(s)');
@@ -628,6 +693,31 @@ class RoadmapChantiersPage {
                 <input type="date" id="filterDateDebut" value="${formatDateInput(this.filters.dateDebut)}">
                 <span>au</span>
                 <input type="date" id="filterDateFin" value="${formatDateInput(this.filters.dateFin)}">
+            </div>
+            <div class="filter-group">
+                <label>Groupe :</label>
+                <div class="multi-select-wrapper" id="groupeFilterWrapper">
+                    <div class="multi-select-trigger" onclick="roadmapChantiersPageInstance.toggleMultiSelect('groupe')">
+                        <span class="multi-select-label">${groupeLabel}</span>
+                        <span class="multi-select-arrow">&#9662;</span>
+                    </div>
+                    <div class="multi-select-dropdown" id="groupeDropdown">
+                        <div class="multi-select-actions">
+                            <button class="btn btn-xs" onclick="roadmapChantiersPageInstance.selectAllGroupes()">Tous</button>
+                            <button class="btn btn-xs" onclick="roadmapChantiersPageInstance.clearGroupes()">Aucun</button>
+                        </div>
+                        <div class="multi-select-options">
+                            ${groupesList.map(g => `
+                                <label class="multi-select-option">
+                                    <input type="checkbox" value="${escapeHtml(g)}"
+                                        ${this.filters.selectedGroupes.includes(g) ? 'checked' : ''}
+                                        onchange="roadmapChantiersPageInstance.onGroupesChange()">
+                                    <span>${escapeHtml(g)}</span>
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class="filter-group">
                 <label>Périmètre :</label>
@@ -1843,11 +1933,72 @@ class RoadmapChantiersPage {
         });
     }
 
+    selectAllGroupes() {
+        const checkboxes = document.querySelectorAll('#groupeDropdown input[type="checkbox"]');
+        checkboxes.forEach(cb => cb.checked = true);
+        const allGroupes = this.getAllGroupes();
+        this.filters.selectedGroupes = [...allGroupes];
+        this.updateGroupeLabel();
+        this.refreshPerimetreDropdown();
+        this.applyFiltersWithoutRenderingFilters();
+    }
+
+    clearGroupes() {
+        const checkboxes = document.querySelectorAll('#groupeDropdown input[type="checkbox"]');
+        checkboxes.forEach(cb => cb.checked = false);
+        this.filters.selectedGroupes = [];
+        this.updateGroupeLabel();
+        this.refreshPerimetreDropdown();
+        this.applyFiltersWithoutRenderingFilters();
+    }
+
+    onGroupesChange() {
+        const checkboxes = document.querySelectorAll('#groupeDropdown input[type="checkbox"]');
+        this.filters.selectedGroupes = Array.from(checkboxes)
+            .filter(cb => cb.checked)
+            .map(cb => cb.value);
+        this.updateGroupeLabel();
+        this.refreshPerimetreDropdown();
+        this.applyFiltersWithoutRenderingFilters();
+    }
+
+    updateGroupeLabel() {
+        const label = document.querySelector('#groupeFilterWrapper .multi-select-label');
+        if (label) {
+            const allGroupes = this.getAllGroupes();
+            const allSelected = this.filters.selectedGroupes.length === allGroupes.length;
+            label.textContent = allSelected ? 'Tous' :
+                (this.filters.selectedGroupes.length === 0 ? 'Aucun' : this.filters.selectedGroupes.length + ' sélectionné(s)');
+        }
+    }
+
+    refreshPerimetreDropdown() {
+        const optionsContainer = document.querySelector('#perimetreDropdown .multi-select-options');
+        if (!optionsContainer) return;
+
+        const filteredPerimetres = this.getFilteredPerimetres();
+
+        // Reconstruire les options
+        optionsContainer.innerHTML = filteredPerimetres.map(p => `
+            <label class="multi-select-option${p === CONFIG.EMPTY_FILTER_VALUE ? ' empty-option' : ''}">
+                <input type="checkbox" value="${escapeHtml(p)}"
+                    ${this.filters.perimetres.includes(p) ? 'checked' : ''}
+                    onchange="roadmapChantiersPageInstance.onPerimetreCheckChange()">
+                <span>${escapeHtml(p)}</span>
+            </label>
+        `).join('');
+
+        // Mettre à jour le filtre avec les périmètres filtrés (tout coché par défaut)
+        this.filters.perimetres = [...filteredPerimetres];
+        this.updatePerimetreLabel();
+        this.refreshPerimetreProcessusDropdown();
+    }
+
     selectAllPerimetres() {
         // "Tous" = cocher toutes les cases = afficher tous les chantiers
         const checkboxes = document.querySelectorAll('#perimetreDropdown input[type="checkbox"]');
         checkboxes.forEach(cb => cb.checked = true);
-        this.filters.perimetres = this.getAllPerimetres();
+        this.filters.perimetres = this.getFilteredPerimetres();
         this.updatePerimetreLabel();
         this.refreshPerimetreProcessusDropdown();
         this.applyFiltersWithoutRenderingFilters();
@@ -1876,8 +2027,8 @@ class RoadmapChantiersPage {
     updatePerimetreLabel() {
         const label = document.querySelector('#perimetreFilterWrapper .multi-select-label');
         if (label) {
-            const allPerimetres = this.getAllPerimetres();
-            const allSelected = this.filters.perimetres.length === allPerimetres.length;
+            const filteredPerimetres = this.getFilteredPerimetres();
+            const allSelected = this.filters.perimetres.length === filteredPerimetres.length;
             label.textContent = allSelected ? 'Tous' :
                 (this.filters.perimetres.length === 0 ? 'Aucun' : this.filters.perimetres.length + ' sélectionné(s)');
         }
@@ -2034,10 +2185,11 @@ class RoadmapChantiersPage {
 
     resetFilters() {
         // Réinitialiser avec les dates par défaut (1 mois avant à 3 mois après)
-        // et tous les périmètres/responsables/avancements/périmètre-processus sélectionnés (y compris "Non rempli")
+        // et tous les groupes/périmètres/responsables/avancements/périmètre-processus sélectionnés (y compris "Non rempli")
         this.filters = {
             dateDebut: new Date(new Date().setMonth(new Date().getMonth() - 1)),
             dateFin: new Date(new Date().setMonth(new Date().getMonth() + 3)),
+            selectedGroupes: this.getAllGroupes(),
             perimetres: this.getAllPerimetres(),
             responsables: this.getAllResponsables(),
             avancements: this.getAllAvancements(),

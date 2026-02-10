@@ -19,6 +19,7 @@ class ParcPage {
             type: 'all',
             responsable: 'all', // 'all' ou email du responsable ou '(vide)' pour les produits sans responsable
             processStatus: 'all', // 'all', 'with', 'without'
+            selectedGroupes: [], // Groupes selectionnes (vide = tous)
             selectedPerimetres: [], // Perimetres selectionnes (vide = tous)
             selectedProcessus: [], // Processus selectionnes (vide = tous)
             selectedSubProcessus: [] // Sous-processus selectionnes (vide = tous)
@@ -94,8 +95,11 @@ class ParcPage {
             this.pdtsPerimetres = pdtsPerimetresData.data;
 
             // Initialiser les filtres multi-select avec toutes les valeurs (= pas de filtre)
+            if (this.filters.selectedGroupes.length === 0) {
+                this.filters.selectedGroupes = this.getAllGroupes();
+            }
             if (this.filters.selectedPerimetres.length === 0) {
-                this.filters.selectedPerimetres = this.getUniquePerimetres();
+                this.filters.selectedPerimetres = this.getFilteredPerimetres();
             }
             if (this.filters.selectedProcessus.length === 0) {
                 this.filters.selectedProcessus = this.getUniqueProcessus();
@@ -119,6 +123,31 @@ class ParcPage {
      */
     getUniquePerimetres() {
         return this.perimetres
+            .map(p => p['Périmetre'])
+            .filter(Boolean)
+            .sort();
+    }
+
+    /**
+     * Retourne la liste unique des groupes triés
+     */
+    getAllGroupes() {
+        return [...new Set(this.perimetres.map(p => p.Groupe))].filter(Boolean).sort();
+    }
+
+    /**
+     * Retourne les périmètres filtrés par les groupes sélectionnés
+     */
+    getFilteredPerimetres() {
+        if (this.filters.selectedGroupes.length === 0) {
+            return [];
+        }
+        const allGroupes = this.getAllGroupes();
+        if (this.filters.selectedGroupes.length === allGroupes.length) {
+            return this.getUniquePerimetres();
+        }
+        return this.perimetres
+            .filter(p => this.filters.selectedGroupes.includes(p.Groupe))
             .map(p => p['Périmetre'])
             .filter(Boolean)
             .sort();
@@ -433,11 +462,37 @@ class ParcPage {
 
         const productTypes = this.getUniqueProductTypes();
         const responsables = this.getUniqueResponsables();
+        const allGroupes = this.getAllGroupes();
+        const filteredPerimetres = this.getFilteredPerimetres();
         const allProcessus = this.getUniqueProcessus();
         const availableSubProcessus = this.getAvailableSubProcessus();
-        const allPerimetres = this.getUniquePerimetres();
 
         container.innerHTML = `
+            <div class="matrix-filter-group">
+                <label>Groupe:</label>
+                <div class="multi-select-wrapper" id="groupeFilterWrapper">
+                    <div class="multi-select-trigger" onclick="parcPageInstance.toggleMultiSelect('groupe')">
+                        <span class="multi-select-label">${this.filters.selectedGroupes.length === allGroupes.length ? 'Tous' : (this.filters.selectedGroupes.length === 0 ? 'Aucun' : this.filters.selectedGroupes.length + ' selectionne(s)')}</span>
+                        <span class="multi-select-arrow">&#9662;</span>
+                    </div>
+                    <div class="multi-select-dropdown" id="groupeDropdown">
+                        <div class="multi-select-actions">
+                            <button type="button" class="btn btn-sm" onclick="parcPageInstance.selectAllGroupes()">Tous</button>
+                            <button type="button" class="btn btn-sm" onclick="parcPageInstance.clearGroupes()">Aucun</button>
+                        </div>
+                        <div class="multi-select-options">
+                            ${allGroupes.map(g => `
+                                <label class="multi-select-option">
+                                    <input type="checkbox" value="${escapeHtml(g)}"
+                                        ${this.filters.selectedGroupes.includes(g) ? 'checked' : ''}
+                                        onchange="parcPageInstance.onGroupesChange()">
+                                    <span>${escapeHtml(g)}</span>
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            </div>
             <div class="matrix-filter-group">
                 <label for="filterType">Type:</label>
                 <select id="filterType" onchange="parcPageInstance.onFilterChange()">
@@ -469,7 +524,7 @@ class ParcPage {
                 <label>Périmètre:</label>
                 <div class="multi-select-wrapper" id="perimetreFilterWrapper">
                     <div class="multi-select-trigger" onclick="parcPageInstance.toggleMultiSelect('perimetre')">
-                        <span class="multi-select-label">${this.filters.selectedPerimetres.length === allPerimetres.length ? 'Tous' : (this.filters.selectedPerimetres.length === 0 ? 'Aucun' : this.filters.selectedPerimetres.length + ' selectionne(s)')}</span>
+                        <span class="multi-select-label">${this.filters.selectedPerimetres.length === filteredPerimetres.length ? 'Tous' : (this.filters.selectedPerimetres.length === 0 ? 'Aucun' : this.filters.selectedPerimetres.length + ' selectionne(s)')}</span>
                         <span class="multi-select-arrow">&#9662;</span>
                     </div>
                     <div class="multi-select-dropdown" id="perimetreDropdown">
@@ -478,7 +533,7 @@ class ParcPage {
                             <button type="button" class="btn btn-sm" onclick="parcPageInstance.clearPerimetresFilter()">Aucun</button>
                         </div>
                         <div class="multi-select-options">
-                            ${allPerimetres.map(p => `
+                            ${filteredPerimetres.map(p => `
                                 <label class="multi-select-option">
                                     <input type="checkbox" value="${escapeHtml(p)}"
                                         ${this.filters.selectedPerimetres.includes(p) ? 'checked' : ''}
@@ -1117,10 +1172,68 @@ class ParcPage {
 
     // === Perimetre ===
 
+    selectAllGroupes() {
+        const checkboxes = document.querySelectorAll('#groupeDropdown input[type="checkbox"]');
+        checkboxes.forEach(cb => cb.checked = true);
+        this.filters.selectedGroupes = this.getAllGroupes();
+        this.updateGroupeLabel();
+        this.refreshPerimetreDropdown();
+        this.clearSelection();
+        this.refreshActiveView();
+    }
+
+    clearGroupes() {
+        const checkboxes = document.querySelectorAll('#groupeDropdown input[type="checkbox"]');
+        checkboxes.forEach(cb => cb.checked = false);
+        this.filters.selectedGroupes = [];
+        this.updateGroupeLabel();
+        this.refreshPerimetreDropdown();
+        this.clearSelection();
+        this.refreshActiveView();
+    }
+
+    onGroupesChange() {
+        const checkboxes = document.querySelectorAll('#groupeDropdown input[type="checkbox"]');
+        this.filters.selectedGroupes = Array.from(checkboxes)
+            .filter(cb => cb.checked)
+            .map(cb => cb.value);
+        this.updateGroupeLabel();
+        this.refreshPerimetreDropdown();
+        this.clearSelection();
+        this.refreshActiveView();
+    }
+
+    updateGroupeLabel() {
+        const label = document.querySelector('#groupeFilterWrapper .multi-select-label');
+        if (label) {
+            const allGroupes = this.getAllGroupes();
+            label.textContent = this.filters.selectedGroupes.length === allGroupes.length ? 'Tous' :
+                (this.filters.selectedGroupes.length === 0 ? 'Aucun' : this.filters.selectedGroupes.length + ' selectionne(s)');
+        }
+    }
+
+    refreshPerimetreDropdown() {
+        const optionsContainer = document.querySelector('#perimetreDropdown .multi-select-options');
+        if (!optionsContainer) return;
+
+        const filteredPerimetres = this.getFilteredPerimetres();
+        optionsContainer.innerHTML = filteredPerimetres.map(p => `
+            <label class="multi-select-option">
+                <input type="checkbox" value="${escapeHtml(p)}"
+                    ${this.filters.selectedPerimetres.includes(p) ? 'checked' : ''}
+                    onchange="parcPageInstance.onPerimetresCheckChange()">
+                <span>${escapeHtml(p)}</span>
+            </label>
+        `).join('');
+
+        this.filters.selectedPerimetres = [...filteredPerimetres];
+        this.updatePerimetreLabel();
+    }
+
     selectAllPerimetresFilter() {
         const checkboxes = document.querySelectorAll('#perimetreDropdown input[type="checkbox"]');
         checkboxes.forEach(cb => cb.checked = true);
-        this.filters.selectedPerimetres = this.getUniquePerimetres();
+        this.filters.selectedPerimetres = this.getFilteredPerimetres();
         this.updatePerimetreLabel();
         this.clearSelection();
         this.refreshActiveView();

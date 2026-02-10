@@ -22,6 +22,7 @@ class SynthesePage {
         };
 
         this.filters = {
+            selectedGroupes: [],
             selectedPerimetres: [],
             selectedProcessus: [],
             selectedSousProcessus: [],
@@ -228,6 +229,10 @@ class SynthesePage {
      * Initialise les valeurs des filtres au chargement
      */
     initializeFilters() {
+        // Initialiser avec tous les groupes sélectionnés
+        const allGroupes = this.getAllGroupes();
+        this.filters.selectedGroupes = [...allGroupes];
+
         // Initialiser avec tous les périmètres sélectionnés
         const allPerimetres = [...new Set(this.data.perimetres.map(p => p.Périmetre))].filter(Boolean).sort();
         this.filters.selectedPerimetres = [...allPerimetres];
@@ -241,16 +246,69 @@ class SynthesePage {
     }
 
     /**
+     * Retourne la liste unique des groupes triés
+     */
+    getAllGroupes() {
+        return [...new Set(this.data.perimetres.map(p => p.Groupe))].filter(Boolean).sort();
+    }
+
+    /**
+     * Retourne les périmètres filtrés par les groupes sélectionnés
+     */
+    getFilteredPerimetres() {
+        if (this.filters.selectedGroupes.length === 0) {
+            return [];
+        }
+        const allGroupes = this.getAllGroupes();
+        if (this.filters.selectedGroupes.length === allGroupes.length) {
+            // Tous les groupes sélectionnés = tous les périmètres
+            return [...new Set(this.data.perimetres.map(p => p.Périmetre))].filter(Boolean).sort();
+        }
+        // Filtrer les périmètres par groupes sélectionnés
+        return this.data.perimetres
+            .filter(p => this.filters.selectedGroupes.includes(p.Groupe))
+            .map(p => p.Périmetre)
+            .filter(Boolean)
+            .sort();
+    }
+
+    /**
      * Rendu des filtres multi-select
      */
     renderFilters() {
         const container = document.getElementById('filtersGlobal');
 
-        const allPerimetres = [...new Set(this.data.perimetres.map(p => p.Périmetre))].filter(Boolean).sort();
+        const allGroupes = this.getAllGroupes();
+        const filteredPerimetres = this.getFilteredPerimetres();
         const allProcessus = [...new Set(this.data.processus.map(p => p.Processus))].filter(Boolean).sort();
         const availableSousProcessus = this.getAvailableSousProcessus();
 
         container.innerHTML = `
+            <div class="filter-group">
+                <label>Groupe</label>
+                <div class="multi-select-wrapper" id="groupeFilterWrapper">
+                    <div class="multi-select-trigger" onclick="synthesePageInstance.toggleMultiSelect('groupe')">
+                        <span class="multi-select-label">${this.getGroupeLabel()}</span>
+                        <span class="multi-select-arrow">&#9662;</span>
+                    </div>
+                    <div class="multi-select-dropdown" id="groupeDropdown">
+                        <div class="multi-select-actions">
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="synthesePageInstance.selectAllGroupes()">Tous</button>
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="synthesePageInstance.clearGroupes()">Aucun</button>
+                        </div>
+                        <div class="multi-select-options">
+                            ${allGroupes.map(g => `
+                                <label class="multi-select-option">
+                                    <input type="checkbox" value="${escapeHtml(g)}"
+                                        ${this.filters.selectedGroupes.includes(g) ? 'checked' : ''}
+                                        onchange="synthesePageInstance.onGroupesChange()">
+                                    <span>${escapeHtml(g)}</span>
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            </div>
             <div class="filter-group">
                 <label>Périmètre</label>
                 <div class="multi-select-wrapper" id="perimetreFilterWrapper">
@@ -264,7 +322,7 @@ class SynthesePage {
                             <button type="button" class="btn btn-secondary btn-sm" onclick="synthesePageInstance.clearPerimetres()">Aucun</button>
                         </div>
                         <div class="multi-select-options">
-                            ${allPerimetres.map(p => `
+                            ${filteredPerimetres.map(p => `
                                 <label class="multi-select-option">
                                     <input type="checkbox" value="${escapeHtml(p)}"
                                         ${this.filters.selectedPerimetres.includes(p) ? 'checked' : ''}
@@ -346,9 +404,16 @@ class SynthesePage {
     /**
      * Labels des filtres multi-select
      */
+    getGroupeLabel() {
+        const allGroupes = this.getAllGroupes();
+        if (this.filters.selectedGroupes.length === allGroupes.length) return 'Tous';
+        if (this.filters.selectedGroupes.length === 0) return 'Aucun';
+        return this.filters.selectedGroupes.length + ' sélectionné(s)';
+    }
+
     getPerimetreLabel() {
-        const all = [...new Set(this.data.perimetres.map(p => p.Périmetre))].filter(Boolean);
-        if (this.filters.selectedPerimetres.length === all.length) return 'Tous';
+        const filteredPerimetres = this.getFilteredPerimetres();
+        if (this.filters.selectedPerimetres.length === filteredPerimetres.length) return 'Tous';
         if (this.filters.selectedPerimetres.length === 0) return 'Aucun';
         return this.filters.selectedPerimetres.length + ' sélectionné(s)';
     }
@@ -460,11 +525,71 @@ class SynthesePage {
 
     // === Périmètre ===
 
+    selectAllGroupes() {
+        const checkboxes = document.querySelectorAll('#groupeDropdown input[type="checkbox"]');
+        checkboxes.forEach(cb => cb.checked = true);
+        const allGroupes = this.getAllGroupes();
+        this.filters.selectedGroupes = [...allGroupes];
+        this.updateGroupeLabel();
+        // Mettre à jour les périmètres disponibles
+        this.refreshPerimetreDropdown();
+        this.applyFiltersAndRender();
+    }
+
+    clearGroupes() {
+        const checkboxes = document.querySelectorAll('#groupeDropdown input[type="checkbox"]');
+        checkboxes.forEach(cb => cb.checked = false);
+        this.filters.selectedGroupes = [];
+        this.updateGroupeLabel();
+        // Mettre à jour les périmètres disponibles
+        this.refreshPerimetreDropdown();
+        this.applyFiltersAndRender();
+    }
+
+    onGroupesChange() {
+        const checkboxes = document.querySelectorAll('#groupeDropdown input[type="checkbox"]');
+        this.filters.selectedGroupes = Array.from(checkboxes)
+            .filter(cb => cb.checked)
+            .map(cb => cb.value);
+        this.updateGroupeLabel();
+        // Mettre à jour les périmètres disponibles
+        this.refreshPerimetreDropdown();
+        this.applyFiltersAndRender();
+    }
+
+    updateGroupeLabel() {
+        const label = document.querySelector('#groupeFilterWrapper .multi-select-label');
+        if (label) {
+            label.textContent = this.getGroupeLabel();
+        }
+    }
+
+    refreshPerimetreDropdown() {
+        const optionsContainer = document.querySelector('#perimetreDropdown .multi-select-options');
+        if (!optionsContainer) return;
+
+        const filteredPerimetres = this.getFilteredPerimetres();
+
+        // Reconstruire les options
+        optionsContainer.innerHTML = filteredPerimetres.map(p => `
+            <label class="multi-select-option">
+                <input type="checkbox" value="${escapeHtml(p)}"
+                    ${this.filters.selectedPerimetres.includes(p) ? 'checked' : ''}
+                    onchange="synthesePageInstance.onPerimetresChange()">
+                <span>${escapeHtml(p)}</span>
+            </label>
+        `).join('');
+
+        // Mettre à jour le filtre avec les périmètres filtrés (tout coché par défaut)
+        this.filters.selectedPerimetres = [...filteredPerimetres];
+        this.updatePerimetreLabel();
+    }
+
     selectAllPerimetres() {
         const checkboxes = document.querySelectorAll('#perimetreDropdown input[type="checkbox"]');
         checkboxes.forEach(cb => cb.checked = true);
-        const all = [...new Set(this.data.perimetres.map(p => p.Périmetre))].filter(Boolean);
-        this.filters.selectedPerimetres = [...all];
+        const filteredPerimetres = this.getFilteredPerimetres();
+        this.filters.selectedPerimetres = [...filteredPerimetres];
         this.updatePerimetreLabel();
         this.applyFiltersAndRender();
     }
@@ -629,37 +754,41 @@ class SynthesePage {
                                          this.filters.selectedSousProcessus.length === availableSousProcessus.length;
 
         return this.data.chantiers.filter(chantier => {
-            // Si le chantier n'a pas de périmètre ou processus défini, l'inclure seulement si tous les filtres sont sur "Tous"
-            const hasPerimetre = !!chantier.Perimetre;
-            const hasProcessus = !!chantier.Processus;
-
-            if (!hasPerimetre || !hasProcessus) {
-                // Inclure uniquement si TOUS les filtres globaux sont à "Tous"
-                if (!allPerimetresSelected || !allProcessusSelected || !allSousProcessusSelected) {
-                    return false;
-                }
-                // Si tous les filtres sont "Tous", vérifier quand même le filtre Avancement
-                if (this.filters.avancement && chantier.Avancement !== this.filters.avancement) {
-                    return false;
-                }
-                return true;
-            }
-
             // Filtre Périmètre (multi-select)
-            if (!this.filters.selectedPerimetres.includes(chantier.Perimetre)) {
-                return false;
+            // Si le chantier a un périmètre, il doit correspondre au filtre
+            // Si le chantier n'a pas de périmètre, l'inclure seulement si tous les périmètres sont sélectionnés
+            const hasPerimetre = !!chantier.Perimetre;
+            if (hasPerimetre) {
+                if (!this.filters.selectedPerimetres.includes(chantier.Perimetre)) {
+                    return false;
+                }
+            } else {
+                // Chantier sans périmètre : inclure uniquement si tous les périmètres sont sélectionnés
+                if (!allPerimetresSelected) {
+                    return false;
+                }
             }
 
             // Filtre Processus (multi-select)
-            if (!this.filters.selectedProcessus.includes(chantier.Processus)) {
-                return false;
+            // Si le chantier a un processus, il doit correspondre au filtre
+            // Si le chantier n'a PAS de processus, on l'inclut quand même (comportement Roadmap)
+            const hasProcessus = !!chantier.Processus;
+            if (hasProcessus) {
+                if (!this.filters.selectedProcessus.includes(chantier.Processus)) {
+                    return false;
+                }
             }
+            // Note : les chantiers sans processus passent ce filtre automatiquement
 
             // Filtre Sous-processus (multi-select) - uniquement si des sous-processus sont disponibles et sélectionnés
             if (availableSousProcessus.length > 0 && this.filters.selectedSousProcessus.length > 0) {
-                if (!this.filters.selectedSousProcessus.includes(chantier['Sous-processus'])) {
-                    return false;
+                const hasSousProcessus = !!chantier['Sous-processus'];
+                if (hasSousProcessus) {
+                    if (!this.filters.selectedSousProcessus.includes(chantier['Sous-processus'])) {
+                        return false;
+                    }
                 }
+                // Note : les chantiers sans sous-processus passent ce filtre automatiquement
             }
 
             // Filtre Avancement

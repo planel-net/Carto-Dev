@@ -11,8 +11,10 @@ class CarrouselPage {
         this.produits = [];
         this.processus = [];
         this.pdtProcess = [];
+        this.perimetres = [];
         this.selectedTypes = []; // Filtre sur les types de rapports (vide = tous)
         this.selectedResponsables = []; // Filtre sur les responsables (vide = tous)
+        this.selectedGroupes = []; // Filtre sur les groupes (vide = tous)
 
         // Zoom du carrousel
         this.zoomLevel = 1;
@@ -93,6 +95,23 @@ class CarrouselPage {
                 <!-- Filtres -->
                 <div class="carrousel-filters">
                     <div class="filter-group">
+                        <label class="filter-label">Groupe :</label>
+                        <div class="multi-select-wrapper" id="groupeFilterWrapper">
+                            <div class="multi-select-trigger" onclick="carrouselPageInstance.toggleGroupeFilter()">
+                                <span class="multi-select-label" id="groupeFilterLabel">Tous</span>
+                                <span class="multi-select-arrow">&#9662;</span>
+                            </div>
+                            <div class="multi-select-dropdown" id="groupeFilterDropdown" style="display: none;">
+                                <div class="multi-select-actions">
+                                    <button type="button" class="btn btn-sm" onclick="carrouselPageInstance.selectAllGroupes()">Tous</button>
+                                    <button type="button" class="btn btn-sm" onclick="carrouselPageInstance.clearGroupes()">Aucun</button>
+                                </div>
+                                <div class="multi-select-options" id="groupeFilterOptions"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="filter-group">
                         <label class="filter-label">Type de rapport :</label>
                         <div class="multi-select-wrapper" id="typeFilterWrapper">
                             <div class="multi-select-trigger" onclick="carrouselPageInstance.toggleTypeFilter()">
@@ -138,6 +157,7 @@ class CarrouselPage {
         `;
 
         await this.loadData();
+        this.renderGroupeFilter();
         this.renderTypeFilter();
         this.renderResponsableFilter();
         this.renderCarrousel();
@@ -150,19 +170,75 @@ class CarrouselPage {
      */
     async loadData() {
         try {
-            const [produitsData, processusData, pdtProcessData] = await Promise.all([
+            const [produitsData, processusData, pdtProcessData, perimetresData] = await Promise.all([
                 readTable('tProduits'),
                 readTable('tProcessus'),
-                readTable('tPdtProcess')
+                readTable('tPdtProcess'),
+                readTable('tPerimetres')
             ]);
 
             this.produits = produitsData.data || [];
             this.processus = processusData.data || [];
             this.pdtProcess = pdtProcessData.data || [];
+            this.perimetres = perimetresData.data || [];
+
+            // Initialiser selectedGroupes avec tous les groupes
+            const allGroupes = this.getAllGroupes();
+            this.selectedGroupes = [...allGroupes];
         } catch (error) {
             console.error('[Carrousel] Erreur chargement données:', error);
             showError('Erreur lors du chargement des données');
         }
+    }
+
+    /**
+     * Retourne la liste unique des groupes triés
+     */
+    getAllGroupes() {
+        return [...new Set(this.perimetres.map(p => p.Groupe))].filter(Boolean).sort();
+    }
+
+    /**
+     * Retourne les périmètres filtrés par les groupes sélectionnés
+     */
+    getFilteredPerimetres() {
+        if (this.selectedGroupes.length === 0) {
+            return [];
+        }
+        const allGroupes = this.getAllGroupes();
+        if (this.selectedGroupes.length === allGroupes.length) {
+            // Tous les groupes sélectionnés = tous les périmètres
+            return [...new Set(this.perimetres.map(p => p.Périmetre))].filter(Boolean).sort();
+        }
+        // Filtrer les périmètres par groupes sélectionnés
+        return this.perimetres
+            .filter(p => this.selectedGroupes.includes(p.Groupe))
+            .map(p => p.Périmetre)
+            .filter(Boolean)
+            .sort();
+    }
+
+    /**
+     * Rend le filtre des groupes
+     */
+    renderGroupeFilter() {
+        const container = document.getElementById('groupeFilterOptions');
+        if (!container) return;
+
+        const allGroupes = this.getAllGroupes();
+
+        // Générer les options (checkboxes)
+        container.innerHTML = allGroupes.map(groupe => `
+            <label class="multi-select-option">
+                <input type="checkbox" value="${escapeHtml(groupe)}"
+                    ${this.selectedGroupes.includes(groupe) ? 'checked' : ''}
+                    onchange="carrouselPageInstance.onGroupesChange()">
+                <span>${escapeHtml(groupe)}</span>
+            </label>
+        `).join('');
+
+        // Mettre à jour le label
+        this.updateGroupeLabel();
     }
 
     /**
@@ -191,6 +267,17 @@ class CarrouselPage {
     }
 
     /**
+     * Toggle le dropdown du filtre Groupe
+     */
+    toggleGroupeFilter() {
+        const dropdown = document.getElementById('groupeFilterDropdown');
+        if (dropdown) {
+            const isVisible = dropdown.style.display === 'block';
+            dropdown.style.display = isVisible ? 'none' : 'block';
+        }
+    }
+
+    /**
      * Toggle le dropdown du filtre Type
      */
     toggleTypeFilter() {
@@ -199,6 +286,56 @@ class CarrouselPage {
             const isVisible = dropdown.style.display === 'block';
             dropdown.style.display = isVisible ? 'none' : 'block';
         }
+    }
+
+    /**
+     * Sélectionne tous les groupes
+     */
+    selectAllGroupes() {
+        const checkboxes = document.querySelectorAll('#groupeFilterOptions input[type="checkbox"]');
+        checkboxes.forEach(cb => cb.checked = true);
+        const allGroupes = this.getAllGroupes();
+        this.selectedGroupes = [...allGroupes];
+        this.updateGroupeLabel();
+        this.renderCarrousel();
+    }
+
+    /**
+     * Désélectionne tous les groupes
+     */
+    clearGroupes() {
+        const checkboxes = document.querySelectorAll('#groupeFilterOptions input[type="checkbox"]');
+        checkboxes.forEach(cb => cb.checked = false);
+        this.selectedGroupes = [];
+        this.updateGroupeLabel();
+        this.renderCarrousel();
+    }
+
+    /**
+     * Appelé quand une checkbox de groupe change
+     */
+    onGroupesChange() {
+        const checkboxes = document.querySelectorAll('#groupeFilterOptions input[type="checkbox"]');
+        this.selectedGroupes = Array.from(checkboxes)
+            .filter(cb => cb.checked)
+            .map(cb => cb.value);
+        this.updateGroupeLabel();
+        this.renderCarrousel();
+    }
+
+    /**
+     * Met à jour le label du filtre Groupe
+     */
+    updateGroupeLabel() {
+        const label = document.getElementById('groupeFilterLabel');
+        if (!label) return;
+
+        const allGroupes = this.getAllGroupes();
+        const allSelected = this.selectedGroupes.length === allGroupes.length;
+
+        label.textContent = allSelected || this.selectedGroupes.length === 0
+            ? 'Tous'
+            : `${this.selectedGroupes.length} sélectionné(s)`;
     }
 
     /**
@@ -361,6 +498,12 @@ class CarrouselPage {
     attachGlobalEvents() {
         // Fermer les dropdowns si on clique ailleurs
         document.addEventListener('click', (e) => {
+            const groupeWrapper = document.getElementById('groupeFilterWrapper');
+            const groupeDropdown = document.getElementById('groupeFilterDropdown');
+            if (groupeWrapper && groupeDropdown && !groupeWrapper.contains(e.target)) {
+                groupeDropdown.style.display = 'none';
+            }
+
             const typeWrapper = document.getElementById('typeFilterWrapper');
             const typeDropdown = document.getElementById('typeFilterDropdown');
             if (typeWrapper && typeDropdown && !typeWrapper.contains(e.target)) {
@@ -469,7 +612,7 @@ class CarrouselPage {
     /**
      * Groupe les produits par processus (via la table tPdtProcess)
      * Gère les couples Produit/Processus distincts et évite les doublons
-     * Applique les filtres sur les types de rapports et les responsables
+     * Applique les filtres sur les groupes, types de rapports et les responsables
      */
     groupProductsByProcess() {
         const grouped = {};
@@ -484,6 +627,20 @@ class CarrouselPage {
             // Trouver le produit complet
             const produit = this.produits.find(p => p['Nom'] === produitNom);
             if (!produit) return;
+
+            // Appliquer le filtre sur les groupes (si un filtre est actif)
+            if (this.selectedGroupes.length > 0) {
+                const produitPerimetre = produit['Périmétre fonctionnel'];
+                if (produitPerimetre) {
+                    const perimetre = this.perimetres.find(p => p.Périmetre === produitPerimetre);
+                    if (!perimetre || !this.selectedGroupes.includes(perimetre.Groupe)) {
+                        return; // Ce produit ne correspond pas au filtre groupe
+                    }
+                } else {
+                    // Pas de périmètre = on filtre ce produit si un groupe est sélectionné
+                    return;
+                }
+            }
 
             // Appliquer le filtre sur les types (si un filtre est actif)
             if (this.selectedTypes.length > 0) {
@@ -801,6 +958,10 @@ class CarrouselPage {
                     textElement.style.fontWeight = '700';
                     textElement.style.fontSize = '11px';
 
+                    // Vérifier si un fond n'existe pas déjà (éviter les doublons)
+                    const existingBg = textElement.parentNode.querySelector('.carrousel-label-bg');
+                    if (existingBg) return;
+
                     // Obtenir la couleur du texte
                     const textColor = textElement.style.fill || window.getComputedStyle(textElement).fill;
 
@@ -822,12 +983,6 @@ class CarrouselPage {
 
                         // Insérer le rectangle avant le texte
                         textElement.parentNode.insertBefore(bgRect, textElement);
-
-                        // Déplacer le groupe à la fin pour le mettre au premier plan
-                        const svgContainer = group.closest('svg');
-                        if (svgContainer) {
-                            svgContainer.appendChild(group);
-                        }
                     } catch (e) {
                         console.warn('Impossible de créer le fond pour le label:', e);
                     }
