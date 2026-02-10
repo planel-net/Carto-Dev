@@ -143,7 +143,7 @@ class CarrouselPage {
         if (!container) return;
 
         // Récupérer tous les types uniques (incluant les valeurs vides pour les cides)
-        const allTypes = [...new Set(this.produits.map(p => p['Type de rapport'] || '(Vide - Cides)'))];
+        const allTypes = [...new Set(this.produits.map(p => p['Type de rapport'] || '(Vide)'))];
         allTypes.sort();
 
         // Générer les options (checkboxes)
@@ -206,7 +206,7 @@ class CarrouselPage {
         const label = document.getElementById('typeFilterLabel');
         if (!label) return;
 
-        const allTypes = [...new Set(this.produits.map(p => p['Type de rapport'] || '(Vide - Cides)'))];
+        const allTypes = [...new Set(this.produits.map(p => p['Type de rapport'] || '(Vide)'))];
         const allSelected = this.selectedTypes.length === allTypes.length;
 
         label.textContent = allSelected || this.selectedTypes.length === 0
@@ -275,7 +275,7 @@ class CarrouselPage {
 
             // Appliquer le filtre sur les types (si un filtre est actif)
             if (this.selectedTypes.length > 0) {
-                const produitType = produit['Type de rapport'] || '(Vide - Cides)';
+                const produitType = produit['Type de rapport'] || '(Vide)';
                 if (!this.selectedTypes.includes(produitType)) {
                     return; // Ce produit ne correspond pas au filtre
                 }
