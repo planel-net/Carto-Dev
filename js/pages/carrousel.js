@@ -140,8 +140,8 @@ class CarrouselPage {
         // Grouper les produits par processus (via la colonne Processus dans tProduits)
         const produitsParProcessus = this.groupProductsByProcess();
 
-        // Liste unique des processus qui ont des produits
-        const processusWithProducts = Object.keys(produitsParProcessus).sort();
+        // Trier les processus selon l'ordre défini dans tProcessus
+        const processusWithProducts = this.getSortedProcessus(produitsParProcessus);
 
         if (processusWithProducts.length === 0) {
             container.innerHTML = '<div class="carrousel-empty">Aucun produit avec processus défini</div>';
@@ -185,7 +185,34 @@ class CarrouselPage {
             }
         });
 
+        // Trier les produits par ordre alphabétique dans chaque processus
+        Object.keys(grouped).forEach(processus => {
+            grouped[processus].sort((a, b) => {
+                const nomA = (a['Nom'] || '').toLowerCase();
+                const nomB = (b['Nom'] || '').toLowerCase();
+                return nomA.localeCompare(nomB);
+            });
+        });
+
         return grouped;
+    }
+
+    /**
+     * Retourne les processus triés selon l'ordre défini dans tProcessus
+     */
+    getSortedProcessus(produitsParProcessus) {
+        const processusWithProducts = Object.keys(produitsParProcessus);
+
+        // Trier selon l'ordre défini dans la table tProcessus
+        return processusWithProducts.sort((a, b) => {
+            const procA = this.processus.find(p => p['Processus'] === a);
+            const procB = this.processus.find(p => p['Processus'] === b);
+
+            const ordreA = procA ? (procA['Ordre'] || 999) : 999;
+            const ordreB = procB ? (procB['Ordre'] || 999) : 999;
+
+            return ordreA - ordreB;
+        });
     }
 
     /**
@@ -207,7 +234,8 @@ class CarrouselPage {
         let svgParts = [];
         svgParts.push(`<svg viewBox="0 0 1000 1000" class="carrousel-svg">`);
 
-        let currentAngle = -Math.PI / 2; // Commencer en haut
+        // Commencer en haut et tourner dans le sens horaire (angle négatif)
+        let currentAngle = -Math.PI / 2;
 
         // Générer les arcs de processus (cercle intérieur)
         processusWithProducts.forEach((processus, index) => {
@@ -215,9 +243,10 @@ class CarrouselPage {
             const productCount = produits.length;
 
             // L'angle est proportionnel au nombre de produits
+            // Sens horaire : angle négatif (soustraire au lieu d'ajouter)
             const angleSpan = (productCount / totalProducts) * (2 * Math.PI);
             const startAngle = currentAngle;
-            const endAngle = currentAngle + angleSpan;
+            const endAngle = currentAngle - angleSpan;
             const midAngle = (startAngle + endAngle) / 2;
 
             // Récupérer la palette de couleurs pour ce processus
@@ -268,7 +297,8 @@ class CarrouselPage {
             const anglePerProduct = angleSpan / (productCount + 1);
 
             produits.forEach((produit, pIndex) => {
-                const productAngle = startAngle + anglePerProduct * (pIndex + 1);
+                // Sens horaire : soustraire l'angle
+                const productAngle = startAngle - anglePerProduct * (pIndex + 1);
                 const productX = cx + productRadius * Math.cos(productAngle);
                 const productY = cy + productRadius * Math.sin(productAngle);
 
@@ -288,8 +318,10 @@ class CarrouselPage {
                     textAnchor = 'end';
                 }
 
+                const produitId = `product-${index}-${pIndex}`;
+
                 svgParts.push(`
-                    <g class="carrousel-product" data-produit="${escapeHtml(produit['Nom'])}" data-row-index="${produit._rowIndex}" style="cursor: pointer;">
+                    <g class="carrousel-product" data-produit="${escapeHtml(produit['Nom'])}" data-row-index="${produit._rowIndex}" data-product-id="${produitId}">
                         <!-- Ligne processus -> cercle produit -->
                         <line
                             x1="${cx + outerRadius * Math.cos(productAngle)}"
@@ -299,7 +331,7 @@ class CarrouselPage {
                             stroke="${productCircleColor}"
                             stroke-width="1.5"
                             stroke-dasharray="3,3"
-                            style="pointer-events: none; opacity: 0.6;"
+                            class="carrousel-product-line"
                         />
                         <!-- Cercle du produit (gamme douce) -->
                         <circle
@@ -309,6 +341,7 @@ class CarrouselPage {
                             fill="${productCircleColor}"
                             stroke="#ffffff"
                             stroke-width="2"
+                            class="carrousel-product-circle"
                         />
                         <!-- Ligne cercle produit -> texte produit -->
                         <line
@@ -319,7 +352,7 @@ class CarrouselPage {
                             stroke="${productTextColor}"
                             stroke-width="1"
                             stroke-dasharray="2,2"
-                            style="pointer-events: none; opacity: 0.5;"
+                            class="carrousel-product-text-line"
                         />
                         <!-- Texte du produit (gamme intense) -->
                         <text
@@ -328,7 +361,8 @@ class CarrouselPage {
                             text-anchor="${textAnchor}"
                             dominant-baseline="middle"
                             class="carrousel-product-label"
-                            style="font-size: 11px; font-weight: 600; fill: ${productTextColor}; pointer-events: none;"
+                            data-product-id="${produitId}"
+                            style="font-size: 11px; font-weight: 600; fill: ${productTextColor};"
                         >
                             ${produit['Nom']}
                         </text>
@@ -403,10 +437,11 @@ class CarrouselPage {
 
         // Clic sur un produit
         document.querySelectorAll('.carrousel-product').forEach(group => {
-            group.addEventListener('click', async (e) => {
-                const produitNom = group.dataset.produit;
-                const rowIndex = parseInt(group.dataset.rowIndex);
+            const produitNom = group.dataset.produit;
+            const rowIndex = parseInt(group.dataset.rowIndex);
+            const productId = group.dataset.productId;
 
+            group.addEventListener('click', async (e) => {
                 const produit = this.produits.find(p => p['Nom'] === produitNom && p._rowIndex === rowIndex);
                 if (produit && typeof ProductModal !== 'undefined') {
                     await ProductModal.showEditModal(produit, rowIndex, async () => {
@@ -417,18 +452,24 @@ class CarrouselPage {
                 }
             });
 
-            // Hover effect
-            const circle = group.querySelector('circle');
-            if (circle) {
-                group.addEventListener('mouseenter', () => {
-                    circle.setAttribute('r', '24');
-                    circle.style.filter = 'brightness(1.1)';
-                });
-                group.addEventListener('mouseleave', () => {
-                    circle.setAttribute('r', '20');
-                    circle.style.filter = 'none';
-                });
-            }
+            // Hover effect : agrandir le cercle et mettre le texte en gras
+            group.addEventListener('mouseenter', () => {
+                group.classList.add('hovered');
+                // Mettre le texte correspondant en gras
+                const textElement = document.querySelector(`.carrousel-product-label[data-product-id="${productId}"]`);
+                if (textElement) {
+                    textElement.style.fontWeight = '700';
+                }
+            });
+
+            group.addEventListener('mouseleave', () => {
+                group.classList.remove('hovered');
+                // Remettre le texte en poids normal
+                const textElement = document.querySelector(`.carrousel-product-label[data-product-id="${productId}"]`);
+                if (textElement) {
+                    textElement.style.fontWeight = '600';
+                }
+            });
         });
     }
 }
