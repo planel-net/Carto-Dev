@@ -251,6 +251,10 @@ async function navigateTo(page, table = null) {
                 await renderRoadmapPage(container);
                 break;
 
+            case 'parametres-home':
+                await renderParametresHomePage(container);
+                break;
+
             case 'params':
                 if (table) {
                     await renderParamsPage(container, table);
@@ -296,6 +300,7 @@ function updatePageTitle(page, table) {
         'roadmap-gantt': { title: 'Roadmap', subtitle: 'Visualisation des projets et phases' },
         'roadmap-chantiers': { title: 'Roadmap', subtitle: 'Visualisation des projets et phases' },
         mae: { title: 'MAE', subtitle: 'Suivi des demandes Data' },
+        'parametres-home': { title: 'Paramètres', subtitle: 'Configuration des données de référence' },
         roadmap: { title: 'Ancienne Roadmap', subtitle: '' }
     };
 

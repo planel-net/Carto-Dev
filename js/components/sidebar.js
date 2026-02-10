@@ -115,7 +115,13 @@ class Sidebar {
             const itemPage = item.dataset.page;
             const itemTable = item.dataset.table;
 
-            if (itemPage === page && (!table || itemTable === table)) {
+            // Si on navigue vers une page params-*, activer l'élément "parametres-home"
+            const isParamsPage = page === 'params' || (typeof page === 'string' && page.startsWith('params-'));
+            const isParametresHome = itemPage === 'parametres-home';
+
+            if (isParamsPage && isParametresHome) {
+                item.classList.add('active');
+            } else if (itemPage === page && (!table || itemTable === table)) {
                 item.classList.add('active');
             } else {
                 item.classList.remove('active');

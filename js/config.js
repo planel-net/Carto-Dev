@@ -6,7 +6,7 @@
 const CONFIG = {
     // Nom de l'application
     APP_NAME: 'Carto',
-    APP_VERSION: '1.5.18',
+    APP_VERSION: '1.5.19',
 
     // Valeur spéciale pour filtrer les éléments sans valeur (périmètre/responsable vide)
     EMPTY_FILTER_VALUE: '(Non rempli)',
@@ -431,23 +431,60 @@ const CONFIG = {
             { id: 'mae', label: 'MAE', icon: '&#128203;', page: 'mae' }
         ],
         PARAMETRES: [
-            { id: 'flux', label: 'Flux Migration', icon: '&#128640;', table: 'FLUX' },
-            { id: 'acteurs', label: 'Acteurs', icon: '&#128100;', table: 'ACTEURS' },
-            { id: 'equipes', label: 'Équipes', icon: '&#128101;', table: 'EQUIPES' },
-            { id: 'tables-mh', label: 'Tables MHTech', icon: '&#128451;', table: 'TABLES_MH' },
-            { id: 'shores', label: 'Shores / Golds', icon: '&#128451;', table: 'SHORES' },
-            { id: 'projets-dss', label: 'Projets DSS', icon: '&#128194;', table: 'PROJETS_DSS' },
-            { id: 'dataflows', label: 'Dataflows', icon: '&#128260;', table: 'DATAFLOWS' },
-            { id: 'processus', label: 'Processus', icon: '&#128736;', table: 'PROCESSUS' },
-            { id: 'perimetres', label: 'Périmètres', icon: '&#127758;', table: 'PERIMETRES' },
-            { id: 'programmes', label: 'Programmes', icon: '&#128218;', table: 'PROGRAMMES' },
-            { id: 'sprints', label: 'Sprints', icon: '&#128197;', table: 'SPRINTS' },
-            { id: 'capacite', label: 'Capacité', icon: '&#128200;', table: 'CAPACITE' },
-            { id: 'chantiers', label: 'Chantiers', icon: '&#128736;', table: 'CHANTIER' },
-            { id: 'phases', label: 'Phases', icon: '&#128197;', table: 'PHASES' },
-            { id: 'dataana', label: 'DataAna', icon: '&#128202;', table: 'DATAANA' }
+            { id: 'parametres', label: 'Paramètres', icon: '&#9881;', page: 'parametres-home' }
         ]
     },
+
+    // Thèmes et vignettes de la page Paramètres
+    PARAMETRES_THEMES: [
+        {
+            id: 'migration',
+            label: 'Migration',
+            icon: '&#128640;',
+            color: 'var(--mh-bleu-clair)',
+            vignettes: [
+                { id: 'flux', label: 'Flux Migration', icon: '&#128640;', table: 'FLUX' },
+                { id: 'tables-mh', label: 'Tables MHTech', icon: '&#128451;', table: 'TABLES_MH' },
+                { id: 'shores', label: 'Shores / Golds', icon: '&#128451;', table: 'SHORES' },
+                { id: 'projets-dss', label: 'Projets DSS', icon: '&#128194;', table: 'PROJETS_DSS' },
+                { id: 'dataflows', label: 'Dataflows', icon: '&#128260;', table: 'DATAFLOWS' }
+            ]
+        },
+        {
+            id: 'parametres',
+            label: 'Paramètres',
+            icon: '&#9881;',
+            color: 'var(--mh-gris-fonce)',
+            vignettes: [
+                { id: 'acteurs', label: 'Acteurs', icon: '&#128100;', table: 'ACTEURS' },
+                { id: 'equipes', label: 'Équipes', icon: '&#128101;', table: 'EQUIPES' },
+                { id: 'processus', label: 'Processus', icon: '&#128736;', table: 'PROCESSUS' },
+                { id: 'perimetres', label: 'Périmètres', icon: '&#127758;', table: 'PERIMETRES' }
+            ]
+        },
+        {
+            id: 'planification',
+            label: 'Planification',
+            icon: '&#128197;',
+            color: 'var(--mh-orange)',
+            vignettes: [
+                { id: 'programmes', label: 'Programmes', icon: '&#128218;', table: 'PROGRAMMES' },
+                { id: 'sprints', label: 'Sprints', icon: '&#128197;', table: 'SPRINTS' },
+                { id: 'capacite', label: 'Capacité', icon: '&#128200;', table: 'CAPACITE' }
+            ]
+        },
+        {
+            id: 'activites',
+            label: 'Activités',
+            icon: '&#128736;',
+            color: 'var(--mh-vert-succes)',
+            vignettes: [
+                { id: 'chantiers', label: 'Chantiers', icon: '&#128736;', table: 'CHANTIER' },
+                { id: 'phases', label: 'Phases', icon: '&#128197;', table: 'PHASES' },
+                { id: 'dataana', label: 'DataAna', icon: '&#128202;', table: 'DATAANA' }
+            ]
+        }
+    ],
 
     // Pagination par défaut
     PAGINATION: {

@@ -6,16 +6,17 @@
     <title>Carto - Malakoff Humanis</title>
 
     <!-- CSS - v1.0.94 cache bust -->
-    <link rel="stylesheet" href="../css/variables.css?v=1.5.18">
-    <link rel="stylesheet" href="../css/base.css?v=1.5.18">
-    <link rel="stylesheet" href="../css/components.css?v=1.5.18">
-    <link rel="stylesheet" href="../css/notifications.css?v=1.5.18">
-    <link rel="stylesheet" href="../css/app.css?v=1.5.18">
-    <link rel="stylesheet" href="../css/dashboard.css?v=1.5.18">
-    <link rel="stylesheet" href="../css/table.css?v=1.5.18">
-    <link rel="stylesheet" href="../css/process-matrix.css?v=1.5.18">
-    <link rel="stylesheet" href="../css/mae.css?v=1.5.18">
-    <link rel="stylesheet" href="../css/synthese.css?v=1.5.18">
+    <link rel="stylesheet" href="../css/variables.css?v=1.5.19">
+    <link rel="stylesheet" href="../css/base.css?v=1.5.19">
+    <link rel="stylesheet" href="../css/components.css?v=1.5.19">
+    <link rel="stylesheet" href="../css/notifications.css?v=1.5.19">
+    <link rel="stylesheet" href="../css/app.css?v=1.5.19">
+    <link rel="stylesheet" href="../css/dashboard.css?v=1.5.19">
+    <link rel="stylesheet" href="../css/table.css?v=1.5.19">
+    <link rel="stylesheet" href="../css/process-matrix.css?v=1.5.19">
+    <link rel="stylesheet" href="../css/mae.css?v=1.5.19">
+    <link rel="stylesheet" href="../css/synthese.css?v=1.5.19">
+    <link rel="stylesheet" href="../css/parametres-home.css?v=1.5.19">
 </head>
 <body class="fullscreen-app">
     <!-- Badge environnement -->
@@ -71,65 +72,9 @@
                 <!-- Section Paramètres -->
                 <div class="nav-section">
                     <div class="nav-section-title"><span>Paramètres</span></div>
-                    <div class="nav-item" data-page="params" data-table="FLUX" data-tooltip="Flux Migration">
-                        <span class="nav-item-icon">&#128640;</span>
-                        <span class="nav-item-text">Flux Migration</span>
-                    </div>
-                    <div class="nav-item" data-page="params" data-table="ACTEURS" data-tooltip="Acteurs">
-                        <span class="nav-item-icon">&#128100;</span>
-                        <span class="nav-item-text">Acteurs</span>
-                    </div>
-                    <div class="nav-item" data-page="params" data-table="EQUIPES" data-tooltip="Équipes">
-                        <span class="nav-item-icon">&#128101;</span>
-                        <span class="nav-item-text">Équipes</span>
-                    </div>
-                    <div class="nav-item" data-page="params" data-table="TABLES_MH" data-tooltip="Tables MHTech">
-                        <span class="nav-item-icon">&#128451;</span>
-                        <span class="nav-item-text">Tables MHTech</span>
-                    </div>
-                    <div class="nav-item" data-page="params" data-table="SHORES" data-tooltip="Shores / Golds">
-                        <span class="nav-item-icon">&#128451;</span>
-                        <span class="nav-item-text">Shores / Golds</span>
-                    </div>
-                    <div class="nav-item" data-page="params" data-table="PROJETS_DSS" data-tooltip="Projets DSS">
-                        <span class="nav-item-icon">&#128194;</span>
-                        <span class="nav-item-text">Projets DSS</span>
-                    </div>
-                    <div class="nav-item" data-page="params" data-table="DATAFLOWS" data-tooltip="Dataflows">
-                        <span class="nav-item-icon">&#128260;</span>
-                        <span class="nav-item-text">Dataflows</span>
-                    </div>
-                    <div class="nav-item" data-page="params" data-table="PROCESSUS" data-tooltip="Processus">
-                        <span class="nav-item-icon">&#128736;</span>
-                        <span class="nav-item-text">Processus</span>
-                    </div>
-                    <div class="nav-item" data-page="params" data-table="PERIMETRES" data-tooltip="Périmètres">
-                        <span class="nav-item-icon">&#127758;</span>
-                        <span class="nav-item-text">Périmètres</span>
-                    </div>
-                    <div class="nav-item" data-page="params" data-table="PROGRAMMES" data-tooltip="Programmes">
-                        <span class="nav-item-icon">&#128218;</span>
-                        <span class="nav-item-text">Programmes</span>
-                    </div>
-                    <div class="nav-item" data-page="params" data-table="SPRINTS" data-tooltip="Sprints">
-                        <span class="nav-item-icon">&#128197;</span>
-                        <span class="nav-item-text">Sprints</span>
-                    </div>
-                    <div class="nav-item" data-page="params" data-table="CAPACITE" data-tooltip="Capacité">
-                        <span class="nav-item-icon">&#128200;</span>
-                        <span class="nav-item-text">Capacité</span>
-                    </div>
-                    <div class="nav-item" data-page="params" data-table="CHANTIER" data-tooltip="Chantiers">
-                        <span class="nav-item-icon">&#128736;</span>
-                        <span class="nav-item-text">Chantiers</span>
-                    </div>
-                    <div class="nav-item" data-page="params" data-table="PHASES" data-tooltip="Phases">
-                        <span class="nav-item-icon">&#128197;</span>
-                        <span class="nav-item-text">Phases</span>
-                    </div>
-                    <div class="nav-item" data-page="params" data-table="DATAANA" data-tooltip="DataAna">
-                        <span class="nav-item-icon">&#128202;</span>
-                        <span class="nav-item-text">DataAna</span>
+                    <div class="nav-item" data-page="parametres-home" data-tooltip="Paramètres">
+                        <span class="nav-item-icon">&#9881;</span>
+                        <span class="nav-item-text">Paramètres</span>
                     </div>
                 </div>
             </nav>
@@ -196,29 +141,30 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js"></script>
     <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
-    <script src="../js/config.js?v=1.5.18"></script>
-    <script src="../js/utils/helpers.js?v=1.5.18"></script>
-    <script src="../js/utils/notifications.js?v=1.5.18"></script>
-    <script src="../js/utils/persistent-cache.js?v=1.5.18"></script>
-    <script src="../js/utils/excel-bridge.js?v=1.5.18"></script>
-    <script src="../js/components/sidebar.js?v=1.5.18"></script>
-    <script src="../js/components/modal.js?v=1.5.18"></script>
-    <script src="../js/components/form.js?v=1.5.18"></script>
-    <script src="../js/components/phase-modal.js?v=1.5.18"></script>
-    <script src="../js/components/chantier-modal.js?v=1.5.18"></script>
-    <script src="../js/components/mae-modal.js?v=1.5.18"></script>
-    <script src="../js/components/product-modal.js?v=1.5.18"></script>
-    <script src="../js/components/table.js?v=1.5.18"></script>
-    <script src="../js/components/chart.js?v=1.5.18"></script>
-    <script src="../js/components/lineage-modal.js?v=1.5.18"></script>
-    <script src="../js/pages/migration.js?v=1.5.18"></script>
-    <script src="../js/pages/parc.js?v=1.5.18"></script>
-    <script src="../js/pages/roadmap.js?v=1.5.18"></script>
-    <script src="../js/pages/roadmap-gantt.js?v=1.5.18"></script>
-    <script src="../js/pages/roadmap-chantiers.js?v=1.5.18"></script>
-    <script src="../js/pages/mae.js?v=1.5.18"></script>
-    <script src="../js/pages/synthese.js?v=1.5.18"></script>
-    <script src="../js/pages/params.js?v=1.5.18"></script>
-    <script src="../js/app.js?v=1.5.18"></script>
+    <script src="../js/config.js?v=1.5.19"></script>
+    <script src="../js/utils/helpers.js?v=1.5.19"></script>
+    <script src="../js/utils/notifications.js?v=1.5.19"></script>
+    <script src="../js/utils/persistent-cache.js?v=1.5.19"></script>
+    <script src="../js/utils/excel-bridge.js?v=1.5.19"></script>
+    <script src="../js/components/sidebar.js?v=1.5.19"></script>
+    <script src="../js/components/modal.js?v=1.5.19"></script>
+    <script src="../js/components/form.js?v=1.5.19"></script>
+    <script src="../js/components/phase-modal.js?v=1.5.19"></script>
+    <script src="../js/components/chantier-modal.js?v=1.5.19"></script>
+    <script src="../js/components/mae-modal.js?v=1.5.19"></script>
+    <script src="../js/components/product-modal.js?v=1.5.19"></script>
+    <script src="../js/components/table.js?v=1.5.19"></script>
+    <script src="../js/components/chart.js?v=1.5.19"></script>
+    <script src="../js/components/lineage-modal.js?v=1.5.19"></script>
+    <script src="../js/pages/migration.js?v=1.5.19"></script>
+    <script src="../js/pages/parc.js?v=1.5.19"></script>
+    <script src="../js/pages/roadmap.js?v=1.5.19"></script>
+    <script src="../js/pages/roadmap-gantt.js?v=1.5.19"></script>
+    <script src="../js/pages/roadmap-chantiers.js?v=1.5.19"></script>
+    <script src="../js/pages/mae.js?v=1.5.19"></script>
+    <script src="../js/pages/synthese.js?v=1.5.19"></script>
+    <script src="../js/pages/params.js?v=1.5.19"></script>
+    <script src="../js/pages/parametres-home.js?v=1.5.19"></script>
+    <script src="../js/app.js?v=1.5.19"></script>
 </body>
 </html>

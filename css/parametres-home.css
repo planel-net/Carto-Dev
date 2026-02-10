@@ -1,0 +1,201 @@
+/* ===========================================
+   PARAMETRES-HOME.CSS - Page d'accueil Paramètres
+   =========================================== */
+
+.parametres-home-page {
+    padding: var(--spacing-lg);
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.parametres-home-page .page-header {
+    margin-bottom: var(--spacing-xl);
+    padding-bottom: var(--spacing-md);
+    border-bottom: 2px solid var(--mh-gris-clair);
+}
+
+.parametres-home-page .page-header h1 {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    color: var(--mh-bleu-fonce);
+    font-size: 28px;
+    font-weight: 600;
+    margin: 0 0 var(--spacing-sm) 0;
+}
+
+.parametres-home-page .page-header .icon {
+    font-size: 32px;
+}
+
+.parametres-home-page .page-description {
+    color: var(--mh-gris-moyen);
+    font-size: 15px;
+    margin: 0;
+}
+
+/* === Thèmes === */
+
+.themes-container {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xl);
+}
+
+.theme-section {
+    background: white;
+    border-radius: var(--border-radius-lg);
+    padding: var(--spacing-lg);
+    box-shadow: var(--shadow-sm);
+}
+
+.theme-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+    padding-bottom: var(--spacing-md);
+    border-bottom: 2px solid var(--mh-gris-clair);
+}
+
+.theme-icon {
+    font-size: 28px;
+    line-height: 1;
+}
+
+.theme-title {
+    color: var(--mh-bleu-fonce);
+    font-size: 22px;
+    font-weight: 600;
+    margin: 0;
+}
+
+/* === Grille de vignettes === */
+
+.vignettes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: var(--spacing-lg);
+}
+
+/* === Vignette === */
+
+.vignette-card {
+    position: relative;
+    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+    border: 2px solid var(--mh-gris-clair);
+    border-radius: var(--border-radius-md);
+    padding: var(--spacing-lg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-md);
+    min-height: 140px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+.vignette-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--mh-bleu-clair);
+}
+
+.vignette-icon {
+    font-size: 40px;
+    line-height: 1;
+    transition: transform 0.3s ease;
+}
+
+.vignette-card:hover .vignette-icon {
+    transform: scale(1.15);
+}
+
+.vignette-label {
+    color: var(--mh-bleu-fonce);
+    font-size: 15px;
+    font-weight: 600;
+    text-align: center;
+    line-height: 1.3;
+}
+
+/* === Overlay au survol === */
+
+.vignette-hover-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(0, 102, 204, 0.95) 0%, rgba(0, 51, 102, 0.95) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+}
+
+.vignette-card:hover .vignette-hover-overlay {
+    opacity: 1;
+}
+
+.vignette-cta {
+    color: white;
+    font-size: 16px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* === Responsive === */
+
+@media (max-width: 1200px) {
+    .vignettes-grid {
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    .parametres-home-page {
+        padding: var(--spacing-md);
+    }
+
+    .vignettes-grid {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: var(--spacing-md);
+    }
+
+    .vignette-card {
+        min-height: 120px;
+        padding: var(--spacing-md);
+    }
+
+    .vignette-icon {
+        font-size: 32px;
+    }
+
+    .vignette-label {
+        font-size: 14px;
+    }
+
+    .theme-title {
+        font-size: 20px;
+    }
+}
+
+@media (max-width: 480px) {
+    .vignettes-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .parametres-home-page .page-header h1 {
+        font-size: 24px;
+    }
+
+    .theme-title {
+        font-size: 18px;
+    }
+}
