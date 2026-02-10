@@ -144,7 +144,7 @@ const ProductModal = {
 
         const modal = new Modal({
             title,
-            size: 'lg',
+            size: 'xl',
             content,
             confirmText: isEdit ? 'Modifier' : 'Ajouter',
             onConfirm: async () => {
