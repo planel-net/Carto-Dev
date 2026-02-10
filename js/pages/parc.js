@@ -23,11 +23,6 @@ class ParcPage {
             selectedProcessus: [], // Processus selectionnes (vide = tous)
             selectedSubProcessus: [] // Sous-processus selectionnes (vide = tous)
         };
-        // Zoom de la matrice
-        this.zoomLevel = 1;
-        this.minZoom = 0.5;
-        this.maxZoom = 2.0;
-        this.zoomStep = 0.1;
     }
 
     /**
@@ -566,9 +561,6 @@ class ParcPage {
                     <span class="legend-color backlog"></span>
                     <span>Backlog</span>
                 </div>
-                <div class="matrix-zoom-hint" title="Maintenez Ctrl (ou Cmd sur Mac) + molette pour zoomer">
-                    🔍 Ctrl + molette = zoom
-                </div>
             </div>
         `;
     }
@@ -712,12 +704,6 @@ class ParcPage {
             cell.addEventListener('click', (e) => this.onCellClick(e, cell));
         });
 
-        // Zoom avec molette + Ctrl/Cmd
-        const wrapper = document.querySelector('.process-matrix-table-wrapper');
-        if (wrapper) {
-            wrapper.addEventListener('wheel', (e) => this.onMatrixWheel(e), { passive: false });
-        }
-
         // Fermer le popup et les dropdowns si click en dehors
         document.addEventListener('click', (e) => {
             const popup = document.getElementById('statusPopup');
@@ -730,61 +716,6 @@ class ParcPage {
                 this.closeAllDropdowns();
             }
         });
-    }
-
-    /**
-     * Gestion du zoom avec la molette
-     */
-    onMatrixWheel(event) {
-        // Ctrl (Windows/Linux) ou Cmd (Mac) pour zoomer
-        if (!event.ctrlKey && !event.metaKey) {
-            return;
-        }
-
-        event.preventDefault();
-
-        const wrapper = event.currentTarget;
-        const table = wrapper.querySelector('.process-matrix-table');
-        if (!table) return;
-
-        // Calculer le nouveau niveau de zoom
-        const delta = event.deltaY > 0 ? -this.zoomStep : this.zoomStep;
-        const newZoom = Math.max(this.minZoom, Math.min(this.maxZoom, this.zoomLevel + delta));
-
-        if (newZoom === this.zoomLevel) return;
-
-        // Position de la souris relative au wrapper
-        const rect = wrapper.getBoundingClientRect();
-        const mouseX = event.clientX - rect.left;
-        const mouseY = event.clientY - rect.top;
-
-        // Position de scroll actuelle
-        const scrollLeft = wrapper.scrollLeft;
-        const scrollTop = wrapper.scrollTop;
-
-        // Point focal dans le contenu (avant zoom)
-        const focusX = (scrollLeft + mouseX) / this.zoomLevel;
-        const focusY = (scrollTop + mouseY) / this.zoomLevel;
-
-        // Appliquer le nouveau zoom
-        this.zoomLevel = newZoom;
-        table.style.transform = `scale(${this.zoomLevel})`;
-        table.style.transformOrigin = '0 0';
-
-        // Ajuster le scroll pour garder le point focal sous la souris
-        wrapper.scrollLeft = focusX * this.zoomLevel - mouseX;
-        wrapper.scrollTop = focusY * this.zoomLevel - mouseY;
-    }
-
-    /**
-     * Reinitialise le zoom
-     */
-    resetZoom() {
-        this.zoomLevel = 1;
-        const table = document.querySelector('.process-matrix-table');
-        if (table) {
-            table.style.transform = 'scale(1)';
-        }
     }
 
     /**
@@ -1361,9 +1292,6 @@ class ParcPage {
         const wrapper = document.querySelector('.process-matrix-table-wrapper');
         if (!wrapper) return;
 
-        // Réinitialiser le zoom
-        this.resetZoom();
-
         const structuredProcessus = this.getStructuredProcessus();
         const filteredStructuredProcessus = this.getFilteredStructuredProcessus(structuredProcessus);
         const filteredProducts = this.getFilteredProducts();
@@ -1572,9 +1500,6 @@ class ParcPage {
             this.clearSelection();
             // Re-rendre la liste avec les filtres actuels
             this.refreshListView();
-        } else if (view === 'process') {
-            // Réinitialiser le zoom quand on revient à la vue processus
-            this.resetZoom();
         }
     }
 

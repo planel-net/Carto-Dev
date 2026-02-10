@@ -14,12 +14,36 @@
     border-radius: var(--border-radius-md);
     padding: var(--spacing-md);
     margin-bottom: var(--spacing-md);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    flex-wrap: wrap;
 }
 
 .filter-group {
     display: flex;
     align-items: center;
-    gap: var(--spacing-md);
+    gap: var(--spacing-sm);
+}
+
+/* Indicateur de zoom */
+.carrousel-zoom-hint {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: var(--mh-gris-moyen);
+    padding: 4px 10px;
+    background: rgba(0, 102, 204, 0.05);
+    border-radius: var(--border-radius-sm);
+    border: 1px solid rgba(0, 102, 204, 0.15);
+    cursor: help;
+    margin-left: auto;
+}
+
+.carrousel-zoom-hint:hover {
+    background: rgba(0, 102, 204, 0.1);
+    border-color: rgba(0, 102, 204, 0.3);
 }
 
 .filter-label {
@@ -128,12 +152,21 @@
     justify-content: center;
     align-items: center;
     min-height: 750px;
+    overflow: auto;
+    cursor: grab;
+    position: relative;
+}
+
+.carrousel-container:active {
+    cursor: grabbing;
 }
 
 .carrousel-diagram {
     width: 100%;
     max-width: 900px;
     margin: 0 auto;
+    transform-origin: 0 0;
+    transition: transform 0.1s ease-out;
 }
 
 .carrousel-svg {

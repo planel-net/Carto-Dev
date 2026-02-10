@@ -12,6 +12,13 @@ class CarrouselPage {
         this.processus = [];
         this.pdtProcess = [];
         this.selectedTypes = []; // Filtre sur les types de rapports (vide = tous)
+        this.selectedResponsables = []; // Filtre sur les responsables (vide = tous)
+
+        // Zoom du carrousel
+        this.zoomLevel = 1;
+        this.minZoom = 0.5;
+        this.maxZoom = 2.0;
+        this.zoomStep = 0.1;
 
         // Palette de couleurs Malakoff Humanis (3 gammes par couleur)
         // Chaque couleur a : pastel (processus), douce (cercle produit), intense (texte produit)
@@ -83,7 +90,7 @@ class CarrouselPage {
 
         container.innerHTML = `
             <div class="carrousel-page">
-                <!-- Filtre Type de rapport -->
+                <!-- Filtres -->
                 <div class="carrousel-filters">
                     <div class="filter-group">
                         <label class="filter-label">Type de rapport :</label>
@@ -101,6 +108,27 @@ class CarrouselPage {
                             </div>
                         </div>
                     </div>
+
+                    <div class="filter-group">
+                        <label class="filter-label">Responsable :</label>
+                        <div class="multi-select-wrapper" id="responsableFilterWrapper">
+                            <div class="multi-select-trigger" onclick="carrouselPageInstance.toggleResponsableFilter()">
+                                <span class="multi-select-label" id="responsableFilterLabel">Tous</span>
+                                <span class="multi-select-arrow">&#9662;</span>
+                            </div>
+                            <div class="multi-select-dropdown" id="responsableFilterDropdown" style="display: none;">
+                                <div class="multi-select-actions">
+                                    <button type="button" class="btn btn-sm" onclick="carrouselPageInstance.selectAllResponsables()">Tous</button>
+                                    <button type="button" class="btn btn-sm" onclick="carrouselPageInstance.clearAllResponsables()">Aucun</button>
+                                </div>
+                                <div class="multi-select-options" id="responsableFilterOptions"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="carrousel-zoom-hint" title="Maintenez Ctrl (ou Cmd sur Mac) + molette pour zoomer">
+                        🔍 Ctrl + molette = zoom
+                    </div>
                 </div>
 
                 <div class="carrousel-container">
@@ -111,8 +139,10 @@ class CarrouselPage {
 
         await this.loadData();
         this.renderTypeFilter();
+        this.renderResponsableFilter();
         this.renderCarrousel();
         this.attachGlobalEvents();
+        this.attachZoomEvents();
     }
 
     /**
@@ -215,17 +245,199 @@ class CarrouselPage {
     }
 
     /**
+     * Rend le filtre des responsables
+     */
+    renderResponsableFilter() {
+        const container = document.getElementById('responsableFilterOptions');
+        if (!container) return;
+
+        // Récupérer tous les responsables uniques (incluant les valeurs vides)
+        const responsablesSet = new Set();
+        let hasEmpty = false;
+
+        this.produits.forEach(p => {
+            const resp = p['Responsable'];
+            if (resp && resp.trim() !== '') {
+                responsablesSet.add(resp);
+            } else {
+                hasEmpty = true;
+            }
+        });
+
+        const allResponsables = Array.from(responsablesSet).sort();
+        if (hasEmpty) {
+            allResponsables.unshift(CONFIG.EMPTY_FILTER_VALUE);
+        }
+
+        // Générer les options (checkboxes)
+        container.innerHTML = allResponsables.map(resp => {
+            const isEmptyValue = resp === CONFIG.EMPTY_FILTER_VALUE;
+            const label = isEmptyValue ? '(vide)' : formatActorName(resp);
+            return `
+                <label class="multi-select-option">
+                    <input type="checkbox" value="${escapeHtml(resp)}"
+                        ${this.selectedResponsables.length === 0 || this.selectedResponsables.includes(resp) ? 'checked' : ''}
+                        onchange="carrouselPageInstance.onResponsableCheckChange()">
+                    <span>${escapeHtml(label)}</span>
+                </label>
+            `;
+        }).join('');
+
+        // Mettre à jour le label
+        this.updateResponsableFilterLabel();
+    }
+
+    /**
+     * Toggle le dropdown du filtre Responsable
+     */
+    toggleResponsableFilter() {
+        const dropdown = document.getElementById('responsableFilterDropdown');
+        if (dropdown) {
+            const isVisible = dropdown.style.display === 'block';
+            dropdown.style.display = isVisible ? 'none' : 'block';
+        }
+    }
+
+    /**
+     * Sélectionne tous les responsables
+     */
+    selectAllResponsables() {
+        const checkboxes = document.querySelectorAll('#responsableFilterOptions input[type="checkbox"]');
+        checkboxes.forEach(cb => cb.checked = true);
+        this.onResponsableCheckChange();
+    }
+
+    /**
+     * Désélectionne tous les responsables
+     */
+    clearAllResponsables() {
+        const checkboxes = document.querySelectorAll('#responsableFilterOptions input[type="checkbox"]');
+        checkboxes.forEach(cb => cb.checked = false);
+        this.onResponsableCheckChange();
+    }
+
+    /**
+     * Appelé quand une checkbox de responsable change
+     */
+    onResponsableCheckChange() {
+        const checkboxes = document.querySelectorAll('#responsableFilterOptions input[type="checkbox"]:checked');
+        this.selectedResponsables = Array.from(checkboxes).map(cb => cb.value);
+        this.updateResponsableFilterLabel();
+        this.renderCarrousel();
+    }
+
+    /**
+     * Met à jour le label du filtre Responsable
+     */
+    updateResponsableFilterLabel() {
+        const label = document.getElementById('responsableFilterLabel');
+        if (!label) return;
+
+        const responsablesSet = new Set();
+        let hasEmpty = false;
+
+        this.produits.forEach(p => {
+            const resp = p['Responsable'];
+            if (resp && resp.trim() !== '') {
+                responsablesSet.add(resp);
+            } else {
+                hasEmpty = true;
+            }
+        });
+
+        const allResponsables = Array.from(responsablesSet);
+        if (hasEmpty) allResponsables.push(CONFIG.EMPTY_FILTER_VALUE);
+
+        const allSelected = this.selectedResponsables.length === allResponsables.length;
+
+        label.textContent = allSelected || this.selectedResponsables.length === 0
+            ? 'Tous'
+            : `${this.selectedResponsables.length} sélectionné(s)`;
+    }
+
+    /**
      * Attache les événements globaux (fermer dropdown si clic extérieur)
      */
     attachGlobalEvents() {
-        // Fermer le dropdown si on clique ailleurs
+        // Fermer les dropdowns si on clique ailleurs
         document.addEventListener('click', (e) => {
-            const wrapper = document.getElementById('typeFilterWrapper');
-            const dropdown = document.getElementById('typeFilterDropdown');
-            if (wrapper && dropdown && !wrapper.contains(e.target)) {
-                dropdown.style.display = 'none';
+            const typeWrapper = document.getElementById('typeFilterWrapper');
+            const typeDropdown = document.getElementById('typeFilterDropdown');
+            if (typeWrapper && typeDropdown && !typeWrapper.contains(e.target)) {
+                typeDropdown.style.display = 'none';
+            }
+
+            const respWrapper = document.getElementById('responsableFilterWrapper');
+            const respDropdown = document.getElementById('responsableFilterDropdown');
+            if (respWrapper && respDropdown && !respWrapper.contains(e.target)) {
+                respDropdown.style.display = 'none';
             }
         });
+    }
+
+    /**
+     * Attache les événements de zoom
+     */
+    attachZoomEvents() {
+        const container = document.querySelector('.carrousel-container');
+        if (container) {
+            container.addEventListener('wheel', (e) => this.onCarrouselWheel(e), { passive: false });
+        }
+    }
+
+    /**
+     * Gestion du zoom avec la molette
+     */
+    onCarrouselWheel(event) {
+        // Ctrl (Windows/Linux) ou Cmd (Mac) pour zoomer
+        if (!event.ctrlKey && !event.metaKey) {
+            return;
+        }
+
+        event.preventDefault();
+
+        const container = event.currentTarget;
+        const diagram = container.querySelector('.carrousel-diagram');
+        if (!diagram) return;
+
+        // Calculer le nouveau niveau de zoom
+        const delta = event.deltaY > 0 ? -this.zoomStep : this.zoomStep;
+        const newZoom = Math.max(this.minZoom, Math.min(this.maxZoom, this.zoomLevel + delta));
+
+        if (newZoom === this.zoomLevel) return;
+
+        // Position de la souris relative au container
+        const rect = container.getBoundingClientRect();
+        const mouseX = event.clientX - rect.left;
+        const mouseY = event.clientY - rect.top;
+
+        // Position de scroll actuelle
+        const scrollLeft = container.scrollLeft;
+        const scrollTop = container.scrollTop;
+
+        // Point focal dans le contenu (avant zoom)
+        const focusX = (scrollLeft + mouseX) / this.zoomLevel;
+        const focusY = (scrollTop + mouseY) / this.zoomLevel;
+
+        // Appliquer le nouveau zoom
+        this.zoomLevel = newZoom;
+        diagram.style.transform = `scale(${this.zoomLevel})`;
+        diagram.style.transformOrigin = '0 0';
+
+        // Ajuster le scroll pour garder le point focal sous la souris
+        container.scrollLeft = focusX * this.zoomLevel - mouseX;
+        container.scrollTop = focusY * this.zoomLevel - mouseY;
+    }
+
+    /**
+     * Réinitialise le zoom
+     */
+    resetZoom() {
+        this.zoomLevel = 1;
+        const diagram = document.querySelector('.carrousel-diagram');
+        if (diagram) {
+            diagram.style.transform = 'scale(1)';
+        }
     }
 
     /**
@@ -257,7 +469,7 @@ class CarrouselPage {
     /**
      * Groupe les produits par processus (via la table tPdtProcess)
      * Gère les couples Produit/Processus distincts et évite les doublons
-     * Applique le filtre sur les types de rapports
+     * Applique les filtres sur les types de rapports et les responsables
      */
     groupProductsByProcess() {
         const grouped = {};
@@ -277,6 +489,17 @@ class CarrouselPage {
             if (this.selectedTypes.length > 0) {
                 const produitType = produit['Type de rapport'] || '(Vide)';
                 if (!this.selectedTypes.includes(produitType)) {
+                    return; // Ce produit ne correspond pas au filtre
+                }
+            }
+
+            // Appliquer le filtre sur les responsables (si un filtre est actif)
+            if (this.selectedResponsables.length > 0) {
+                const produitResp = produit['Responsable'];
+                const isEmptyResp = !produitResp || produitResp.trim() === '';
+                const respValue = isEmptyResp ? CONFIG.EMPTY_FILTER_VALUE : produitResp;
+
+                if (!this.selectedResponsables.includes(respValue)) {
                     return; // Ce produit ne correspond pas au filtre
                 }
             }
