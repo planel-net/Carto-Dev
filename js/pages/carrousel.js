@@ -787,7 +787,7 @@ class CarrouselPage {
                 }
             });
 
-            // Hover effect : agrandir le cercle et mettre le texte en gras et plus gros
+            // Hover effect : agrandir le cercle et mettre le texte en gras et plus gros avec fond blanc
             group.addEventListener('mouseenter', () => {
                 group.classList.add('hovered');
                 // Agrandir le cercle en changeant son rayon
@@ -795,11 +795,42 @@ class CarrouselPage {
                 if (circle) {
                     circle.setAttribute('r', '20');
                 }
-                // Mettre le texte correspondant en gras et plus gros
+                // Mettre le texte correspondant en gras et plus gros avec fond blanc
                 const textElement = document.querySelector(`.carrousel-product-label[data-product-id="${productId}"]`);
                 if (textElement) {
                     textElement.style.fontWeight = '700';
                     textElement.style.fontSize = '11px';
+
+                    // Obtenir la couleur du texte
+                    const textColor = textElement.style.fill || window.getComputedStyle(textElement).fill;
+
+                    // Créer un rectangle de fond blanc avec bordure colorée
+                    try {
+                        const bbox = textElement.getBBox();
+                        const padding = 4;
+
+                        const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                        bgRect.setAttribute('x', bbox.x - padding);
+                        bgRect.setAttribute('y', bbox.y - padding);
+                        bgRect.setAttribute('width', bbox.width + padding * 2);
+                        bgRect.setAttribute('height', bbox.height + padding * 2);
+                        bgRect.setAttribute('fill', 'white');
+                        bgRect.setAttribute('stroke', textColor);
+                        bgRect.setAttribute('stroke-width', '1.5');
+                        bgRect.setAttribute('rx', '3');
+                        bgRect.classList.add('carrousel-label-bg');
+
+                        // Insérer le rectangle avant le texte
+                        textElement.parentNode.insertBefore(bgRect, textElement);
+
+                        // Déplacer le groupe à la fin pour le mettre au premier plan
+                        const svgContainer = group.closest('svg');
+                        if (svgContainer) {
+                            svgContainer.appendChild(group);
+                        }
+                    } catch (e) {
+                        console.warn('Impossible de créer le fond pour le label:', e);
+                    }
                 }
             });
 
@@ -810,11 +841,17 @@ class CarrouselPage {
                 if (circle) {
                     circle.setAttribute('r', '15');
                 }
-                // Remettre le texte en poids et taille normaux
+                // Remettre le texte en poids et taille normaux et supprimer le fond
                 const textElement = document.querySelector(`.carrousel-product-label[data-product-id="${productId}"]`);
                 if (textElement) {
                     textElement.style.fontWeight = '600';
                     textElement.style.fontSize = '9px';
+
+                    // Supprimer le rectangle de fond
+                    const bgRect = textElement.parentNode.querySelector('.carrousel-label-bg');
+                    if (bgRect) {
+                        bgRect.remove();
+                    }
                 }
             });
         });
