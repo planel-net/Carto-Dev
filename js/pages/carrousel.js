@@ -550,7 +550,7 @@ class CarrouselPage {
      */
     generateSVG(processusWithProducts, produitsParProcessus) {
         const cx = 450; // Centre X
-        const cy = 450; // Centre Y
+        const cy = 500; // Centre Y (décalé vers le bas pour plus d'espace en haut et en bas)
         const innerRadius = 100; // Rayon intérieur (processus)
         const outerRadius = 260; // Rayon extérieur (fin des arcs processus)
         const productRadius = 290; // Rayon pour les cercles produits
@@ -562,7 +562,7 @@ class CarrouselPage {
         }, 0);
 
         let svgParts = [];
-        svgParts.push(`<svg viewBox="0 0 900 900" class="carrousel-svg">`);
+        svgParts.push(`<svg viewBox="0 0 900 1050" class="carrousel-svg">`);
 
         // Commencer en haut et tourner dans le sens horaire (angle positif)
         let currentAngle = -Math.PI / 2;
