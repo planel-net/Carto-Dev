@@ -11,7 +11,7 @@
     <Version>1.0.17.0</Version>
     <ProviderName>Malakoff Humanis</ProviderName>
     <DefaultLocale>fr-FR</DefaultLocale>
-    <DisplayName DefaultValue="Carto (DEV)"/>
+    <DisplayName DefaultValue="Cartographie"/>
     <Description DefaultValue="Application de pilotage du parc applicatif et de la migration - Environnement de développement"/>
 
     <IconUrl DefaultValue="https://planel-net.github.io/Carto-Dev/assets/icons/icon-32.png"/>
