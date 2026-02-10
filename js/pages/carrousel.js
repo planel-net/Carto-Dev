@@ -12,18 +12,63 @@ class CarrouselPage {
         this.processus = [];
         this.pdtProcess = [];
 
-        // Couleurs pastel de la charte MH (une par processus)
-        this.processColors = [
-            '#FFF2F0', // Corail pastel
-            '#E0F1F8', // Bleu pastel
-            '#EEE7F9', // Violet pastel
-            '#DEF7F7', // Turquoise pastel
-            '#FDF0F7', // Rose pastel
-            '#F9F4B9', // Jaune pastel
-            '#E1FBF6', // Vert pastel
-            '#F9EFEB', // Rose chair pastel
-            '#F9F7F6', // Gris sable pastel
-            '#FAF7F3'  // Gris sable 20%
+        // Palette de couleurs Malakoff Humanis (3 gammes par couleur)
+        // Chaque couleur a : pastel (processus), douce (cercle produit), intense (texte produit)
+        this.colorPalette = [
+            {
+                name: 'Corail',
+                pastel: '#FFF2F0',   // mh-corail-pastel
+                douce: '#F3A89E',    // mh-corail-dark
+                intense: '#E2250C'   // mh-corail-brand
+            },
+            {
+                name: 'Bleu',
+                pastel: '#E0F1F8',   // mh-bleu-pastel
+                douce: '#BDE3F2',    // mh-bleu-light
+                intense: '#1A283E'   // mh-bleu-dark
+            },
+            {
+                name: 'Violet',
+                pastel: '#EEE7F9',   // mh-violet-pastel
+                douce: '#AA89E3',    // mh-violet-light
+                intense: '#5514C7'   // mh-violet-dark
+            },
+            {
+                name: 'Turquoise',
+                pastel: '#DEF7F7',   // mh-bleu-turquoise-pastel
+                douce: '#5AD5D9',    // mh-bleu-turquoise-light
+                intense: '#006374'   // mh-bleu-turquoise-dark
+            },
+            {
+                name: 'Rose',
+                pastel: '#FDF0F7',   // mh-rose-pastel
+                douce: '#F4B5D4',    // mh-rose-light
+                intense: '#D81E88'   // mh-rose-dark
+            },
+            {
+                name: 'Jaune',
+                pastel: '#F9F4B9',   // mh-jaune-pastel
+                douce: '#F4EC5B',    // mh-jaune-light
+                intense: '#F9BD00'   // mh-jaune-dark
+            },
+            {
+                name: 'Vert',
+                pastel: '#E1FBF6',   // mh-vert-pastel
+                douce: '#03DFB2',    // mh-vert-light
+                intense: '#008275'   // mh-vert-dark
+            },
+            {
+                name: 'Rose Chair',
+                pastel: '#F9EFEB',   // mh-rose-chair-pastel
+                douce: '#F9E2DB',    // mh-rose-chair-light-40
+                intense: '#F0B7A5'   // mh-rose-chair-light
+            },
+            {
+                name: 'Gris Sable',
+                pastel: '#F9F7F6',   // mh-gris-sable-pastel
+                douce: '#F4EFE7',    // mh-gris-sable-dark-40
+                intense: '#E4D8C4'   // mh-gris-sable-dark
+            }
         ];
     }
 
@@ -175,7 +220,9 @@ class CarrouselPage {
             const endAngle = currentAngle + angleSpan;
             const midAngle = (startAngle + endAngle) / 2;
 
-            const color = this.processColors[index % this.processColors.length];
+            // Récupérer la palette de couleurs pour ce processus
+            const colorScheme = this.colorPalette[index % this.colorPalette.length];
+            const color = colorScheme.pastel;
 
             // Arc du processus
             const arcPath = this.createArcPath(cx, cy, innerRadius, outerRadius, startAngle, endAngle);
@@ -229,8 +276,9 @@ class CarrouselPage {
                 const textX = cx + textRadius * Math.cos(productAngle);
                 const textY = cy + textRadius * Math.sin(productAngle);
 
-                // Cercle du produit (couleur du processus, plus soutenue)
-                const productColor = this.darkenColor(color, 0.3);
+                // Couleurs du produit selon la palette du processus
+                const productCircleColor = colorScheme.douce;   // Gamme douce pour le cercle
+                const productTextColor = colorScheme.intense;   // Gamme intense pour le texte
 
                 // Calculer l'ancrage du texte selon la position
                 let textAnchor = 'middle';
@@ -242,31 +290,45 @@ class CarrouselPage {
 
                 svgParts.push(`
                     <g class="carrousel-product" data-produit="${escapeHtml(produit['Nom'])}" data-row-index="${produit._rowIndex}" style="cursor: pointer;">
+                        <!-- Ligne processus -> cercle produit -->
                         <line
                             x1="${cx + outerRadius * Math.cos(productAngle)}"
                             y1="${cy + outerRadius * Math.sin(productAngle)}"
                             x2="${productX}"
                             y2="${productY}"
-                            stroke="${productColor}"
+                            stroke="${productCircleColor}"
                             stroke-width="1.5"
                             stroke-dasharray="3,3"
                             style="pointer-events: none; opacity: 0.6;"
                         />
+                        <!-- Cercle du produit (gamme douce) -->
                         <circle
                             cx="${productX}"
                             cy="${productY}"
                             r="15"
-                            fill="${productColor}"
+                            fill="${productCircleColor}"
                             stroke="#ffffff"
                             stroke-width="2"
                         />
+                        <!-- Ligne cercle produit -> texte produit -->
+                        <line
+                            x1="${productX}"
+                            y1="${productY}"
+                            x2="${textX}"
+                            y2="${textY}"
+                            stroke="${productTextColor}"
+                            stroke-width="1"
+                            stroke-dasharray="2,2"
+                            style="pointer-events: none; opacity: 0.5;"
+                        />
+                        <!-- Texte du produit (gamme intense) -->
                         <text
                             x="${textX}"
                             y="${textY}"
                             text-anchor="${textAnchor}"
                             dominant-baseline="middle"
                             class="carrousel-product-label"
-                            style="font-size: 11px; fill: var(--mh-bleu-fonce); pointer-events: none;"
+                            style="font-size: 11px; font-weight: 600; fill: ${productTextColor}; pointer-events: none;"
                         >
                             ${produit['Nom']}
                         </text>
@@ -307,23 +369,6 @@ class CarrouselPage {
         `;
     }
 
-    /**
-     * Assombrit une couleur hexadécimale
-     */
-    darkenColor(hex, factor) {
-        // Convertir hex en RGB
-        const r = parseInt(hex.slice(1, 3), 16);
-        const g = parseInt(hex.slice(3, 5), 16);
-        const b = parseInt(hex.slice(5, 7), 16);
-
-        // Assombrir
-        const newR = Math.round(r * (1 - factor));
-        const newG = Math.round(g * (1 - factor));
-        const newB = Math.round(b * (1 - factor));
-
-        // Reconvertir en hex
-        return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`;
-    }
 
     /**
      * Tronque un texte
