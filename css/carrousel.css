@@ -1,0 +1,302 @@
+/* ===========================================
+   CARROUSEL.CSS - Styles pour la page Carrousel
+   =========================================== */
+
+.carrousel-page {
+    padding: var(--spacing-lg);
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.carrousel-page .page-header {
+    margin-bottom: var(--spacing-xl);
+    text-align: center;
+}
+
+.carrousel-page .page-header h1 {
+    color: var(--mh-bleu-fonce);
+    margin-bottom: var(--spacing-sm);
+    font-size: 2rem;
+}
+
+.carrousel-page .page-description {
+    color: var(--mh-gris-moyen);
+    font-size: 1rem;
+    max-width: 800px;
+    margin: 0 auto;
+    line-height: 1.6;
+}
+
+/* Container principal */
+.carrousel-container {
+    background: var(--cadrage-surface, #ffffff);
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow-md);
+    padding: var(--spacing-xl);
+    margin-bottom: var(--spacing-lg);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 700px;
+}
+
+.carrousel-diagram {
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.carrousel-svg {
+    width: 100%;
+    height: auto;
+    max-height: 800px;
+}
+
+/* État vide */
+.carrousel-empty {
+    text-align: center;
+    padding: var(--spacing-xl);
+    color: var(--mh-gris-moyen);
+    font-size: 1.1rem;
+}
+
+/* Légende */
+.carrousel-legend {
+    background: var(--cadrage-surface, #ffffff);
+    border-radius: var(--border-radius-md);
+    box-shadow: var(--shadow-sm);
+    padding: var(--spacing-lg);
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.carrousel-legend .legend-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--mh-bleu-fonce);
+    margin-bottom: var(--spacing-md);
+    text-align: center;
+}
+
+.carrousel-legend .legend-items {
+    display: flex;
+    justify-content: center;
+    gap: var(--spacing-xl);
+    flex-wrap: wrap;
+}
+
+.carrousel-legend .legend-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    font-size: 0.95rem;
+    color: var(--mh-gris-fonce);
+}
+
+.carrousel-legend .legend-circle {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid var(--mh-gris-moyen);
+    flex-shrink: 0;
+}
+
+.carrousel-legend .legend-circle.inner {
+    background: linear-gradient(135deg, #E0F1F8 0%, #EEE7F9 100%);
+}
+
+.carrousel-legend .legend-circle.outer {
+    background: var(--mh-bleu-clair);
+}
+
+/* Animations au survol */
+.carrousel-process-arc {
+    transition: opacity 0.2s ease, filter 0.2s ease;
+}
+
+.carrousel-process-arc:hover {
+    opacity: 0.8;
+    filter: brightness(1.05);
+}
+
+.carrousel-product circle {
+    transition: all 0.2s ease;
+}
+
+.carrousel-product:hover circle {
+    filter: brightness(1.1);
+    transform: scale(1.1);
+}
+
+/* Styles de la modale de processus */
+.process-modal-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+}
+
+.process-info {
+    background: var(--mh-gris-clair);
+    border-radius: var(--border-radius-md);
+    padding: var(--spacing-md);
+}
+
+.process-info-row {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-xs);
+}
+
+.process-info-row:last-child {
+    margin-bottom: 0;
+}
+
+.process-info-label {
+    font-weight: 600;
+    color: var(--mh-bleu-fonce);
+    min-width: 150px;
+}
+
+.process-info-value {
+    color: var(--mh-gris-fonce);
+}
+
+.process-products-section h4 {
+    color: var(--mh-bleu-fonce);
+    margin-bottom: var(--spacing-md);
+    font-size: 1.1rem;
+}
+
+.process-products-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.process-product-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-md);
+    background: var(--mh-gris-clair);
+    border-radius: var(--border-radius-md);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+}
+
+.process-product-item:hover {
+    background: #ffffff;
+    border-color: var(--mh-bleu-clair);
+    transform: translateX(4px);
+    box-shadow: var(--shadow-sm);
+}
+
+.process-product-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+.process-product-name {
+    font-weight: 600;
+    color: var(--mh-bleu-fonce);
+    font-size: 1rem;
+}
+
+.process-product-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    font-size: 0.9rem;
+}
+
+.process-product-responsable {
+    color: var(--mh-gris-moyen);
+}
+
+.process-product-arrow {
+    font-size: 1.5rem;
+    color: var(--mh-bleu-clair);
+    font-weight: bold;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.process-product-item:hover .process-product-arrow {
+    opacity: 1;
+}
+
+.process-products-empty {
+    text-align: center;
+    padding: var(--spacing-xl);
+    color: var(--mh-gris-moyen);
+    font-style: italic;
+}
+
+/* Status badges dans la modale processus */
+.status-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 2rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.status-badge.status-migre {
+    background: var(--mh-vert-succes);
+    color: #ffffff;
+}
+
+.status-badge.status-en-cours {
+    background: var(--mh-jaune-warning);
+    color: #856404;
+}
+
+.status-badge.status-bloque {
+    background: #6C757D;
+    color: #ffffff;
+}
+
+.status-badge.status-non-demarre {
+    background: var(--mh-gris-clair);
+    color: var(--mh-gris-fonce);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .carrousel-page {
+        padding: var(--spacing-md);
+    }
+
+    .carrousel-page .page-header h1 {
+        font-size: 1.5rem;
+    }
+
+    .carrousel-container {
+        padding: var(--spacing-md);
+        min-height: 500px;
+    }
+
+    .carrousel-diagram {
+        max-width: 100%;
+    }
+
+    .carrousel-legend .legend-items {
+        flex-direction: column;
+        align-items: center;
+        gap: var(--spacing-md);
+    }
+
+    .process-products-list {
+        max-height: 300px;
+    }
+
+    .process-product-item {
+        padding: var(--spacing-sm);
+    }
+}

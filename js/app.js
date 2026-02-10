@@ -247,6 +247,10 @@ async function navigateTo(page, table = null) {
                 await renderMAEPage(container);
                 break;
 
+            case 'carrousel':
+                await renderCarrouselPage(container);
+                break;
+
             case 'roadmap':
                 await renderRoadmapPage(container);
                 break;
@@ -448,6 +452,9 @@ async function refreshCurrentPage() {
                 break;
             case 'mae':
                 await refreshMAEPage();
+                break;
+            case 'carrousel':
+                await refreshCarrouselPage();
                 break;
             case 'roadmap':
                 await refreshRoadmapPage();
