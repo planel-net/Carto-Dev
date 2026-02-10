@@ -113,6 +113,7 @@ class CarrouselPage {
 
     /**
      * Groupe les produits par processus (via la table tPdtProcess)
+     * Gère les couples Produit/Processus distincts et évite les doublons
      */
     groupProductsByProcess() {
         const grouped = {};
@@ -131,7 +132,12 @@ class CarrouselPage {
             if (!grouped[processus]) {
                 grouped[processus] = [];
             }
-            grouped[processus].push(produit);
+
+            // Vérifier que le produit n'est pas déjà dans ce processus (éviter les doublons)
+            const alreadyExists = grouped[processus].some(p => p['Nom'] === produitNom);
+            if (!alreadyExists) {
+                grouped[processus].push(produit);
+            }
         });
 
         return grouped;
