@@ -76,16 +76,12 @@ class CarrouselPage {
      * Rendu de la page
      */
     async render(container) {
+        // Mettre à jour le titre et le sous-titre du header
+        document.getElementById('pageTitle').textContent = '🎪 Carrousel des Produits';
+        document.getElementById('pageSubtitle').textContent = 'Visualisation circulaire des produits organisés par processus métier';
+
         container.innerHTML = `
             <div class="carrousel-page">
-                <div class="page-header">
-                    <h1>&#127914; Carrousel des Produits</h1>
-                    <p class="page-description">
-                        Visualisation circulaire des produits organisés par processus métier.
-                        Cliquez sur un processus pour voir ses produits, ou sur un produit pour le modifier.
-                    </p>
-                </div>
-
                 <div class="carrousel-container">
                     <div id="carrouselDiagram" class="carrousel-diagram"></div>
                 </div>
