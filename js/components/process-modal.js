@@ -45,21 +45,36 @@ const ProcessModal = {
     async show(processusName) {
         await this.loadData();
 
-        // Trouver le processus
-        const processus = this._data.processus.find(p => p['Processus'] === processusName);
-        if (!processus) {
+        // Trouver tous les sous-processus de ce processus
+        const allProcessusRecords = this._data.processus.filter(p => p['Processus'] === processusName);
+        if (allProcessusRecords.length === 0) {
             showError('Processus introuvable');
             return;
         }
 
-        // Récupérer tous les produits liés à ce processus
+        // Récupérer le premier enregistrement pour les infos générales
+        const processus = allProcessusRecords[0];
+
+        // Récupérer tous les sous-processus, les trier et les joindre
+        const sousProcessusList = allProcessusRecords
+            .map(p => p['Sous-processus'])
+            .filter(Boolean)
+            .sort()
+            .join(', ');
+
+        // Récupérer tous les produits liés à CE processus (via n'importe quel sous-processus)
+        // Dans tPdtProcess, la colonne "Processus" contient en fait le sous-processus
+        const sousProcessusNames = allProcessusRecords.map(p => p['Sous-processus']).filter(Boolean);
         const produitsLies = this._data.pdtProcess
-            .filter(pp => pp['Processus'] === processusName)
+            .filter(pp => sousProcessusNames.includes(pp['Processus']))
             .map(pp => pp['Produit']);
+
+        // Dédupliquer les produits
+        const produitsLiesUniques = [...new Set(produitsLies)];
 
         // Récupérer les détails des produits
         const produits = this._data.produits
-            .filter(p => produitsLies.includes(p['Nom']))
+            .filter(p => produitsLiesUniques.includes(p['Nom']))
             .sort((a, b) => (a['Nom'] || '').localeCompare(b['Nom'] || ''));
 
         // Construire le contenu
@@ -70,10 +85,10 @@ const ProcessModal = {
                         <span class="process-info-label">Processus :</span>
                         <span class="process-info-value">${escapeHtml(processus['Processus'] || '')}</span>
                     </div>
-                    ${processus['Sous-processus'] ? `
+                    ${sousProcessusList ? `
                         <div class="process-info-row">
                             <span class="process-info-label">Sous-processus :</span>
-                            <span class="process-info-value">${escapeHtml(processus['Sous-processus'] || '')}</span>
+                            <span class="process-info-value">${escapeHtml(sousProcessusList)}</span>
                         </div>
                     ` : ''}
                     <div class="process-info-row">

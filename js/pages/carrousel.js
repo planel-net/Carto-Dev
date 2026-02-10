@@ -11,6 +11,7 @@ class CarrouselPage {
         this.produits = [];
         this.processus = [];
         this.pdtProcess = [];
+        this.selectedTypes = []; // Filtre sur les types de rapports (vide = tous)
 
         // Palette de couleurs Malakoff Humanis (3 gammes par couleur)
         // Chaque couleur a : pastel (processus), douce (cercle produit), intense (texte produit)
@@ -82,6 +83,33 @@ class CarrouselPage {
 
         container.innerHTML = `
             <div class="carrousel-page">
+                <!-- Filtre Type de rapport -->
+                <div class="carrousel-filters">
+                    <div class="filter-group">
+                        <label class="filter-label">Type de rapport :</label>
+                        <div class="filter-dropdown" id="typeFilterDropdown">
+                            <button class="filter-dropdown-toggle" id="typeFilterToggle">
+                                <span id="typeFilterLabel">Tous</span>
+                                <span class="dropdown-arrow">&#9662;</span>
+                            </button>
+                            <div class="filter-dropdown-menu" id="typeFilterMenu" style="display: none;">
+                                <div class="filter-dropdown-options">
+                                    <label class="filter-option filter-option-all">
+                                        <input type="checkbox" value="__ALL__" id="typeFilterAll">
+                                        <span>TOUS</span>
+                                    </label>
+                                    <label class="filter-option filter-option-none">
+                                        <input type="checkbox" value="__NONE__" id="typeFilterNone">
+                                        <span>Aucun</span>
+                                    </label>
+                                    <div class="filter-separator"></div>
+                                    <div id="typeFilterOptions"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="carrousel-container">
                     <div id="carrouselDiagram" class="carrousel-diagram"></div>
                 </div>
@@ -103,7 +131,9 @@ class CarrouselPage {
         `;
 
         await this.loadData();
+        this.renderTypeFilter();
         this.renderCarrousel();
+        this.attachFilterEvents();
     }
 
     /**
@@ -124,6 +154,112 @@ class CarrouselPage {
             console.error('[Carrousel] Erreur chargement données:', error);
             showError('Erreur lors du chargement des données');
         }
+    }
+
+    /**
+     * Rend le filtre des types de rapports
+     */
+    renderTypeFilter() {
+        const container = document.getElementById('typeFilterOptions');
+        if (!container) return;
+
+        // Récupérer tous les types uniques (incluant les valeurs vides pour les cides)
+        const allTypes = [...new Set(this.produits.map(p => p['Type'] || '(Vide - Cides)'))];
+        allTypes.sort();
+
+        // Générer les options
+        container.innerHTML = allTypes.map(type => `
+            <label class="filter-option">
+                <input type="checkbox" value="${escapeHtml(type)}" class="type-filter-checkbox">
+                <span>${escapeHtml(type)}</span>
+            </label>
+        `).join('');
+    }
+
+    /**
+     * Attache les événements du filtre
+     */
+    attachFilterEvents() {
+        const toggle = document.getElementById('typeFilterToggle');
+        const menu = document.getElementById('typeFilterMenu');
+        const allCheckbox = document.getElementById('typeFilterAll');
+        const noneCheckbox = document.getElementById('typeFilterNone');
+        const checkboxes = document.querySelectorAll('.type-filter-checkbox');
+
+        if (!toggle || !menu) return;
+
+        // Toggle du menu
+        toggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isVisible = menu.style.display === 'block';
+            menu.style.display = isVisible ? 'none' : 'block';
+        });
+
+        // Fermer le menu si on clique ailleurs
+        document.addEventListener('click', (e) => {
+            if (!document.getElementById('typeFilterDropdown').contains(e.target)) {
+                menu.style.display = 'none';
+            }
+        });
+
+        // Empêcher la fermeture du menu quand on clique à l'intérieur
+        menu.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+
+        // Bouton TOUS
+        if (allCheckbox) {
+            allCheckbox.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    checkboxes.forEach(cb => cb.checked = true);
+                    noneCheckbox.checked = false;
+                    this.updateTypeFilter();
+                }
+                e.target.checked = false; // Décoche TOUS après l'action
+            });
+        }
+
+        // Bouton Aucun
+        if (noneCheckbox) {
+            noneCheckbox.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    checkboxes.forEach(cb => cb.checked = false);
+                    allCheckbox.checked = false;
+                    this.updateTypeFilter();
+                }
+                e.target.checked = false; // Décoche Aucun après l'action
+            });
+        }
+
+        // Changement de sélection
+        checkboxes.forEach(cb => {
+            cb.addEventListener('change', () => {
+                this.updateTypeFilter();
+            });
+        });
+    }
+
+    /**
+     * Met à jour le filtre des types et re-render le carrousel
+     */
+    updateTypeFilter() {
+        const checkboxes = document.querySelectorAll('.type-filter-checkbox:checked');
+        this.selectedTypes = Array.from(checkboxes).map(cb => cb.value);
+
+        // Mettre à jour le label
+        const label = document.getElementById('typeFilterLabel');
+        if (label) {
+            if (this.selectedTypes.length === 0) {
+                label.textContent = 'Tous';
+            } else if (this.selectedTypes.length === 1) {
+                label.textContent = this.selectedTypes[0];
+            } else {
+                label.textContent = `${this.selectedTypes.length} sélectionnés`;
+            }
+        }
+
+        // Re-render le carrousel avec le filtre
+        this.renderCarrousel();
     }
 
     /**
@@ -155,6 +291,7 @@ class CarrouselPage {
     /**
      * Groupe les produits par processus (via la table tPdtProcess)
      * Gère les couples Produit/Processus distincts et évite les doublons
+     * Applique le filtre sur les types de rapports
      */
     groupProductsByProcess() {
         const grouped = {};
@@ -169,6 +306,14 @@ class CarrouselPage {
             // Trouver le produit complet
             const produit = this.produits.find(p => p['Nom'] === produitNom);
             if (!produit) return;
+
+            // Appliquer le filtre sur les types (si un filtre est actif)
+            if (this.selectedTypes.length > 0) {
+                const produitType = produit['Type'] || '(Vide - Cides)';
+                if (!this.selectedTypes.includes(produitType)) {
+                    return; // Ce produit ne correspond pas au filtre
+                }
+            }
 
             if (!grouped[processus]) {
                 grouped[processus] = [];

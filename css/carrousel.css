@@ -8,6 +8,115 @@
     margin: 0 auto;
 }
 
+/* Filtres */
+.carrousel-filters {
+    background: var(--mh-gris-clair);
+    border-radius: var(--border-radius-md);
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+}
+
+.filter-group {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+.filter-label {
+    font-weight: 600;
+    color: var(--mh-bleu-fonce);
+    white-space: nowrap;
+}
+
+.filter-dropdown {
+    position: relative;
+    flex: 1;
+    max-width: 400px;
+}
+
+.filter-dropdown-toggle {
+    width: 100%;
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: white;
+    border: 1px solid var(--mh-gris-moyen);
+    border-radius: var(--border-radius-sm);
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+}
+
+.filter-dropdown-toggle:hover {
+    border-color: var(--mh-bleu-clair);
+    box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.1);
+}
+
+.dropdown-arrow {
+    color: var(--mh-gris-moyen);
+    font-size: 0.8rem;
+}
+
+.filter-dropdown-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    margin-top: 4px;
+    background: white;
+    border: 1px solid var(--mh-gris-moyen);
+    border-radius: var(--border-radius-sm);
+    box-shadow: var(--shadow-md);
+    max-height: 400px;
+    overflow-y: auto;
+    z-index: 1000;
+}
+
+.filter-dropdown-options {
+    padding: var(--spacing-xs);
+}
+
+.filter-option {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    cursor: pointer;
+    border-radius: var(--border-radius-sm);
+    transition: background 0.2s ease;
+}
+
+.filter-option:hover {
+    background: var(--mh-gris-clair);
+}
+
+.filter-option input[type="checkbox"] {
+    cursor: pointer;
+}
+
+.filter-option span {
+    flex: 1;
+    font-size: 0.95rem;
+    color: var(--mh-gris-fonce);
+}
+
+.filter-option-all,
+.filter-option-none {
+    font-weight: 600;
+}
+
+.filter-option-all span,
+.filter-option-none span {
+    color: var(--mh-bleu-fonce);
+}
+
+.filter-separator {
+    height: 1px;
+    background: var(--mh-gris-moyen);
+    margin: var(--spacing-xs) 0;
+}
+
 /* Container principal */
 .carrousel-container {
     background: var(--cadrage-surface, #ffffff);
