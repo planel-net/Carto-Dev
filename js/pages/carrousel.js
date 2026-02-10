@@ -635,9 +635,24 @@ class CarrouselPage {
                 const productX = cx + productRadius * Math.cos(productAngle);
                 const productY = cy + productRadius * Math.sin(productAngle);
 
-                // Position du texte (plus loin)
-                const textX = cx + textRadius * Math.cos(productAngle);
-                const textY = cy + textRadius * Math.sin(productAngle);
+                // Normaliser l'angle entre 0 et 2π
+                const normalizedAngle = ((productAngle % (2 * Math.PI)) + (2 * Math.PI)) % (2 * Math.PI);
+
+                // Déterminer si le label est en zone de chevauchement (haut ou bas)
+                // Haut : -45° à 45° (soit 315° à 45° en radians normalisés)
+                // Bas : 135° à 225° (soit 2.36 à 3.93 radians)
+                const inTopZone = normalizedAngle < Math.PI / 4 || normalizedAngle > (7 * Math.PI / 4);
+                const inBottomZone = normalizedAngle > (3 * Math.PI / 4) && normalizedAngle < (5 * Math.PI / 4);
+
+                // Alterner le rayon pour les labels en zone de chevauchement
+                let labelRadius = textRadius;
+                if ((inTopZone || inBottomZone) && pIndex % 2 === 1) {
+                    labelRadius = textRadius + 35; // Décalage radial pour les labels impairs
+                }
+
+                // Position du texte (avec décalage si nécessaire)
+                const textX = cx + labelRadius * Math.cos(productAngle);
+                const textY = cy + labelRadius * Math.sin(productAngle);
 
                 // Couleurs du produit selon la palette du processus
                 const productCircleColor = colorScheme.douce;   // Gamme douce pour le cercle
