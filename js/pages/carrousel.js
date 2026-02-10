@@ -76,9 +76,9 @@ class CarrouselPage {
                 readTable('tPdtProcess')
             ]);
 
-            this.produits = produitsData.data;
-            this.processus = processusData.data;
-            this.pdtProcess = pdtProcessData.data;
+            this.produits = produitsData.data || [];
+            this.processus = processusData.data || [];
+            this.pdtProcess = pdtProcessData.data || [];
         } catch (error) {
             console.error('[Carrousel] Erreur chargement données:', error);
             showError('Erreur lors du chargement des données');
@@ -112,14 +112,21 @@ class CarrouselPage {
     }
 
     /**
-     * Groupe les produits par processus (via la colonne Processus dans tProduits)
+     * Groupe les produits par processus (via la table tPdtProcess)
      */
     groupProductsByProcess() {
         const grouped = {};
 
-        this.produits.forEach(produit => {
-            const processus = produit['Processus'];
-            if (!processus) return;
+        // Pour chaque lien dans tPdtProcess
+        this.pdtProcess.forEach(link => {
+            const processus = link['Processus'];
+            const produitNom = link['Produit'];
+
+            if (!processus || !produitNom) return;
+
+            // Trouver le produit complet
+            const produit = this.produits.find(p => p['Nom'] === produitNom);
+            if (!produit) return;
 
             if (!grouped[processus]) {
                 grouped[processus] = [];
