@@ -554,7 +554,7 @@ class CarrouselPage {
         const innerRadius = 120; // Rayon intérieur (processus)
         const outerRadius = 320; // Rayon extérieur (fin des arcs processus) - étendu vers les produits
         const productRadius = 350; // Rayon pour les cercles produits
-        const textRadius = 530; // Rayon pour les textes des produits (augmenté pour meilleure lisibilité)
+        const textRadius = 600; // Rayon pour les textes des produits (très éloigné pour éviter chevauchements)
 
         // Calculer le nombre total de produits pour répartir l'espace proportionnellement
         const totalProducts = processusWithProducts.reduce((sum, proc) => {
@@ -695,7 +695,7 @@ class CarrouselPage {
                             dominant-baseline="middle"
                             class="carrousel-product-label"
                             data-product-id="${produitId}"
-                            style="font-size: 11px; font-weight: 600; fill: ${productTextColor};"
+                            style="font-size: 10px; font-weight: 600; fill: ${productTextColor};"
                         >
                             ${produit['Nom']}
                         </text>
@@ -799,7 +799,7 @@ class CarrouselPage {
                 const textElement = document.querySelector(`.carrousel-product-label[data-product-id="${productId}"]`);
                 if (textElement) {
                     textElement.style.fontWeight = '700';
-                    textElement.style.fontSize = '13px';
+                    textElement.style.fontSize = '12px';
                 }
             });
 
@@ -814,7 +814,7 @@ class CarrouselPage {
                 const textElement = document.querySelector(`.carrousel-product-label[data-product-id="${productId}"]`);
                 if (textElement) {
                     textElement.style.fontWeight = '600';
-                    textElement.style.fontSize = '11px';
+                    textElement.style.fontSize = '10px';
                 }
             });
         });
