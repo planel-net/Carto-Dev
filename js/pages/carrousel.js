@@ -549,12 +549,12 @@ class CarrouselPage {
      * Génère le SVG du carrousel
      */
     generateSVG(processusWithProducts, produitsParProcessus) {
-        const cx = 550; // Centre X
-        const cy = 550; // Centre Y
-        const innerRadius = 120; // Rayon intérieur (processus)
-        const outerRadius = 320; // Rayon extérieur (fin des arcs processus) - étendu vers les produits
-        const productRadius = 350; // Rayon pour les cercles produits
-        const textRadius = 600; // Rayon pour les textes des produits (très éloigné pour éviter chevauchements)
+        const cx = 450; // Centre X
+        const cy = 450; // Centre Y
+        const innerRadius = 100; // Rayon intérieur (processus)
+        const outerRadius = 260; // Rayon extérieur (fin des arcs processus)
+        const productRadius = 290; // Rayon pour les cercles produits
+        const textRadius = 420; // Rayon pour les textes des produits
 
         // Calculer le nombre total de produits pour répartir l'espace proportionnellement
         const totalProducts = processusWithProducts.reduce((sum, proc) => {
@@ -562,7 +562,7 @@ class CarrouselPage {
         }, 0);
 
         let svgParts = [];
-        svgParts.push(`<svg viewBox="0 0 1100 1100" class="carrousel-svg">`);
+        svgParts.push(`<svg viewBox="0 0 900 900" class="carrousel-svg">`);
 
         // Commencer en haut et tourner dans le sens horaire (angle positif)
         let currentAngle = -Math.PI / 2;
@@ -695,7 +695,7 @@ class CarrouselPage {
                             dominant-baseline="middle"
                             class="carrousel-product-label"
                             data-product-id="${produitId}"
-                            style="font-size: 10px; font-weight: 600; fill: ${productTextColor};"
+                            style="font-size: 9px; font-weight: 600; fill: ${productTextColor};"
                         >
                             ${produit['Nom']}
                         </text>
@@ -799,7 +799,7 @@ class CarrouselPage {
                 const textElement = document.querySelector(`.carrousel-product-label[data-product-id="${productId}"]`);
                 if (textElement) {
                     textElement.style.fontWeight = '700';
-                    textElement.style.fontSize = '12px';
+                    textElement.style.fontSize = '11px';
                 }
             });
 
@@ -814,7 +814,7 @@ class CarrouselPage {
                 const textElement = document.querySelector(`.carrousel-product-label[data-product-id="${productId}"]`);
                 if (textElement) {
                     textElement.style.fontWeight = '600';
-                    textElement.style.fontSize = '10px';
+                    textElement.style.fontSize = '9px';
                 }
             });
         });
