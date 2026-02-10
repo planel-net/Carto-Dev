@@ -149,20 +149,30 @@ class CarrouselPage {
     generateSVG(processusWithProducts, produitsParProcessus) {
         const cx = 500; // Centre X
         const cy = 500; // Centre Y
-        const innerRadius = 150; // Rayon intérieur (processus)
-        const outerRadius = 250; // Rayon extérieur (fin des arcs processus)
-        const productRadius = 380; // Rayon pour les cercles produits
+        const innerRadius = 120; // Rayon intérieur (processus)
+        const outerRadius = 200; // Rayon extérieur (fin des arcs processus)
+        const productRadius = 350; // Rayon pour les cercles produits
+        const textRadius = 430; // Rayon pour les textes des produits
 
-        const totalProcessus = processusWithProducts.length;
-        const anglePerProcessus = (2 * Math.PI) / totalProcessus;
+        // Calculer le nombre total de produits pour répartir l'espace proportionnellement
+        const totalProducts = processusWithProducts.reduce((sum, proc) => {
+            return sum + (produitsParProcessus[proc] || []).length;
+        }, 0);
 
         let svgParts = [];
         svgParts.push(`<svg viewBox="0 0 1000 1000" class="carrousel-svg">`);
 
+        let currentAngle = -Math.PI / 2; // Commencer en haut
+
         // Générer les arcs de processus (cercle intérieur)
         processusWithProducts.forEach((processus, index) => {
-            const startAngle = index * anglePerProcessus - Math.PI / 2; // -90° pour commencer en haut
-            const endAngle = (index + 1) * anglePerProcessus - Math.PI / 2;
+            const produits = produitsParProcessus[processus] || [];
+            const productCount = produits.length;
+
+            // L'angle est proportionnel au nombre de produits
+            const angleSpan = (productCount / totalProducts) * (2 * Math.PI);
+            const startAngle = currentAngle;
+            const endAngle = currentAngle + angleSpan;
             const midAngle = (startAngle + endAngle) / 2;
 
             const color = this.processColors[index % this.processColors.length];
@@ -181,13 +191,17 @@ class CarrouselPage {
                 />
             `);
 
-            // Texte du processus (au milieu de l'arc)
+            // Texte du processus (au milieu de l'arc, lisible)
             const labelRadius = (innerRadius + outerRadius) / 2;
             const labelX = cx + labelRadius * Math.cos(midAngle);
             const labelY = cy + labelRadius * Math.sin(midAngle);
 
-            // Calculer la rotation du texte pour qu'il suive l'arc
-            const textAngle = (midAngle * 180 / Math.PI);
+            // Calculer l'angle de rotation pour que le texte soit lisible
+            let textAngle = (midAngle * 180 / Math.PI);
+            // Ajuster pour que le texte soit toujours lisible (pas à l'envers)
+            if (textAngle > 90 && textAngle < 270) {
+                textAngle += 180;
+            }
 
             svgParts.push(`
                 <text
@@ -197,47 +211,37 @@ class CarrouselPage {
                     dominant-baseline="middle"
                     transform="rotate(${textAngle}, ${labelX}, ${labelY})"
                     class="carrousel-process-label"
-                    style="pointer-events: none; font-size: 14px; font-weight: 600; fill: var(--mh-bleu-fonce);"
+                    style="pointer-events: none; font-size: 13px; font-weight: 700; fill: var(--mh-bleu-fonce);"
                 >
-                    ${this.truncateText(processus, 12)}
+                    ${processus}
                 </text>
             `);
 
             // Générer les cercles des produits pour ce processus
-            const produits = produitsParProcessus[processus] || [];
-            const totalProduits = produits.length;
-
-            // Calculer l'angle disponible pour ce processus
-            const angleSpan = anglePerProcessus;
-            const anglePerProduct = angleSpan / (totalProduits + 1);
+            const anglePerProduct = angleSpan / (productCount + 1);
 
             produits.forEach((produit, pIndex) => {
                 const productAngle = startAngle + anglePerProduct * (pIndex + 1);
                 const productX = cx + productRadius * Math.cos(productAngle);
                 const productY = cy + productRadius * Math.sin(productAngle);
 
+                // Position du texte (plus loin)
+                const textX = cx + textRadius * Math.cos(productAngle);
+                const textY = cy + textRadius * Math.sin(productAngle);
+
                 // Cercle du produit (couleur du processus, plus soutenue)
                 const productColor = this.darkenColor(color, 0.3);
 
+                // Calculer l'ancrage du texte selon la position
+                let textAnchor = 'middle';
+                if (textX > cx + 10) {
+                    textAnchor = 'start';
+                } else if (textX < cx - 10) {
+                    textAnchor = 'end';
+                }
+
                 svgParts.push(`
                     <g class="carrousel-product" data-produit="${escapeHtml(produit['Nom'])}" data-row-index="${produit._rowIndex}" style="cursor: pointer;">
-                        <circle
-                            cx="${productX}"
-                            cy="${productY}"
-                            r="20"
-                            fill="${productColor}"
-                            stroke="#ffffff"
-                            stroke-width="2"
-                        />
-                        <text
-                            x="${productX}"
-                            y="${productY + 35}"
-                            text-anchor="middle"
-                            class="carrousel-product-label"
-                            style="font-size: 11px; fill: var(--mh-bleu-fonce); pointer-events: none;"
-                        >
-                            ${this.truncateText(produit['Nom'], 15)}
-                        </text>
                         <line
                             x1="${cx + outerRadius * Math.cos(productAngle)}"
                             y1="${cy + outerRadius * Math.sin(productAngle)}"
@@ -246,11 +250,31 @@ class CarrouselPage {
                             stroke="${productColor}"
                             stroke-width="1.5"
                             stroke-dasharray="3,3"
-                            style="pointer-events: none;"
+                            style="pointer-events: none; opacity: 0.6;"
                         />
+                        <circle
+                            cx="${productX}"
+                            cy="${productY}"
+                            r="15"
+                            fill="${productColor}"
+                            stroke="#ffffff"
+                            stroke-width="2"
+                        />
+                        <text
+                            x="${textX}"
+                            y="${textY}"
+                            text-anchor="${textAnchor}"
+                            dominant-baseline="middle"
+                            class="carrousel-product-label"
+                            style="font-size: 11px; fill: var(--mh-bleu-fonce); pointer-events: none;"
+                        >
+                            ${produit['Nom']}
+                        </text>
                     </g>
                 `);
             });
+
+            currentAngle = endAngle;
         });
 
         svgParts.push(`</svg>`);
