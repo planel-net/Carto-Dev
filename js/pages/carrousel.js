@@ -554,7 +554,7 @@ class CarrouselPage {
         const innerRadius = 120; // Rayon intérieur (processus)
         const outerRadius = 200; // Rayon extérieur (fin des arcs processus)
         const productRadius = 350; // Rayon pour les cercles produits
-        const textRadius = 480; // Rayon pour les textes des produits (augmenté pour plus d'espace)
+        const textRadius = 530; // Rayon pour les textes des produits (augmenté pour meilleure lisibilité)
 
         // Calculer le nombre total de produits pour répartir l'espace proportionnellement
         const totalProducts = processusWithProducts.reduce((sum, proc) => {
