@@ -234,12 +234,6 @@ class RoadmapChantiersPage {
 
         const result = [...seen.values()].sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
 
-        // Ajouter l'option "(Non rempli)" si des chantiers n'ont pas de périmètre
-        const hasEmptyPerimetre = this.chantiers.some(c => !c['Perimetre']);
-        if (hasEmptyPerimetre) {
-            result.push(CONFIG.EMPTY_FILTER_VALUE);
-        }
-
         return result;
     }
 
