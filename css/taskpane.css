@@ -10,29 +10,33 @@
     background: linear-gradient(135deg, var(--mh-corail-pastel) 0%, var(--mh-gris-sable-pastel) 50%, var(--mh-bleu-pastel) 100%);
 }
 
-/* Header */
+/* Header - Version compacte avec fond pastel */
 .taskpane-header {
-    padding: var(--spacing-md) var(--spacing-md) var(--spacing-sm);
-    background: var(--mh-corail-brand);
-    color: var(--mh-blanc);
-    text-align: center;
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: var(--mh-corail-pastel);
+    border-bottom: 2px solid var(--mh-gris-sable-dark);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
 }
 
 .taskpane-header .logo {
-    width: 80px;
+    width: 40px;
     height: auto;
-    margin: 0 auto var(--spacing-sm);
+    flex-shrink: 0;
 }
 
 .taskpane-header h1 {
-    color: var(--mh-blanc);
-    font-size: var(--font-size-lg);
-    margin-bottom: 2px;
+    color: var(--mh-bleu-dark);
+    font-size: var(--font-size-md);
+    margin: 0;
+    font-weight: 600;
 }
 
 .taskpane-header .subtitle {
     font-size: var(--font-size-xs);
-    opacity: 0.9;
+    color: var(--mh-gris-moyen);
+    display: none; /* Masqué pour économiser l'espace */
 }
 
 /* Contenu principal */
@@ -44,16 +48,28 @@
     gap: var(--spacing-lg);
 }
 
-/* Bouton principal */
+/* Bouton principal - Bleu foncé au lieu d'orange */
 .btn-open-app {
     width: 100%;
-    padding: var(--spacing-lg);
-    font-size: var(--font-size-lg);
+    padding: var(--spacing-md) var(--spacing-lg);
+    font-size: var(--font-size-md);
     font-weight: 600;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: var(--spacing-md);
+    background: var(--mh-bleu-dark);
+    color: var(--mh-blanc);
+    border: none;
+    border-radius: var(--border-radius-md);
+    transition: var(--transition-normal);
+}
+
+.btn-open-app:hover {
+    background: var(--mh-bleu-fonce);
+    opacity: 0.9;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
 }
 
 .btn-open-app svg,
@@ -62,9 +78,9 @@
     height: 24px;
 }
 
-/* Section statut */
+/* Section statut - Fond pastel */
 .status-section {
-    background-color: var(--mh-blanc);
+    background-color: var(--mh-gris-sable-pastel);
     border: 1px solid var(--mh-gris-sable-dark);
     border-radius: var(--border-radius-md);
     padding: var(--spacing-md);
@@ -77,6 +93,7 @@
     letter-spacing: 0.5px;
     color: var(--mh-bleu-dark);
     margin-bottom: var(--spacing-sm);
+    font-weight: 600;
 }
 
 .status-indicator {
@@ -100,12 +117,12 @@
     background-color: var(--mh-vert-dark);
 }
 
-/* Section gestion du classeur */
+/* Section gestion du classeur - Fond pastel */
 .workbook-controls {
     background-color: var(--mh-blanc);
     border: 1px solid var(--mh-gris-sable-dark);
     border-radius: var(--border-radius-md);
-    padding: var(--spacing-lg);
+    padding: var(--spacing-md);
     box-shadow: var(--shadow-sm);
 }
 
@@ -115,6 +132,7 @@
     margin-bottom: var(--spacing-md);
     padding-bottom: var(--spacing-sm);
     border-bottom: 2px solid var(--mh-corail-brand);
+    font-weight: 600;
 }
 
 .controls-grid {
@@ -192,21 +210,15 @@
 /* Responsive */
 @media (max-height: 500px) {
     .taskpane-header {
-        padding: var(--spacing-sm) var(--spacing-md) var(--spacing-xs);
+        padding: var(--spacing-xs) var(--spacing-sm);
     }
 
     .taskpane-header .logo {
-        width: 60px;
-        margin-bottom: var(--spacing-xs);
+        width: 32px;
     }
 
     .taskpane-header h1 {
-        font-size: var(--font-size-md);
-        margin-bottom: 0;
-    }
-
-    .taskpane-header .subtitle {
-        display: none;
+        font-size: var(--font-size-sm);
     }
 
     .taskpane-content {
