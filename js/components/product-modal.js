@@ -87,10 +87,11 @@ const ProductModal = {
             .filter(pp => pp['Produit'] === produit['Nom'])
             .map(pp => pp['Périmètre']);
 
-        // Charger les processus assignés
+        // Charger les sous-processus assignés
         this._state.selectedProcessus = this._data.pdtProcess
             .filter(pp => pp['Produit'] === produit['Nom'])
-            .map(pp => pp['Processus']);
+            .map(pp => pp['Sous-processus'])
+            .filter(Boolean); // Filtrer les valeurs vides
 
         this._showModal(`Modifier: ${produit.Nom}`);
     },
@@ -218,12 +219,17 @@ const ProductModal = {
             }
             invalidateCache('tPdtsPerimetres');
 
-            // Ajouter les nouveaux liens produit-processus
-            for (const processus of this._state.selectedProcessus) {
-                await addTableRow('tPdtProcess', {
-                    'Produit': produitName,
-                    'Processus': processus
-                });
+            // Ajouter les nouveaux liens produit-sous-processus
+            for (const sousProcessus of this._state.selectedProcessus) {
+                // Trouver le processus parent pour ce sous-processus
+                const proc = this._data.processus.find(p => p['Sous-processus'] === sousProcessus);
+                if (proc) {
+                    await addTableRow('tPdtProcess', {
+                        'Produit': produitName,
+                        'Processus': proc['Processus'],
+                        'Sous-processus': sousProcessus
+                    });
+                }
             }
             invalidateCache('tPdtProcess');
 
@@ -422,36 +428,45 @@ const ProductModal = {
             }))
             .sort((a, b) => a.displayName.localeCompare(b.displayName));
 
-        const selected = this._state.selectedProcessus;
+        const renderSelectedSection = () => {
+            const container = document.getElementById('selectedProcessusSection');
+            if (!container) return;
 
-        const selectedList = allSousProcessus.filter(p => selected.includes(p.sousProcessus));
-        const unselectedList = allSousProcessus.filter(p => !selected.includes(p.sousProcessus));
+            const selected = this._state.selectedProcessus;
+            const selectedItems = allSousProcessus.filter(p => selected.includes(p.sousProcessus));
+
+            if (selectedItems.length === 0) {
+                container.innerHTML = '<div class="assigned-items-empty">Aucun sous-processus sélectionné</div>';
+                return;
+            }
+
+            container.innerHTML = selectedItems.map(p => `
+                <div class="assigned-item">
+                    <div class="assigned-item-info">
+                        <div class="assigned-item-name">${escapeHtml(p.displayName)}</div>
+                    </div>
+                    <div class="assigned-item-actions">
+                        <button type="button" class="btn btn-icon btn-xs btn-danger" title="Enlever" onclick="ProductModal._removeProcessusFromModal('${escapeJsString(p.sousProcessus)}')">&#10005;</button>
+                    </div>
+                </div>
+            `).join('');
+        };
 
         const renderList = (searchTerm = '') => {
             const list = document.getElementById('selectionProcessusList');
             if (!list) return;
 
+            const selected = this._state.selectedProcessus;
+            const availableList = allSousProcessus.filter(p => !selected.includes(p.sousProcessus));
+
             const term = searchTerm.toLowerCase();
-            const filteredSelected = selectedList.filter(p => p.displayName.toLowerCase().includes(term));
-            const filteredUnselected = unselectedList.filter(p => p.displayName.toLowerCase().includes(term));
+            const filtered = availableList.filter(p => p.displayName.toLowerCase().includes(term));
 
             let html = '';
 
-            if (filteredSelected.length > 0) {
-                html += '<div class="selection-separator">Sélectionnés</div>';
-                html += filteredSelected.map(p => `
-                    <label class="selection-item selected">
-                        <input type="checkbox" value="${escapeHtml(p.sousProcessus)}" checked>
-                        <div class="selection-item-info">
-                            <div class="selection-item-name">${escapeHtml(p.displayName)}</div>
-                        </div>
-                    </label>
-                `).join('');
-            }
-
-            if (filteredUnselected.length > 0) {
-                html += '<div class="selection-separator">Disponibles</div>';
-                html += filteredUnselected.map(p => `
+            if (filtered.length > 0) {
+                html += '<div class="selection-separator">DISPONIBLES</div>';
+                html += filtered.map(p => `
                     <label class="selection-item">
                         <input type="checkbox" value="${escapeHtml(p.sousProcessus)}">
                         <div class="selection-item-info">
@@ -459,10 +474,8 @@ const ProductModal = {
                         </div>
                     </label>
                 `).join('');
-            }
-
-            if (html === '') {
-                html = '<div class="assigned-items-empty">Aucun sous-processus trouvé</div>';
+            } else {
+                html = '<div class="assigned-items-empty">Aucun sous-processus disponible</div>';
             }
 
             list.innerHTML = html;
@@ -470,12 +483,27 @@ const ProductModal = {
 
         const content = `
             <div class="selection-modal">
+                <div class="assigned-section" style="margin-bottom: var(--spacing-md);">
+                    <div class="assigned-section-header">
+                        <h4>&#128736; Sous-processus associés</h4>
+                        <button type="button" class="btn btn-sm btn-primary" onclick="ProductModal._assignSelectedProcessus()">
+                            Assigner
+                        </button>
+                    </div>
+                    <div class="assigned-items-list" id="selectedProcessusSection">
+                        <div class="assigned-items-empty">Aucun sous-processus sélectionné</div>
+                    </div>
+                </div>
                 <div class="selection-search">
                     <input type="text" class="form-control" id="searchProcessusInput" placeholder="Rechercher un sous-processus...">
                 </div>
                 <div class="selection-list" id="selectionProcessusList"></div>
             </div>
         `;
+
+        // Stocker les fonctions de rendu dans le module pour y accéder depuis les callbacks
+        this._tempRenderSelectedSection = renderSelectedSection;
+        this._tempRenderList = renderList;
 
         showModal({
             title: 'Sélectionner des sous-processus',
@@ -487,8 +515,6 @@ const ProductModal = {
                     label: 'Valider',
                     class: 'btn-primary',
                     action: (modal) => {
-                        const checkboxes = document.querySelectorAll('#selectionProcessusList input[type="checkbox"]:checked');
-                        this._state.selectedProcessus = Array.from(checkboxes).map(cb => cb.value);
                         this._renderAssignedProcessus();
                         return true;
                     }
@@ -497,11 +523,54 @@ const ProductModal = {
         });
 
         setTimeout(() => {
+            renderSelectedSection();
             renderList();
             const searchInput = document.getElementById('searchProcessusInput');
             if (searchInput) {
                 searchInput.addEventListener('input', (e) => renderList(e.target.value));
             }
         }, 100);
+    },
+
+    /**
+     * Retire un sous-processus de la sélection dans la modale
+     */
+    _removeProcessusFromModal(sousProcessus) {
+        const idx = this._state.selectedProcessus.indexOf(sousProcessus);
+        if (idx > -1) {
+            this._state.selectedProcessus.splice(idx, 1);
+            if (this._tempRenderSelectedSection) {
+                this._tempRenderSelectedSection();
+            }
+            if (this._tempRenderList) {
+                this._tempRenderList();
+            }
+        }
+    },
+
+    /**
+     * Assigne les sous-processus cochés dans la liste disponible
+     */
+    _assignSelectedProcessus() {
+        const checkboxes = document.querySelectorAll('#selectionProcessusList input[type="checkbox"]:checked');
+        const newSelections = Array.from(checkboxes).map(cb => cb.value);
+
+        // Ajouter les nouveaux sous-processus à la sélection (éviter les doublons)
+        newSelections.forEach(sp => {
+            if (!this._state.selectedProcessus.includes(sp)) {
+                this._state.selectedProcessus.push(sp);
+            }
+        });
+
+        // Décocher les checkboxes
+        checkboxes.forEach(cb => cb.checked = false);
+
+        // Re-render les sections
+        if (this._tempRenderSelectedSection) {
+            this._tempRenderSelectedSection();
+        }
+        if (this._tempRenderList) {
+            this._tempRenderList();
+        }
     }
 };

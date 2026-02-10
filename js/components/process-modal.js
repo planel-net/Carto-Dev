@@ -62,11 +62,10 @@ const ProcessModal = {
             .sort()
             .join(', ');
 
-        // Récupérer tous les produits liés à CE processus (via n'importe quel sous-processus)
-        // Dans tPdtProcess, la colonne "Processus" contient en fait le sous-processus
-        const sousProcessusNames = allProcessusRecords.map(p => p['Sous-processus']).filter(Boolean);
+        // Récupérer tous les produits liés à CE processus principal
+        // Dans tPdtProcess, la colonne "Processus" contient le processus principal
         const produitsLies = this._data.pdtProcess
-            .filter(pp => sousProcessusNames.includes(pp['Processus']))
+            .filter(pp => pp['Processus'] === processusName)
             .map(pp => pp['Produit']);
 
         // Dédupliquer les produits

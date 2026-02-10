@@ -87,24 +87,17 @@ class CarrouselPage {
                 <div class="carrousel-filters">
                     <div class="filter-group">
                         <label class="filter-label">Type de rapport :</label>
-                        <div class="filter-dropdown" id="typeFilterDropdown">
-                            <button class="filter-dropdown-toggle" id="typeFilterToggle">
-                                <span id="typeFilterLabel">Tous</span>
-                                <span class="dropdown-arrow">&#9662;</span>
-                            </button>
-                            <div class="filter-dropdown-menu" id="typeFilterMenu" style="display: none;">
-                                <div class="filter-dropdown-options">
-                                    <label class="filter-option filter-option-all">
-                                        <input type="checkbox" value="__ALL__" id="typeFilterAll">
-                                        <span>TOUS</span>
-                                    </label>
-                                    <label class="filter-option filter-option-none">
-                                        <input type="checkbox" value="__NONE__" id="typeFilterNone">
-                                        <span>Aucun</span>
-                                    </label>
-                                    <div class="filter-separator"></div>
-                                    <div id="typeFilterOptions"></div>
+                        <div class="multi-select-wrapper" id="typeFilterWrapper">
+                            <div class="multi-select-trigger" onclick="carrouselPageInstance.toggleTypeFilter()">
+                                <span class="multi-select-label" id="typeFilterLabel">Tous</span>
+                                <span class="multi-select-arrow">&#9662;</span>
+                            </div>
+                            <div class="multi-select-dropdown" id="typeFilterDropdown" style="display: none;">
+                                <div class="multi-select-actions">
+                                    <button type="button" class="btn btn-sm" onclick="carrouselPageInstance.selectAllTypes()">Tous</button>
+                                    <button type="button" class="btn btn-sm" onclick="carrouselPageInstance.clearAllTypes()">Aucun</button>
                                 </div>
+                                <div class="multi-select-options" id="typeFilterOptions"></div>
                             </div>
                         </div>
                     </div>
@@ -113,27 +106,13 @@ class CarrouselPage {
                 <div class="carrousel-container">
                     <div id="carrouselDiagram" class="carrousel-diagram"></div>
                 </div>
-
-                <div class="carrousel-legend">
-                    <div class="legend-title">Légende</div>
-                    <div class="legend-items">
-                        <div class="legend-item">
-                            <span class="legend-circle inner"></span>
-                            <span>Processus (cliquez pour détails)</span>
-                        </div>
-                        <div class="legend-item">
-                            <span class="legend-circle outer"></span>
-                            <span>Produits (cliquez pour modifier)</span>
-                        </div>
-                    </div>
-                </div>
             </div>
         `;
 
         await this.loadData();
         this.renderTypeFilter();
         this.renderCarrousel();
-        this.attachFilterEvents();
+        this.attachGlobalEvents();
     }
 
     /**
@@ -164,102 +143,89 @@ class CarrouselPage {
         if (!container) return;
 
         // Récupérer tous les types uniques (incluant les valeurs vides pour les cides)
-        const allTypes = [...new Set(this.produits.map(p => p['Type'] || '(Vide - Cides)'))];
+        const allTypes = [...new Set(this.produits.map(p => p['Type de rapport'] || '(Vide - Cides)'))];
         allTypes.sort();
 
-        // Générer les options
+        // Générer les options (checkboxes)
         container.innerHTML = allTypes.map(type => `
-            <label class="filter-option">
-                <input type="checkbox" value="${escapeHtml(type)}" class="type-filter-checkbox">
+            <label class="multi-select-option">
+                <input type="checkbox" value="${escapeHtml(type)}"
+                    ${this.selectedTypes.length === 0 || this.selectedTypes.includes(type) ? 'checked' : ''}
+                    onchange="carrouselPageInstance.onTypeCheckChange()">
                 <span>${escapeHtml(type)}</span>
             </label>
         `).join('');
-    }
-
-    /**
-     * Attache les événements du filtre
-     */
-    attachFilterEvents() {
-        const toggle = document.getElementById('typeFilterToggle');
-        const menu = document.getElementById('typeFilterMenu');
-        const allCheckbox = document.getElementById('typeFilterAll');
-        const noneCheckbox = document.getElementById('typeFilterNone');
-        const checkboxes = document.querySelectorAll('.type-filter-checkbox');
-
-        if (!toggle || !menu) return;
-
-        // Toggle du menu
-        toggle.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const isVisible = menu.style.display === 'block';
-            menu.style.display = isVisible ? 'none' : 'block';
-        });
-
-        // Fermer le menu si on clique ailleurs
-        document.addEventListener('click', (e) => {
-            if (!document.getElementById('typeFilterDropdown').contains(e.target)) {
-                menu.style.display = 'none';
-            }
-        });
-
-        // Empêcher la fermeture du menu quand on clique à l'intérieur
-        menu.addEventListener('click', (e) => {
-            e.stopPropagation();
-        });
-
-        // Bouton TOUS
-        if (allCheckbox) {
-            allCheckbox.addEventListener('change', (e) => {
-                if (e.target.checked) {
-                    checkboxes.forEach(cb => cb.checked = true);
-                    noneCheckbox.checked = false;
-                    this.updateTypeFilter();
-                }
-                e.target.checked = false; // Décoche TOUS après l'action
-            });
-        }
-
-        // Bouton Aucun
-        if (noneCheckbox) {
-            noneCheckbox.addEventListener('change', (e) => {
-                if (e.target.checked) {
-                    checkboxes.forEach(cb => cb.checked = false);
-                    allCheckbox.checked = false;
-                    this.updateTypeFilter();
-                }
-                e.target.checked = false; // Décoche Aucun après l'action
-            });
-        }
-
-        // Changement de sélection
-        checkboxes.forEach(cb => {
-            cb.addEventListener('change', () => {
-                this.updateTypeFilter();
-            });
-        });
-    }
-
-    /**
-     * Met à jour le filtre des types et re-render le carrousel
-     */
-    updateTypeFilter() {
-        const checkboxes = document.querySelectorAll('.type-filter-checkbox:checked');
-        this.selectedTypes = Array.from(checkboxes).map(cb => cb.value);
 
         // Mettre à jour le label
-        const label = document.getElementById('typeFilterLabel');
-        if (label) {
-            if (this.selectedTypes.length === 0) {
-                label.textContent = 'Tous';
-            } else if (this.selectedTypes.length === 1) {
-                label.textContent = this.selectedTypes[0];
-            } else {
-                label.textContent = `${this.selectedTypes.length} sélectionnés`;
-            }
-        }
+        this.updateTypeFilterLabel();
+    }
 
-        // Re-render le carrousel avec le filtre
+    /**
+     * Toggle le dropdown du filtre Type
+     */
+    toggleTypeFilter() {
+        const dropdown = document.getElementById('typeFilterDropdown');
+        if (dropdown) {
+            const isVisible = dropdown.style.display === 'block';
+            dropdown.style.display = isVisible ? 'none' : 'block';
+        }
+    }
+
+    /**
+     * Sélectionne tous les types
+     */
+    selectAllTypes() {
+        const checkboxes = document.querySelectorAll('#typeFilterOptions input[type="checkbox"]');
+        checkboxes.forEach(cb => cb.checked = true);
+        this.onTypeCheckChange();
+    }
+
+    /**
+     * Désélectionne tous les types
+     */
+    clearAllTypes() {
+        const checkboxes = document.querySelectorAll('#typeFilterOptions input[type="checkbox"]');
+        checkboxes.forEach(cb => cb.checked = false);
+        this.onTypeCheckChange();
+    }
+
+    /**
+     * Appelé quand une checkbox de type change
+     */
+    onTypeCheckChange() {
+        const checkboxes = document.querySelectorAll('#typeFilterOptions input[type="checkbox"]:checked');
+        this.selectedTypes = Array.from(checkboxes).map(cb => cb.value);
+        this.updateTypeFilterLabel();
         this.renderCarrousel();
+    }
+
+    /**
+     * Met à jour le label du filtre Type
+     */
+    updateTypeFilterLabel() {
+        const label = document.getElementById('typeFilterLabel');
+        if (!label) return;
+
+        const allTypes = [...new Set(this.produits.map(p => p['Type de rapport'] || '(Vide - Cides)'))];
+        const allSelected = this.selectedTypes.length === allTypes.length;
+
+        label.textContent = allSelected || this.selectedTypes.length === 0
+            ? 'Tous'
+            : (this.selectedTypes.length === 1 ? this.selectedTypes[0] : `${this.selectedTypes.length} sélectionné(s)`);
+    }
+
+    /**
+     * Attache les événements globaux (fermer dropdown si clic extérieur)
+     */
+    attachGlobalEvents() {
+        // Fermer le dropdown si on clique ailleurs
+        document.addEventListener('click', (e) => {
+            const wrapper = document.getElementById('typeFilterWrapper');
+            const dropdown = document.getElementById('typeFilterDropdown');
+            if (wrapper && dropdown && !wrapper.contains(e.target)) {
+                dropdown.style.display = 'none';
+            }
+        });
     }
 
     /**
@@ -309,7 +275,7 @@ class CarrouselPage {
 
             // Appliquer le filtre sur les types (si un filtre est actif)
             if (this.selectedTypes.length > 0) {
-                const produitType = produit['Type'] || '(Vide - Cides)';
+                const produitType = produit['Type de rapport'] || '(Vide - Cides)';
                 if (!this.selectedTypes.includes(produitType)) {
                     return; // Ce produit ne correspond pas au filtre
                 }
