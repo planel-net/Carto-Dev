@@ -17,11 +17,17 @@ class ParcPage {
         this.selectedCells = new Set(); // Cellules selectionnees pour multi-select
         this.filters = {
             type: 'all',
+            responsable: 'all', // 'all' ou email du responsable ou '(vide)' pour les produits sans responsable
             processStatus: 'all', // 'all', 'with', 'without'
             selectedPerimetres: [], // Perimetres selectionnes (vide = tous)
             selectedProcessus: [], // Processus selectionnes (vide = tous)
             selectedSubProcessus: [] // Sous-processus selectionnes (vide = tous)
         };
+        // Zoom de la matrice
+        this.zoomLevel = 1;
+        this.minZoom = 0.5;
+        this.maxZoom = 2.0;
+        this.zoomStep = 0.1;
     }
 
     /**
@@ -134,6 +140,29 @@ class ParcPage {
             }
         });
         return Array.from(types).sort();
+    }
+
+    /**
+     * Obtient les responsables uniques avec option (vide)
+     */
+    getUniqueResponsables() {
+        const responsables = new Set();
+        let hasEmpty = false;
+
+        this.produits.forEach(p => {
+            const resp = p['Responsable'];
+            if (resp && resp.trim() !== '') {
+                responsables.add(resp);
+            } else {
+                hasEmpty = true;
+            }
+        });
+
+        const result = Array.from(responsables).sort();
+        if (hasEmpty) {
+            result.unshift(CONFIG.EMPTY_FILTER_VALUE);
+        }
+        return result;
     }
 
     /**
@@ -323,6 +352,17 @@ class ParcPage {
             filtered = filtered.filter(p => p['Type de rapport'] === this.filters.type);
         }
 
+        // Filtre par responsable
+        if (this.filters.responsable !== 'all') {
+            if (this.filters.responsable === CONFIG.EMPTY_FILTER_VALUE) {
+                // Filtrer les produits sans responsable (vide ou null)
+                filtered = filtered.filter(p => !p['Responsable'] || p['Responsable'].trim() === '');
+            } else {
+                // Filtrer par responsable spécifique
+                filtered = filtered.filter(p => p['Responsable'] === this.filters.responsable);
+            }
+        }
+
         // Filtre par perimetre
         const allPerimetres = this.getUniquePerimetres();
         const allPerimetresSelected = this.filters.selectedPerimetres.length === allPerimetres.length;
@@ -397,6 +437,7 @@ class ParcPage {
         if (!container) return;
 
         const productTypes = this.getUniqueProductTypes();
+        const responsables = this.getUniqueResponsables();
         const allProcessus = this.getUniqueProcessus();
         const availableSubProcessus = this.getAvailableSubProcessus();
         const allPerimetres = this.getUniquePerimetres();
@@ -411,6 +452,22 @@ class ParcPage {
                             ${escapeHtml(type)}
                         </option>
                     `).join('')}
+                </select>
+            </div>
+            <div class="matrix-filter-group">
+                <label for="filterResponsable">Responsable:</label>
+                <select id="filterResponsable" onchange="parcPageInstance.onFilterChange()">
+                    <option value="all">Tous</option>
+                    ${responsables.map(resp => {
+                        const isEmptyValue = resp === CONFIG.EMPTY_FILTER_VALUE;
+                        const value = isEmptyValue ? CONFIG.EMPTY_FILTER_VALUE : resp;
+                        const label = isEmptyValue ? '(vide)' : formatActorName(resp);
+                        return `
+                            <option value="${escapeHtml(value)}" ${this.filters.responsable === value ? 'selected' : ''}>
+                                ${escapeHtml(label)}
+                            </option>
+                        `;
+                    }).join('')}
                 </select>
             </div>
             <div class="matrix-filter-group">
@@ -508,6 +565,9 @@ class ParcPage {
                 <div class="legend-item">
                     <span class="legend-color backlog"></span>
                     <span>Backlog</span>
+                </div>
+                <div class="matrix-zoom-hint" title="Maintenez Ctrl (ou Cmd sur Mac) + molette pour zoomer">
+                    🔍 Ctrl + molette = zoom
                 </div>
             </div>
         `;
@@ -652,6 +712,12 @@ class ParcPage {
             cell.addEventListener('click', (e) => this.onCellClick(e, cell));
         });
 
+        // Zoom avec molette + Ctrl/Cmd
+        const wrapper = document.querySelector('.process-matrix-table-wrapper');
+        if (wrapper) {
+            wrapper.addEventListener('wheel', (e) => this.onMatrixWheel(e), { passive: false });
+        }
+
         // Fermer le popup et les dropdowns si click en dehors
         document.addEventListener('click', (e) => {
             const popup = document.getElementById('statusPopup');
@@ -664,6 +730,61 @@ class ParcPage {
                 this.closeAllDropdowns();
             }
         });
+    }
+
+    /**
+     * Gestion du zoom avec la molette
+     */
+    onMatrixWheel(event) {
+        // Ctrl (Windows/Linux) ou Cmd (Mac) pour zoomer
+        if (!event.ctrlKey && !event.metaKey) {
+            return;
+        }
+
+        event.preventDefault();
+
+        const wrapper = event.currentTarget;
+        const table = wrapper.querySelector('.process-matrix-table');
+        if (!table) return;
+
+        // Calculer le nouveau niveau de zoom
+        const delta = event.deltaY > 0 ? -this.zoomStep : this.zoomStep;
+        const newZoom = Math.max(this.minZoom, Math.min(this.maxZoom, this.zoomLevel + delta));
+
+        if (newZoom === this.zoomLevel) return;
+
+        // Position de la souris relative au wrapper
+        const rect = wrapper.getBoundingClientRect();
+        const mouseX = event.clientX - rect.left;
+        const mouseY = event.clientY - rect.top;
+
+        // Position de scroll actuelle
+        const scrollLeft = wrapper.scrollLeft;
+        const scrollTop = wrapper.scrollTop;
+
+        // Point focal dans le contenu (avant zoom)
+        const focusX = (scrollLeft + mouseX) / this.zoomLevel;
+        const focusY = (scrollTop + mouseY) / this.zoomLevel;
+
+        // Appliquer le nouveau zoom
+        this.zoomLevel = newZoom;
+        table.style.transform = `scale(${this.zoomLevel})`;
+        table.style.transformOrigin = '0 0';
+
+        // Ajuster le scroll pour garder le point focal sous la souris
+        wrapper.scrollLeft = focusX * this.zoomLevel - mouseX;
+        wrapper.scrollTop = focusY * this.zoomLevel - mouseY;
+    }
+
+    /**
+     * Reinitialise le zoom
+     */
+    resetZoom() {
+        this.zoomLevel = 1;
+        const table = document.querySelector('.process-matrix-table');
+        if (table) {
+            table.style.transform = 'scale(1)';
+        }
     }
 
     /**
@@ -1240,6 +1361,9 @@ class ParcPage {
         const wrapper = document.querySelector('.process-matrix-table-wrapper');
         if (!wrapper) return;
 
+        // Réinitialiser le zoom
+        this.resetZoom();
+
         const structuredProcessus = this.getStructuredProcessus();
         const filteredStructuredProcessus = this.getFilteredStructuredProcessus(structuredProcessus);
         const filteredProducts = this.getFilteredProducts();
@@ -1276,6 +1400,7 @@ class ParcPage {
      */
     onFilterChange() {
         this.filters.type = document.getElementById('filterType').value;
+        this.filters.responsable = document.getElementById('filterResponsable').value;
         this.filters.processStatus = document.getElementById('filterProcessStatus').value;
         this.clearSelection();
         this.refreshActiveView();
@@ -1309,7 +1434,7 @@ class ParcPage {
 
     /**
      * Filtre externe pour le DataTable de la vue liste
-     * Applique les memes filtres que la matrice (type, perimetre, statut processus)
+     * Applique les memes filtres que la matrice (type, responsable, perimetre, statut processus)
      */
     applyExternalFilter(data) {
         let filtered = [...data];
@@ -1317,6 +1442,15 @@ class ParcPage {
         // Filtre par type
         if (this.filters.type !== 'all') {
             filtered = filtered.filter(p => p['Type de rapport'] === this.filters.type);
+        }
+
+        // Filtre par responsable
+        if (this.filters.responsable !== 'all') {
+            if (this.filters.responsable === CONFIG.EMPTY_FILTER_VALUE) {
+                filtered = filtered.filter(p => !p['Responsable'] || p['Responsable'].trim() === '');
+            } else {
+                filtered = filtered.filter(p => p['Responsable'] === this.filters.responsable);
+            }
         }
 
         // Filtre par perimetre
@@ -1438,6 +1572,9 @@ class ParcPage {
             this.clearSelection();
             // Re-rendre la liste avec les filtres actuels
             this.refreshListView();
+        } else if (view === 'process') {
+            // Réinitialiser le zoom quand on revient à la vue processus
+            this.resetZoom();
         }
     }
 
