@@ -1142,6 +1142,7 @@ class ParcPage {
      */
     toggleMultiSelect(type) {
         const dropdownIds = {
+            groupe: 'groupeDropdown',
             perimetre: 'perimetreDropdown',
             processus: 'processusDropdown',
             subProcessus: 'subProcessusDropdown'

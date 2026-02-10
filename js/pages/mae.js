@@ -129,6 +129,7 @@ class MAEPage {
         this._allStatuts = allStatuts;
         this._allPriorites = allPriorites;
         this._allAssignees = allAssignees;
+        this._allGroupes = allGroupes;
     }
 
     // ---- Helpers pour les filtres ----
@@ -357,6 +358,7 @@ class MAEPage {
 
     _getFilterLabel(filterType) {
         const map = {
+            groupe: { all: this._allGroupes, selected: this.filters.selectedGroupes },
             perimetre: { all: this._allPerimetres, selected: this.filters.perimetres },
             statut: { all: this._allStatuts, selected: this.filters.statuts },
             priorite: { all: this._allPriorites, selected: this.filters.priorites },

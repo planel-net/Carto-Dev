@@ -182,9 +182,8 @@ class CarrouselPage {
             this.pdtProcess = pdtProcessData.data || [];
             this.perimetres = perimetresData.data || [];
 
-            // Initialiser selectedGroupes avec tous les groupes
-            const allGroupes = this.getAllGroupes();
-            this.selectedGroupes = [...allGroupes];
+            // Initialiser selectedGroupes avec tous les groupes (y compris vide si nécessaire)
+            this.selectedGroupes = this.getAllGroupesWithEmpty();
         } catch (error) {
             console.error('[Carrousel] Erreur chargement données:', error);
             showError('Erreur lors du chargement des données');
@@ -196,6 +195,23 @@ class CarrouselPage {
      */
     getAllGroupes() {
         return [...new Set(this.perimetres.map(p => p.Groupe))].filter(Boolean).sort();
+    }
+
+    /**
+     * Retourne tous les groupes incluant (vide) si nécessaire
+     */
+    getAllGroupesWithEmpty() {
+        const allGroupes = this.getAllGroupes();
+
+        // Vérifier si des produits ont un groupe vide
+        const hasEmptyGroupe = this.produits.some(p => {
+            const perimetre = p['Périmétre fonctionnel'];
+            if (!perimetre) return true;
+            const perimetreObj = this.perimetres.find(per => per.Périmetre === perimetre);
+            return !perimetreObj || !perimetreObj.Groupe;
+        });
+
+        return hasEmptyGroupe ? [...allGroupes, CONFIG.EMPTY_FILTER_VALUE] : [...allGroupes];
     }
 
     /**
@@ -225,17 +241,22 @@ class CarrouselPage {
         const container = document.getElementById('groupeFilterOptions');
         if (!container) return;
 
-        const allGroupes = this.getAllGroupes();
+        const allGroupes = this.getAllGroupesWithEmpty();
 
         // Générer les options (checkboxes)
-        container.innerHTML = allGroupes.map(groupe => `
-            <label class="multi-select-option">
-                <input type="checkbox" value="${escapeHtml(groupe)}"
-                    ${this.selectedGroupes.includes(groupe) ? 'checked' : ''}
-                    onchange="carrouselPageInstance.onGroupesChange()">
-                <span>${escapeHtml(groupe)}</span>
-            </label>
-        `).join('');
+        container.innerHTML = allGroupes.map(groupe => {
+            const isEmptyValue = groupe === CONFIG.EMPTY_FILTER_VALUE;
+            const displayText = isEmptyValue ? '(vide)' : groupe;
+
+            return `
+                <label class="multi-select-option">
+                    <input type="checkbox" value="${escapeHtml(groupe)}"
+                        ${this.selectedGroupes.includes(groupe) ? 'checked' : ''}
+                        onchange="carrouselPageInstance.onGroupesChange()">
+                    <span>${escapeHtml(displayText)}</span>
+                </label>
+            `;
+        }).join('');
 
         // Mettre à jour le label
         this.updateGroupeLabel();
@@ -294,8 +315,7 @@ class CarrouselPage {
     selectAllGroupes() {
         const checkboxes = document.querySelectorAll('#groupeFilterOptions input[type="checkbox"]');
         checkboxes.forEach(cb => cb.checked = true);
-        const allGroupes = this.getAllGroupes();
-        this.selectedGroupes = [...allGroupes];
+        this.selectedGroupes = this.getAllGroupesWithEmpty();
         this.updateGroupeLabel();
         this.renderCarrousel();
     }
@@ -330,12 +350,16 @@ class CarrouselPage {
         const label = document.getElementById('groupeFilterLabel');
         if (!label) return;
 
-        const allGroupes = this.getAllGroupes();
+        const allGroupes = this.getAllGroupesWithEmpty();
         const allSelected = this.selectedGroupes.length === allGroupes.length;
 
-        label.textContent = allSelected || this.selectedGroupes.length === 0
-            ? 'Tous'
-            : `${this.selectedGroupes.length} sélectionné(s)`;
+        if (this.selectedGroupes.length === 0) {
+            label.textContent = 'Aucun';
+        } else if (allSelected) {
+            label.textContent = 'Tous';
+        } else {
+            label.textContent = `${this.selectedGroupes.length} sélectionné(s)`;
+        }
     }
 
     /**
@@ -628,18 +652,21 @@ class CarrouselPage {
             const produit = this.produits.find(p => p['Nom'] === produitNom);
             if (!produit) return;
 
-            // Appliquer le filtre sur les groupes (si un filtre est actif)
-            if (this.selectedGroupes.length > 0) {
-                const produitPerimetre = produit['Périmétre fonctionnel'];
-                if (produitPerimetre) {
-                    const perimetre = this.perimetres.find(p => p.Périmetre === produitPerimetre);
-                    if (!perimetre || !this.selectedGroupes.includes(perimetre.Groupe)) {
-                        return; // Ce produit ne correspond pas au filtre groupe
-                    }
-                } else {
-                    // Pas de périmètre = on filtre ce produit si un groupe est sélectionné
-                    return;
-                }
+            // Appliquer le filtre sur les groupes
+            if (this.selectedGroupes.length === 0) {
+                return; // Aucun groupe sélectionné = ne rien afficher
+            }
+
+            const produitPerimetre = produit['Périmétre fonctionnel'];
+            let produitGroupe = CONFIG.EMPTY_FILTER_VALUE;
+
+            if (produitPerimetre) {
+                const perimetre = this.perimetres.find(p => p.Périmetre === produitPerimetre);
+                produitGroupe = (perimetre && perimetre.Groupe) ? perimetre.Groupe : CONFIG.EMPTY_FILTER_VALUE;
+            }
+
+            if (!this.selectedGroupes.includes(produitGroupe)) {
+                return; // Ce produit ne correspond pas au filtre groupe
             }
 
             // Appliquer le filtre sur les types (si un filtre est actif)

@@ -502,6 +502,7 @@ class SynthesePage {
      */
     toggleMultiSelect(type) {
         const dropdownIds = {
+            groupe: 'groupeDropdown',
             perimetre: 'perimetreDropdown',
             processus: 'processusDropdown',
             sousProcessus: 'sousProcessusDropdown'
