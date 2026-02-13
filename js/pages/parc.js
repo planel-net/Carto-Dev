@@ -1646,6 +1646,26 @@ class ParcPage {
         invalidateCache('tPdtsPerimetres');
         await this.loadData();
     }
+
+    /**
+     * Détruit l'instance et libère la mémoire
+     */
+    destroy() {
+        console.log('[Parc] Destroying instance...');
+
+        // Vider les arrays volumineux pour libérer la mémoire
+        this.produits = [];
+        this.processus = [];
+        this.pdtProcess = [];
+        this.perimetres = [];
+        this.pdtsPerimetres = [];
+        this.selectedCells.clear();
+
+        // Réinitialiser les filtres
+        this.filters = null;
+
+        console.log('[Parc] Instance destroyed');
+    }
 }
 
 // Instance globale
@@ -1653,10 +1673,12 @@ let parcPageInstance = null;
 
 /**
  * Rendu de la page Parc
+ * @returns {ParcPage} Instance de la page
  */
 async function renderParcPage(container) {
     parcPageInstance = new ParcPage();
     await parcPageInstance.render(container);
+    return parcPageInstance;
 }
 
 /**

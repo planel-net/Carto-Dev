@@ -9,6 +9,41 @@
 const tableCache = new Map();
 const CACHE_DURATION = 30000; // 30 secondes
 const EXCEL_TIMEOUT = 30000; // 30 secondes (augmenté pour les réseaux lents)
+const MAX_CACHE_ENTRIES = 50; // Limite du nombre d'entrées en cache
+
+/**
+ * Nettoie automatiquement les entrées expirées du cache
+ */
+function cleanExpiredCacheEntries() {
+    const now = Date.now();
+    let cleaned = 0;
+
+    for (const [key, value] of tableCache.entries()) {
+        if (now - value.timestamp > CACHE_DURATION) {
+            tableCache.delete(key);
+            cleaned++;
+        }
+    }
+
+    if (cleaned > 0) {
+        console.log(`[tableCache] Cleaned ${cleaned} expired entries`);
+    }
+
+    // Si toujours trop d'entrées, supprimer les plus anciennes
+    if (tableCache.size > MAX_CACHE_ENTRIES) {
+        const entries = Array.from(tableCache.entries())
+            .sort((a, b) => a[1].timestamp - b[1].timestamp);
+        const toDelete = entries.slice(0, tableCache.size - MAX_CACHE_ENTRIES);
+        toDelete.forEach(([key]) => tableCache.delete(key));
+        console.log(`[tableCache] Removed ${toDelete.length} oldest entries (limit: ${MAX_CACHE_ENTRIES})`);
+    }
+}
+
+// Nettoyer le cache toutes les minutes
+if (typeof window !== 'undefined') {
+    setInterval(cleanExpiredCacheEntries, 60000);
+    console.log('[tableCache] Auto-cleanup enabled (every 60s)');
+}
 
 /**
  * File d'attente pour sérialiser les opérations d'écriture Excel
@@ -168,6 +203,17 @@ const ConnectionStatus = {
         this._listeners.push(callback);
         // Notifier immédiatement du statut actuel
         callback(this._status, this._lastSync);
+    },
+
+    removeListener(callback) {
+        const index = this._listeners.indexOf(callback);
+        if (index > -1) {
+            this._listeners.splice(index, 1);
+        }
+    },
+
+    clearListeners() {
+        this._listeners = [];
     },
 
     _notify() {

@@ -54,6 +54,17 @@ const ConnectionStatus = {
         callback(this._status, this._lastSync);
     },
 
+    removeListener(callback) {
+        const index = this._listeners.indexOf(callback);
+        if (index > -1) {
+            this._listeners.splice(index, 1);
+        }
+    },
+
+    clearListeners() {
+        this._listeners = [];
+    },
+
     _notify() {
         this._listeners.forEach(cb => cb(this._status, this._lastSync));
     }

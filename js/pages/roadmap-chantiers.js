@@ -4273,14 +4273,38 @@ class RoadmapChantiersPage {
 
         return currentY;
     }
+
+    /**
+     * Détruit l'instance et libère la mémoire
+     */
+    destroy() {
+        console.log('[RoadmapChantiers] Destroying instance...');
+
+        // Vider les arrays volumineux pour libérer la mémoire
+        this.chantiers = [];
+        this.chantiersFiltered = [];
+        this.phases = [];
+        this.sprints = [];
+        this.acteurs = [];
+        this.perimetres = [];
+        this.produits = [];
+        this.processus = [];
+
+        // Réinitialiser les filtres
+        this.filters = null;
+
+        console.log('[RoadmapChantiers] Instance destroyed');
+    }
 }
 
 /**
  * Fonction de rendu de la page (appelée depuis app.js)
+ * @returns {RoadmapChantiersPage} Instance de la page
  */
 async function renderRoadmapChantiersPage(container) {
     roadmapChantiersPageInstance = new RoadmapChantiersPage();
     await roadmapChantiersPageInstance.render(container);
+    return roadmapChantiersPageInstance;
 }
 
 /**

@@ -759,13 +759,38 @@ class MAEPage {
         this.renderFilters();
         this.renderTable();
     }
+
+    /**
+     * Détruit l'instance et libère la mémoire
+     */
+    destroy() {
+        console.log('[MAE] Destroying instance...');
+
+        // Vider les arrays volumineux pour libérer la mémoire
+        this.demandes = [];
+        this.acteurs = [];
+        this.notes = [];
+        this.liens = [];
+        this.perimetres = [];
+
+        // Réinitialiser les filtres et tri
+        this.filters = null;
+        this.sort = null;
+        this.container = null;
+
+        console.log('[MAE] Instance destroyed');
+    }
 }
 
 // ---- Fonctions globales ----
 
+/**
+ * @returns {MAEPage} Instance de la page
+ */
 async function renderMAEPage(container) {
     maePageInstance = new MAEPage();
     await maePageInstance.render(container);
+    return maePageInstance;
 }
 
 async function refreshMAEPage() {

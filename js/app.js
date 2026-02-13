@@ -14,7 +14,8 @@ const AppState = {
     currentPage: 'migration',
     currentTable: null,
     isLoading: false,
-    bridgeReady: false
+    bridgeReady: false,
+    currentPageInstance: null // Instance de la page actuelle pour le lifecycle
 };
 
 /**
@@ -138,6 +139,11 @@ async function copyFromJira(jiraSheetName, tableName, keyField = 'Clé', options
 }
 
 /**
+ * Flag pour éviter les doublons de listeners
+ */
+let navigationListenerAttached = false;
+
+/**
  * Initialise l'application
  */
 async function initializeApp() {
@@ -150,12 +156,21 @@ async function initializeApp() {
         console.log('[App] Init sidebar...');
         initSidebar();
 
-        // Attacher les événements de navigation
-        document.addEventListener('navigate', handleNavigation);
-        console.log('[App] Navigation event listener attached');
+        // Attacher les événements de navigation (une seule fois)
+        if (!navigationListenerAttached) {
+            document.addEventListener('navigate', handleNavigation);
+            navigationListenerAttached = true;
+            console.log('[App] Navigation event listener attached');
+        }
 
         // Attacher les événements des boutons header
         attachHeaderEvents();
+
+        // Nettoyer le cache localStorage expiré au démarrage
+        if (typeof PersistentCache !== 'undefined') {
+            PersistentCache._cleanup();
+            console.log('[App] localStorage cache cleaned');
+        }
 
         // Charger le cache des acteurs pour le formatage des noms
         console.log('[App] Loading actors cache...');
@@ -212,6 +227,13 @@ async function navigateTo(page, table = null) {
     showLoading();
 
     try {
+        // IMPORTANT : Détruire l'ancienne instance de page pour libérer la mémoire
+        if (AppState.currentPageInstance && typeof AppState.currentPageInstance.destroy === 'function') {
+            console.log('[App] Destroying previous page instance');
+            AppState.currentPageInstance.destroy();
+            AppState.currentPageInstance = null;
+        }
+
         // Mettre à jour le titre
         updatePageTitle(page, table);
 
@@ -221,47 +243,47 @@ async function navigateTo(page, table = null) {
             sidebar.setActive(page, table);
         }
 
-        // Rendre la page appropriée
+        // Rendre la page appropriée et stocker l'instance pour le lifecycle
         switch (page) {
             case 'roadmap-gantt':
-                await renderRoadmapGanttPage(container);
+                AppState.currentPageInstance = await renderRoadmapGanttPage(container);
                 break;
 
             case 'roadmap-chantiers':
-                await renderRoadmapChantiersPage(container);
+                AppState.currentPageInstance = await renderRoadmapChantiersPage(container);
                 break;
 
             case 'synthese':
-                await renderSynthesePage(container);
+                AppState.currentPageInstance = await renderSynthesePage(container);
                 break;
 
             case 'migration':
-                await renderMigrationPage(container);
+                AppState.currentPageInstance = await renderMigrationPage(container);
                 break;
 
             case 'parc':
-                await renderParcPage(container);
+                AppState.currentPageInstance = await renderParcPage(container);
                 break;
 
             case 'mae':
-                await renderMAEPage(container);
+                AppState.currentPageInstance = await renderMAEPage(container);
                 break;
 
             case 'carrousel':
-                await renderCarrouselPage(container);
+                AppState.currentPageInstance = await renderCarrouselPage(container);
                 break;
 
             case 'roadmap':
-                await renderRoadmapPage(container);
+                AppState.currentPageInstance = await renderRoadmapPage(container);
                 break;
 
             case 'parametres-home':
-                await renderParametresHomePage(container);
+                AppState.currentPageInstance = await renderParametresHomePage(container);
                 break;
 
             case 'params':
                 if (table) {
-                    await renderParamsPage(container, table);
+                    AppState.currentPageInstance = await renderParamsPage(container, table);
                 } else {
                     container.innerHTML = '<div class="alert alert-warning">Veuillez sélectionner une table.</div>';
                 }

@@ -522,3 +522,54 @@ function formatActorShortName(actor) {
     }
     return actor.Mail || '-';
 }
+
+/**
+ * Obtient les statistiques mémoire pour le diagnostic
+ * Utilisable dans la console du navigateur : getMemoryStats()
+ * @returns {Object} Statistiques mémoire
+ */
+function getMemoryStats() {
+    const stats = {
+        cacheSize: 0,
+        pendingRequests: 0,
+        localStorageSize: 0,
+        connectionListeners: 0
+    };
+
+    // Taille du cache mémoire (tableCache)
+    if (typeof tableCache !== 'undefined') {
+        stats.cacheSize = tableCache.size;
+    }
+
+    // Requêtes bridge en attente
+    if (typeof ExcelBridge !== 'undefined' && ExcelBridge._pendingRequests) {
+        stats.pendingRequests = ExcelBridge._pendingRequests.size;
+    }
+
+    // Taille du localStorage (approximative)
+    try {
+        const localStorageContent = JSON.stringify(localStorage);
+        stats.localStorageSize = new Blob([localStorageContent]).size;
+    } catch (e) {
+        stats.localStorageSize = -1;
+    }
+
+    // Nombre de listeners ConnectionStatus
+    if (typeof ConnectionStatus !== 'undefined' && ConnectionStatus._listeners) {
+        stats.connectionListeners = ConnectionStatus._listeners.length;
+    }
+
+    console.log('=== Memory Stats ===');
+    console.log(`Cache mémoire: ${stats.cacheSize} entrées`);
+    console.log(`Requêtes bridge en attente: ${stats.pendingRequests}`);
+    console.log(`localStorage: ${(stats.localStorageSize / 1024).toFixed(2)} KB`);
+    console.log(`Listeners ConnectionStatus: ${stats.connectionListeners}`);
+    console.log('====================');
+
+    return stats;
+}
+
+// Exposer globalement pour utilisation dans la console
+if (typeof window !== 'undefined') {
+    window.getMemoryStats = getMemoryStats;
+}

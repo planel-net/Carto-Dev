@@ -1243,6 +1243,32 @@ class MigrationPage {
     async refresh() {
         await this.loadData();
     }
+
+    /**
+     * Détruit l'instance et libère la mémoire
+     */
+    destroy() {
+        console.log('[Migration] Destroying instance...');
+
+        // Vider les arrays volumineux pour libérer la mémoire
+        this.produits = [];
+        this.flux = [];
+        this.shores = [];
+        this.projetsDss = [];
+        this.dataflows = [];
+        this.tablesMh = [];
+        this.expandedRows.clear();
+
+        // Réinitialiser les stats
+        this.stats = null;
+        this.filteredStats = null;
+        this.selectedProduitIndex = null;
+
+        // Note: Les event listeners sur les éléments DOM sont automatiquement
+        // nettoyés quand le DOM est remplacé (container.innerHTML = ...)
+
+        console.log('[Migration] Instance destroyed');
+    }
 }
 
 // Instance globale
@@ -1250,10 +1276,12 @@ let migrationPageInstance = null;
 
 /**
  * Rendu de la page Migration
+ * @returns {MigrationPage} Instance de la page
  */
 async function renderMigrationPage(container) {
     migrationPageInstance = new MigrationPage();
     await migrationPageInstance.render(container);
+    return migrationPageInstance;
 }
 
 /**
