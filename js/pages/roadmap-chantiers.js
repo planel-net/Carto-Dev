@@ -4292,9 +4292,12 @@ class RoadmapChantiersPage {
         const chantierPhases = this.phases.filter(p => p['Chantier'] === chantierName);
 
         if (chantierPhases.length === 0 || this.sprints.length === 0) {
-            // Pas de phases, retourner avec un petit espace
             return yStart + 2;
         }
+
+        // Trouver le chantier pour récupérer la date fin souhaitée
+        const chantier = this.chantiers.find(c => c['Chantier'] === chantierName);
+        const dateFin = chantier ? this.parseDate(chantier['Date fin souhaitée']) : null;
 
         // Calculer la plage de sprints à afficher
         const allSprintNames = this.sprints.map(s => s['Sprint']);
@@ -4308,7 +4311,6 @@ class RoadmapChantiersPage {
                 if (sIdx >= 0 && sIdx < minIdx) minIdx = sIdx;
                 if (eIdx >= 0 && eIdx > maxIdx) maxIdx = eIdx;
             } else {
-                // Mode Semaine : trouver les sprints correspondants
                 const wStart = phase['Semaine début'] || '';
                 const wEnd = phase['Semaine fin'] || '';
                 this.sprints.forEach((s, idx) => {
@@ -4325,9 +4327,9 @@ class RoadmapChantiersPage {
             return yStart + 2;
         }
 
-        // Limiter à un nombre raisonnable de sprints pour le PDF (max 8)
-        if (maxIdx - minIdx > 7) {
-            maxIdx = minIdx + 7;
+        // Limiter à max 10 sprints pour le PDF
+        if (maxIdx - minIdx > 9) {
+            maxIdx = minIdx + 9;
         }
 
         const visibleSprints = this.sprints.slice(minIdx, maxIdx + 1);
@@ -4351,6 +4353,8 @@ class RoadmapChantiersPage {
         }
 
         const weekCodes = allWeeks.map(w => w.weekCode);
+        const todayCode = this.formatWeekCode(new Date());
+        const dateFinWeekCode = dateFin && !isNaN(dateFin.getTime()) ? this.formatWeekCode(dateFin) : null;
 
         // Calculer les positions de chaque phase
         const phasePositions = [];
@@ -4383,7 +4387,7 @@ class RoadmapChantiersPage {
             });
         });
 
-        // Calculer les lanes (voies) pour éviter les chevauchements
+        // Calculer les lanes
         const sorted = [...phasePositions].sort((a, b) => a.startIdx - b.startIdx || a.endIdx - b.endIdx);
         const lanes = [];
         sorted.forEach(pp => {
@@ -4397,17 +4401,17 @@ class RoadmapChantiersPage {
         });
         const totalLanes = Math.max(lanes.length, 1);
 
-        // Dimensions du Gantt
-        const cellWidth = 5; // mm par semaine
-        const laneHeight = 4; // mm par lane
-        const rowHeight = totalLanes * laneHeight + 2;
-        const headerHeight = 4; // mm par ligne d'entête
-        const totalWidth = allWeeks.length * cellWidth;
+        // Utiliser toute la largeur disponible
+        const availableWidth = pageWidth - 2 * margin;
+        const cellWidth = availableWidth / allWeeks.length;
+        const laneHeight = 6; // mm par lane (plus grand pour meilleure lisibilité)
+        const rowHeight = totalLanes * laneHeight;
+        const headerHeight = 5; // mm par ligne d'entête
         const startX = margin;
         let currentY = yStart;
 
-        // Vérifier si on a assez de place, sinon nouvelle page
-        const neededHeight = headerHeight * 3 + rowHeight + 8;
+        // Vérifier si on a assez de place
+        const neededHeight = headerHeight * 3 + rowHeight + 10;
         if (currentY + neededHeight > pageHeight - 15) {
             doc.addPage();
             doc.setFontSize(12);
@@ -4418,54 +4422,109 @@ class RoadmapChantiersPage {
         }
 
         // Titre "ROADMAP"
-        doc.setFontSize(9);
+        doc.setFontSize(10);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(0, 51, 102);
         doc.text('ROADMAP', startX, currentY);
-        currentY += 5;
+        currentY += 6;
 
-        // Entête Sprints
-        doc.setFontSize(7);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(0, 51, 102);
+        const tableStartY = currentY;
+
+        // === ENTÊTE SPRINTS avec fond gris foncé ===
         let x = startX;
         visibleSprints.forEach(sprint => {
             const weeksInSprint = this.getWeeksForSprint(sprint);
             const width = weeksInSprint.length * cellWidth;
-            doc.text(sprint['Sprint'], x + width / 2, currentY, { align: 'center' });
+
+            // Fond gris foncé
+            doc.setFillColor(44, 62, 80); // #2c3e50
+            doc.rect(x, currentY, width, headerHeight, 'F');
+
+            // Texte blanc
+            doc.setFontSize(7);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(255, 255, 255);
+            doc.text(sprint['Sprint'], x + width / 2, currentY + headerHeight / 2 + 1, { align: 'center' });
+
             x += width;
         });
         currentY += headerHeight;
 
-        // Entête Semaines
-        doc.setFontSize(6);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(0, 0, 0);
+        // === ENTÊTE SEMAINES ===
         x = startX;
-        allWeeks.forEach(w => {
+        allWeeks.forEach((w, idx) => {
+            // Fond blanc
+            doc.setFillColor(255, 255, 255);
+            doc.rect(x, currentY, cellWidth, headerHeight, 'F');
+
+            // Bordure
+            doc.setDrawColor(200, 200, 200);
+            doc.setLineWidth(0.1);
+            doc.rect(x, currentY, cellWidth, headerHeight, 'S');
+
+            // Texte
             const weekLabel = 'S' + w.weekCode.slice(-2);
-            doc.text(weekLabel, x + cellWidth / 2, currentY, { align: 'center' });
+            doc.setFontSize(6);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(0, 0, 0);
+            doc.text(weekLabel, x + cellWidth / 2, currentY + headerHeight / 2 + 0.5, { align: 'center' });
+
             x += cellWidth;
         });
         currentY += headerHeight;
 
-        // Entête Dates
-        doc.setFontSize(5);
+        // === ENTÊTE DATES ===
         x = startX;
         allWeeks.forEach(w => {
+            // Fond blanc
+            doc.setFillColor(255, 255, 255);
+            doc.rect(x, currentY, cellWidth, headerHeight, 'F');
+
+            // Bordure
+            doc.setDrawColor(200, 200, 200);
+            doc.setLineWidth(0.1);
+            doc.rect(x, currentY, cellWidth, headerHeight, 'S');
+
+            // Texte
             const monday = this.weekCodeToDate(w.weekCode);
             if (monday) {
                 const dateLabel = monday.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
-                doc.text(dateLabel, x + cellWidth / 2, currentY, { align: 'center' });
+                doc.setFontSize(5.5);
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(80, 80, 80);
+                doc.text(dateLabel, x + cellWidth / 2, currentY + headerHeight / 2 + 0.5, { align: 'center' });
             }
+
             x += cellWidth;
         });
         currentY += headerHeight;
 
-        // Dessiner les barres de phases
+        // === ZONE DES PHASES avec grille ===
+        // Fond blanc pour toute la zone
+        doc.setFillColor(255, 255, 255);
+        doc.rect(startX, currentY, availableWidth, rowHeight, 'F');
+
+        // Grille verticale
+        doc.setDrawColor(220, 220, 220);
+        doc.setLineWidth(0.1);
+        x = startX;
+        allWeeks.forEach((w, idx) => {
+            // Ligne verticale
+            doc.line(x, currentY, x, currentY + rowHeight);
+            x += cellWidth;
+        });
+        // Dernière ligne verticale
+        doc.line(x, currentY, x, currentY + rowHeight);
+
+        // Bordure extérieure
+        doc.setDrawColor(150, 150, 150);
+        doc.setLineWidth(0.3);
+        doc.rect(startX, currentY, availableWidth, rowHeight, 'S');
+
+        // === BARRES DE PHASES ===
         phasePositions.forEach(pp => {
-            const startX = margin + pp.startIdx * cellWidth;
-            const width = (pp.endIdx - pp.startIdx + 1) * cellWidth;
+            const phaseStartX = startX + pp.startIdx * cellWidth;
+            const phaseWidth = (pp.endIdx - pp.startIdx + 1) * cellWidth;
             const yPos = currentY + pp.lane * laneHeight;
 
             // Convertir la couleur hex en RGB
@@ -4474,24 +4533,37 @@ class RoadmapChantiersPage {
             const g = parseInt(hex.substr(2, 2), 16);
             const b = parseInt(hex.substr(4, 2), 16);
 
-            // Dessiner le rectangle de la phase
+            // Dessiner le rectangle de la phase avec bordure
             doc.setFillColor(r, g, b);
-            doc.rect(startX, yPos, width, laneHeight - 0.5, 'F');
+            doc.setDrawColor(r * 0.8, g * 0.8, b * 0.8); // Bordure plus foncée
+            doc.setLineWidth(0.2);
+            doc.rect(phaseStartX + 0.5, yPos + 0.5, phaseWidth - 1, laneHeight - 1, 'FD');
 
-            // Ajouter le texte de la phase (si assez de place)
-            if (width > 10) {
-                doc.setFontSize(5);
-                doc.setTextColor(255, 255, 255);
-                doc.setFont('helvetica', 'normal');
-                const text = pp.phase['Phase'];
-                const textWidth = doc.getTextWidth(text);
-                if (textWidth < width - 1) {
-                    doc.text(text, startX + width / 2, yPos + laneHeight / 2 + 0.5, { align: 'center' });
-                }
-            }
+            // Texte de la phase (toujours afficher)
+            doc.setFontSize(5);
+            doc.setTextColor(255, 255, 255);
+            doc.setFont('helvetica', 'normal');
+            const text = pp.phase['Phase'];
+            doc.text(text, phaseStartX + phaseWidth / 2, yPos + laneHeight / 2 + 0.5, {
+                align: 'center',
+                maxWidth: phaseWidth - 1
+            });
         });
 
-        currentY += rowHeight + 4;
+        // === LIGNE POINTILLÉE ROUGE pour date fin souhaitée ===
+        if (dateFinWeekCode) {
+            const dateFinIdx = weekCodes.indexOf(dateFinWeekCode);
+            if (dateFinIdx >= 0) {
+                const dateFinX = startX + (dateFinIdx + 0.5) * cellWidth;
+                doc.setDrawColor(220, 53, 69); // Rouge
+                doc.setLineWidth(0.5);
+                doc.setLineDash([1, 1], 0); // Pointillé
+                doc.line(dateFinX, tableStartY, dateFinX, currentY + rowHeight);
+                doc.setLineDash([], 0); // Réinitialiser
+            }
+        }
+
+        currentY += rowHeight + 6;
 
         return currentY;
     }
