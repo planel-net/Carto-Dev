@@ -92,10 +92,15 @@ class ParametresHomePage {
     }
 
     /**
-     * Détruit la page
+     * Détruit la page et libère la mémoire
      */
     destroy() {
-        // Nettoyage si nécessaire
+        console.log('[ParametresHome] Destroying instance...');
+
+        // Vider le tableau des thèmes
+        this.themes = [];
+
+        console.log('[ParametresHome] Instance destroyed');
     }
 }
 
@@ -104,6 +109,7 @@ let parametresHomePageInstance = null;
 
 /**
  * Fonction d'entrée pour afficher la page
+ * @returns {ParametresHomePage} Instance de la page
  */
 async function renderParametresHomePage(container) {
     try {
@@ -111,9 +117,11 @@ async function renderParametresHomePage(container) {
             parametresHomePageInstance = new ParametresHomePage();
         }
         await parametresHomePageInstance.render(container);
+        return parametresHomePageInstance;
     } catch (error) {
         console.error('Erreur lors du rendu de la page Paramètres:', error);
         showError('Erreur lors du chargement de la page Paramètres');
+        return null;
     }
 }
 

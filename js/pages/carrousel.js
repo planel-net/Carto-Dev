@@ -866,6 +866,26 @@ class CarrouselPage {
             });
         });
     }
+
+    /**
+     * Détruit l'instance et libère la mémoire
+     */
+    destroy() {
+        console.log('[Carrousel] Destroying instance...');
+
+        // Vider les arrays volumineux
+        this.produits = [];
+        this.processus = [];
+        this.pdtProcess = [];
+        this.perimetres = [];
+        this.selectedTypes = [];
+        this.selectedResponsables = [];
+
+        // Nettoyer la palette de couleurs
+        this.colorPalette = null;
+
+        console.log('[Carrousel] Instance destroyed');
+    }
 }
 
 // Instance globale
@@ -873,12 +893,14 @@ let carrouselPageInstance = null;
 
 /**
  * Fonction d'entrée pour afficher la page Carrousel
+ * @returns {CarrouselPage} Instance de la page
  */
 async function renderCarrouselPage(container) {
     if (!carrouselPageInstance) {
         carrouselPageInstance = new CarrouselPage();
     }
     await carrouselPageInstance.render(container);
+    return carrouselPageInstance;
 }
 
 /**

@@ -262,16 +262,18 @@ async function addProduit(data) {
 
 ## Pages avec destroy() implémenté
 
+✅ **Toutes les pages sont maintenant optimisées !**
+
 - ✅ `migration.js` (Cartographie)
 - ✅ `parc.js` (Parc Applicatif)
 - ✅ `mae.js` (MAE)
 - ✅ `roadmap-chantiers.js` (Roadmap)
+- ✅ `synthese.js` (Synthèse)
+- ✅ `carrousel.js` (Carrousel)
+- ✅ `roadmap-gantt.js` (Roadmap Gantt)
+- ✅ `params.js` (Paramètres)
+- ✅ `parametres-home.js` (Accueil Paramètres)
 
-## Pages à implémenter
+## Pages legacy (non utilisées)
 
-- ⏳ `synthese.js`
-- ⏳ `carrousel.js`
-- ⏳ `roadmap-gantt.js`
-- ⏳ `roadmap.js` (legacy)
-- ⏳ `params.js`
-- ⏳ `parametres-home.js`
+- ⏳ `roadmap.js` (ancienne roadmap - legacy, pas prioritaire)

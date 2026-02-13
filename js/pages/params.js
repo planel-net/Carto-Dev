@@ -763,6 +763,44 @@ class ParamsPage {
             await this.dataTable.refresh();
         }
     }
+
+    /**
+     * Détruit l'instance et libère la mémoire
+     */
+    destroy() {
+        console.log('[Params] Destroying instance...');
+
+        // Détruire l'instance Table si elle existe
+        if (this.dataTable && typeof this.dataTable.destroy === 'function') {
+            this.dataTable.destroy();
+        }
+        this.dataTable = null;
+
+        // Nettoyer les filtres DataAna
+        if (this._dataAnaFilters) {
+            this._dataAnaFilters.etats.clear();
+            this._dataAnaFilters.personnes.clear();
+            this._dataAnaFilters.allEtats = [];
+            this._dataAnaFilters.allPersonnes = [];
+            this._dataAnaFilters = null;
+        }
+
+        // Nettoyer les filtres Chantier
+        if (this._chantierFilters) {
+            this._chantierFilters.perimetres.clear();
+            this._chantierFilters.responsables.clear();
+            this._chantierFilters.avancements.clear();
+            this._chantierFilters.allPerimetres = [];
+            this._chantierFilters.allResponsables = [];
+            this._chantierFilters.allAvancements = [];
+            this._chantierFilters = null;
+        }
+
+        // Réinitialiser la config
+        this.tableConfig = null;
+
+        console.log('[Params] Instance destroyed');
+    }
 }
 
 // Instance courante
@@ -772,10 +810,12 @@ let currentParamsPage = null;
  * Rendu d'une page de paramètres
  * @param {HTMLElement} container - Conteneur
  * @param {string} tableKey - Clé de la table dans CONFIG.TABLES
+ * @returns {ParamsPage} Instance de la page
  */
 async function renderParamsPage(container, tableKey) {
     currentParamsPage = new ParamsPage(tableKey);
     await currentParamsPage.render(container);
+    return currentParamsPage;
 }
 
 /**

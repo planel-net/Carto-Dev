@@ -1165,14 +1165,48 @@ class SynthesePage {
         // Afficher la modale
         lineageModal.show(produit);
     }
+
+    /**
+     * Détruit l'instance et libère la mémoire
+     */
+    destroy() {
+        console.log('[Synthese] Destroying instance...');
+
+        // Vider tous les arrays du data object
+        if (this.data) {
+            this.data.chantiers = [];
+            this.data.produits = [];
+            this.data.mae = [];
+            this.data.acteurs = [];
+            this.data.perimetres = [];
+            this.data.processus = [];
+            this.data.flux = [];
+            this.data.shores = [];
+            this.data.projetsDSS = [];
+            this.data.dataflows = [];
+            this.data.pdtProcess = [];
+            this.data.pdtsPerimetres = [];
+            this.data.tablesMh = [];
+            this.data = null;
+        }
+
+        // Réinitialiser les filtres
+        this.filters = null;
+
+        console.log('[Synthese] Instance destroyed');
+    }
 }
 
 // Instance globale
 let synthesePageInstance = null;
 
+/**
+ * @returns {SynthesePage} Instance de la page
+ */
 async function renderSynthesePage(container) {
     synthesePageInstance = new SynthesePage();
     await synthesePageInstance.render(container);
+    return synthesePageInstance;
 }
 
 async function refreshSynthesePage() {

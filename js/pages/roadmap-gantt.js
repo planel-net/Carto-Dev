@@ -1304,6 +1304,23 @@ class RoadmapGanttPage {
         invalidateCache('tProduits');
         await this.loadData();
     }
+
+    /**
+     * Détruit l'instance et libère la mémoire
+     */
+    destroy() {
+        console.log('[RoadmapGantt] Destroying instance...');
+
+        // Vider les arrays volumineux
+        this.backlog = [];
+        this.sprints = [];
+        this.processus = [];
+        this.perimetres = [];
+        this.produits = [];
+        this.columns = [];
+
+        console.log('[RoadmapGantt] Instance destroyed');
+    }
 }
 
 // Instance globale
@@ -1311,10 +1328,12 @@ let roadmapGanttPageInstance = null;
 
 /**
  * Rendu de la page Roadmap Gantt
+ * @returns {RoadmapGanttPage} Instance de la page
  */
 async function renderRoadmapGanttPage(container) {
     roadmapGanttPageInstance = new RoadmapGanttPage();
     await roadmapGanttPageInstance.render(container);
+    return roadmapGanttPageInstance;
 }
 
 /**
