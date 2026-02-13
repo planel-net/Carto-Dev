@@ -4027,7 +4027,10 @@ class RoadmapChantiersPage {
                     doc.setFont('helvetica', 'bold');
                     doc.setTextColor(0, 51, 102);
                     doc.text(chantierName, margin, yPosition);
-                    yPosition += 5;
+                    yPosition += 6;
+
+                    // Dessiner la roadmap du chantier
+                    yPosition = this.drawChantierRoadmapPDF(doc, chantierName, yPosition, pageWidth, pageHeight, margin);
 
                     // Notes du chantier
                     doc.setFontSize(9);
@@ -4270,6 +4273,225 @@ class RoadmapChantiersPage {
         for (const child of temp.childNodes) {
             currentY = processNode(child, currentY, 0, null);
         }
+
+        return currentY;
+    }
+
+    /**
+     * Dessine la roadmap d'un chantier dans le PDF
+     * @param {jsPDF} doc - Instance jsPDF
+     * @param {string} chantierName - Nom du chantier
+     * @param {number} yStart - Position Y de départ
+     * @param {number} pageWidth - Largeur de la page
+     * @param {number} pageHeight - Hauteur de la page
+     * @param {number} margin - Marges du document
+     * @returns {number} Nouvelle position Y après le dessin
+     */
+    drawChantierRoadmapPDF(doc, chantierName, yStart, pageWidth, pageHeight, margin) {
+        // Récupérer les phases du chantier
+        const chantierPhases = this.phases.filter(p => p['Chantier'] === chantierName);
+
+        if (chantierPhases.length === 0 || this.sprints.length === 0) {
+            // Pas de phases, retourner avec un petit espace
+            return yStart + 2;
+        }
+
+        // Calculer la plage de sprints à afficher
+        const allSprintNames = this.sprints.map(s => s['Sprint']);
+        let minIdx = Infinity, maxIdx = -1;
+
+        chantierPhases.forEach(phase => {
+            const mode = phase['Mode'] || 'Sprint';
+            if (mode === 'Sprint') {
+                const sIdx = allSprintNames.indexOf(phase['Sprint début']);
+                const eIdx = allSprintNames.indexOf(phase['Sprint fin']);
+                if (sIdx >= 0 && sIdx < minIdx) minIdx = sIdx;
+                if (eIdx >= 0 && eIdx > maxIdx) maxIdx = eIdx;
+            } else {
+                // Mode Semaine : trouver les sprints correspondants
+                const wStart = phase['Semaine début'] || '';
+                const wEnd = phase['Semaine fin'] || '';
+                this.sprints.forEach((s, idx) => {
+                    const weeks = this.getWeeksForSprint(s);
+                    if (weeks.length > 0 && weeks.some(w => w >= wStart && w <= wEnd)) {
+                        if (idx < minIdx) minIdx = idx;
+                        if (idx > maxIdx) maxIdx = idx;
+                    }
+                });
+            }
+        });
+
+        if (minIdx === Infinity || maxIdx === -1) {
+            return yStart + 2;
+        }
+
+        // Limiter à un nombre raisonnable de sprints pour le PDF (max 8)
+        if (maxIdx - minIdx > 7) {
+            maxIdx = minIdx + 7;
+        }
+
+        const visibleSprints = this.sprints.slice(minIdx, maxIdx + 1);
+
+        // Construire la liste des semaines
+        const allWeeks = [];
+        visibleSprints.forEach(sprint => {
+            const weeks = this.getWeeksForSprint(sprint);
+            weeks.forEach((weekCode, idx) => {
+                allWeeks.push({
+                    weekCode,
+                    sprintName: sprint['Sprint'],
+                    sprint: sprint,
+                    isFirstOfSprint: idx === 0
+                });
+            });
+        });
+
+        if (allWeeks.length === 0) {
+            return yStart + 2;
+        }
+
+        const weekCodes = allWeeks.map(w => w.weekCode);
+
+        // Calculer les positions de chaque phase
+        const phasePositions = [];
+        chantierPhases.forEach(phase => {
+            const mode = phase['Mode'] || 'Sprint';
+            let startWeekIdx, endWeekIdx;
+
+            if (mode === 'Semaine') {
+                startWeekIdx = weekCodes.indexOf(phase['Semaine début']);
+                endWeekIdx = weekCodes.indexOf(phase['Semaine fin']);
+            } else {
+                const startSprint = this.sprints.find(s => s['Sprint'] === phase['Sprint début']);
+                const endSprint = this.sprints.find(s => s['Sprint'] === phase['Sprint fin']);
+                if (startSprint && endSprint) {
+                    const startWeeks = this.getWeeksForSprint(startSprint);
+                    const endWeeks = this.getWeeksForSprint(endSprint);
+                    startWeekIdx = weekCodes.indexOf(startWeeks[0]);
+                    endWeekIdx = weekCodes.indexOf(endWeeks[endWeeks.length - 1]);
+                }
+            }
+
+            if (startWeekIdx === undefined || startWeekIdx === -1) startWeekIdx = 0;
+            if (endWeekIdx === undefined || endWeekIdx === -1) endWeekIdx = weekCodes.length - 1;
+
+            phasePositions.push({
+                phase,
+                startIdx: startWeekIdx,
+                endIdx: endWeekIdx,
+                color: phase['Couleur'] || CONFIG.PHASE_COLORS[phase['Type phase']] || '#cccccc'
+            });
+        });
+
+        // Calculer les lanes (voies) pour éviter les chevauchements
+        const sorted = [...phasePositions].sort((a, b) => a.startIdx - b.startIdx || a.endIdx - b.endIdx);
+        const lanes = [];
+        sorted.forEach(pp => {
+            let lane = -1;
+            for (let i = 0; i < lanes.length; i++) {
+                if (lanes[i] < pp.startIdx) { lane = i; break; }
+            }
+            if (lane === -1) { lane = lanes.length; lanes.push(pp.endIdx); }
+            else { lanes[lane] = pp.endIdx; }
+            pp.lane = lane;
+        });
+        const totalLanes = Math.max(lanes.length, 1);
+
+        // Dimensions du Gantt
+        const cellWidth = 5; // mm par semaine
+        const laneHeight = 4; // mm par lane
+        const rowHeight = totalLanes * laneHeight + 2;
+        const headerHeight = 4; // mm par ligne d'entête
+        const totalWidth = allWeeks.length * cellWidth;
+        const startX = margin;
+        let currentY = yStart;
+
+        // Vérifier si on a assez de place, sinon nouvelle page
+        const neededHeight = headerHeight * 3 + rowHeight + 8;
+        if (currentY + neededHeight > pageHeight - 15) {
+            doc.addPage();
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(0, 51, 102);
+            doc.text('Notes des Chantiers (suite)', pageWidth / 2, 10, { align: 'center' });
+            currentY = 18;
+        }
+
+        // Titre "ROADMAP"
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 51, 102);
+        doc.text('ROADMAP', startX, currentY);
+        currentY += 5;
+
+        // Entête Sprints
+        doc.setFontSize(7);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 51, 102);
+        let x = startX;
+        visibleSprints.forEach(sprint => {
+            const weeksInSprint = this.getWeeksForSprint(sprint);
+            const width = weeksInSprint.length * cellWidth;
+            doc.text(sprint['Sprint'], x + width / 2, currentY, { align: 'center' });
+            x += width;
+        });
+        currentY += headerHeight;
+
+        // Entête Semaines
+        doc.setFontSize(6);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(0, 0, 0);
+        x = startX;
+        allWeeks.forEach(w => {
+            const weekLabel = 'S' + w.weekCode.slice(-2);
+            doc.text(weekLabel, x + cellWidth / 2, currentY, { align: 'center' });
+            x += cellWidth;
+        });
+        currentY += headerHeight;
+
+        // Entête Dates
+        doc.setFontSize(5);
+        x = startX;
+        allWeeks.forEach(w => {
+            const monday = this.weekCodeToDate(w.weekCode);
+            if (monday) {
+                const dateLabel = monday.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+                doc.text(dateLabel, x + cellWidth / 2, currentY, { align: 'center' });
+            }
+            x += cellWidth;
+        });
+        currentY += headerHeight;
+
+        // Dessiner les barres de phases
+        phasePositions.forEach(pp => {
+            const startX = margin + pp.startIdx * cellWidth;
+            const width = (pp.endIdx - pp.startIdx + 1) * cellWidth;
+            const yPos = currentY + pp.lane * laneHeight;
+
+            // Convertir la couleur hex en RGB
+            const hex = pp.color.replace('#', '');
+            const r = parseInt(hex.substr(0, 2), 16);
+            const g = parseInt(hex.substr(2, 2), 16);
+            const b = parseInt(hex.substr(4, 2), 16);
+
+            // Dessiner le rectangle de la phase
+            doc.setFillColor(r, g, b);
+            doc.rect(startX, yPos, width, laneHeight - 0.5, 'F');
+
+            // Ajouter le texte de la phase (si assez de place)
+            if (width > 10) {
+                doc.setFontSize(5);
+                doc.setTextColor(255, 255, 255);
+                doc.setFont('helvetica', 'normal');
+                const text = pp.phase['Phase'];
+                const textWidth = doc.getTextWidth(text);
+                if (textWidth < width - 1) {
+                    doc.text(text, startX + width / 2, yPos + laneHeight / 2 + 0.5, { align: 'center' });
+                }
+            }
+        });
+
+        currentY += rowHeight + 4;
 
         return currentY;
     }
