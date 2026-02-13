@@ -896,9 +896,8 @@ let carrouselPageInstance = null;
  * @returns {CarrouselPage} Instance de la page
  */
 async function renderCarrouselPage(container) {
-    if (!carrouselPageInstance) {
-        carrouselPageInstance = new CarrouselPage();
-    }
+    // Toujours créer une nouvelle instance (car destroy() vide les données)
+    carrouselPageInstance = new CarrouselPage();
     await carrouselPageInstance.render(container);
     return carrouselPageInstance;
 }

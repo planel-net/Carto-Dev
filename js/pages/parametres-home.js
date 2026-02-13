@@ -113,9 +113,8 @@ let parametresHomePageInstance = null;
  */
 async function renderParametresHomePage(container) {
     try {
-        if (!parametresHomePageInstance) {
-            parametresHomePageInstance = new ParametresHomePage();
-        }
+        // Toujours créer une nouvelle instance (car destroy() vide les données)
+        parametresHomePageInstance = new ParametresHomePage();
         await parametresHomePageInstance.render(container);
         return parametresHomePageInstance;
     } catch (error) {
