@@ -834,8 +834,8 @@ class RoadmapChantiersPage {
             <button class="btn btn-secondary" id="btnShowArchived">
                 Réafficher un chantier archivé
             </button>
-            <button class="btn btn-secondary" id="btnRefreshTable" title="Recharger les données du tableau">
-                &#8635; Actualiser tableau
+            <button class="btn btn-secondary" id="btnCleanMemory" title="Nettoyer la mémoire et recharger la page (comme un changement de section)">
+                &#8635; Actualiser
             </button>
         `;
     }
@@ -1649,8 +1649,8 @@ class RoadmapChantiersPage {
             this.showPdfExportModal();
         });
 
-        document.getElementById('btnRefreshTable')?.addEventListener('click', () => {
-            this.refreshTable();
+        document.getElementById('btnCleanMemory')?.addEventListener('click', () => {
+            cleanAndReloadRoadmapChantiersPage();
         });
 
         // Fermer les dropdowns en cliquant ailleurs
@@ -4574,18 +4574,28 @@ class RoadmapChantiersPage {
     destroy() {
         console.log('[RoadmapChantiers] Destroying instance...');
 
-        // Vider les arrays volumineux pour libérer la mémoire
+        // Vider TOUS les arrays volumineux pour libérer la mémoire
         this.chantiers = [];
+        this.chantiersArchives = [];
         this.chantiersFiltered = [];
         this.phases = [];
+        this.phasesLien = [];
+        this.chantierProduit = [];
+        this.chantierDataAna = [];
+        this.chantierNotes = [];
         this.sprints = [];
         this.acteurs = [];
         this.perimetres = [];
         this.produits = [];
+        this.dataAnas = [];
         this.processus = [];
 
-        // Réinitialiser les filtres
+        // Réinitialiser les filtres et l'état
         this.filters = null;
+        this.editingPhaseBlock = null;
+        this.draggedPhase = null;
+        this.resizingPhase = null;
+        this.contextMenu = null;
 
         console.log('[RoadmapChantiers] Instance destroyed');
     }
@@ -4607,5 +4617,72 @@ async function renderRoadmapChantiersPage(container) {
 async function refreshRoadmapChantiersPage() {
     if (roadmapChantiersPageInstance) {
         await roadmapChantiersPageInstance.refresh();
+    }
+}
+
+/**
+ * Nettoyage mémoire complet : détruit l'instance, vide les caches et recrée la page
+ * Simule un changement de section pour libérer toute la mémoire accumulée
+ */
+async function cleanAndReloadRoadmapChantiersPage() {
+    try {
+        showInfo('Nettoyage mémoire en cours...');
+
+        const container = document.getElementById('pageContainer');
+        if (!container) return;
+
+        // 1. Sauvegarder les filtres actuels avant destruction
+        let savedFilters = null;
+        if (roadmapChantiersPageInstance && roadmapChantiersPageInstance.filters) {
+            savedFilters = {
+                dateDebut: roadmapChantiersPageInstance.filters.dateDebut,
+                dateFin: roadmapChantiersPageInstance.filters.dateFin,
+                selectedGroupes: [...roadmapChantiersPageInstance.filters.selectedGroupes],
+                perimetres: [...roadmapChantiersPageInstance.filters.perimetres],
+                responsables: [...roadmapChantiersPageInstance.filters.responsables],
+                avancements: [...roadmapChantiersPageInstance.filters.avancements],
+                perimetreProcessus: [...roadmapChantiersPageInstance.filters.perimetreProcessus]
+            };
+        }
+
+        // 2. Détruire l'instance existante (libère toute la mémoire)
+        if (roadmapChantiersPageInstance) {
+            roadmapChantiersPageInstance.destroy();
+            roadmapChantiersPageInstance = null;
+        }
+
+        // 3. Invalider tous les caches pour forcer le rechargement
+        invalidateCache('tChantiers');
+        invalidateCache('tPhases');
+        invalidateCache('tPhasesLien');
+        invalidateCache('tChantierProduit');
+        invalidateCache('tChantierDataAna');
+        invalidateCache('tSprints');
+        invalidateCache('tActeurs');
+        invalidateCache('tPerimetres');
+        invalidateCache('tProduits');
+        invalidateCache('tDataAnas');
+
+        // 4. Recréer une instance fraîche (comme navigateTo)
+        roadmapChantiersPageInstance = await renderRoadmapChantiersPage(container);
+
+        // 5. Restaurer les filtres sauvegardés
+        if (savedFilters && roadmapChantiersPageInstance) {
+            roadmapChantiersPageInstance.filters = savedFilters;
+            roadmapChantiersPageInstance.renderFilters();
+            roadmapChantiersPageInstance.attachFilterEvents();
+            roadmapChantiersPageInstance.renderStats();
+            roadmapChantiersPageInstance.renderGantt();
+        }
+
+        // 6. Mettre à jour la référence dans AppState
+        if (typeof AppState !== 'undefined') {
+            AppState.currentPageInstance = roadmapChantiersPageInstance;
+        }
+
+        showSuccess('Mémoire nettoyée et page rechargée');
+    } catch (error) {
+        console.error('[RoadmapChantiers] Erreur nettoyage mémoire:', error);
+        showError('Erreur lors du nettoyage. Réessayez.');
     }
 }
