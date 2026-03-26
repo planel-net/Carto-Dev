@@ -1892,6 +1892,8 @@
     border: 1px solid #dee2e6;
     border-radius: var(--border-radius-sm);
     background: var(--mh-blanc);
+    display: flex;
+    flex-direction: column;
 }
 
 /* ===========================================
@@ -1919,7 +1921,8 @@
 /* Body wrapper avec scroll horizontal ET vertical */
 .gantt-body-wrapper {
     overflow: auto;
-    max-height: calc(100vh - 350px);
+    flex: 1;
+    min-height: 0;
 }
 
 /* Header sticky pour gantt-chantiers-table */
