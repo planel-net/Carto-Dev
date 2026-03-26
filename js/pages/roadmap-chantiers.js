@@ -153,12 +153,17 @@ class RoadmapChantiersPage {
                 return dateA - dateB;
             });
 
-            // Initialiser les filtres avec toutes les valeurs (pour afficher tout par défaut, y compris "Non rempli")
-            this.filters.selectedGroupes = this.getAllGroupes();
-            this.filters.perimetres = this.getAllPerimetres();
-            this.filters.responsables = this.getAllResponsables();
-            this.filters.avancements = this.getAllAvancements();
-            this.filters.perimetreProcessus = this.getAllPerimetreProcessus();
+            // Initialiser les filtres avec toutes les valeurs uniquement au premier chargement
+            // (pour ne pas écraser les filtres utilisateur lors d'un refresh)
+            if (this.filters.selectedGroupes.length === 0 &&
+                this.filters.perimetres.length === 0 &&
+                this.filters.responsables.length === 0) {
+                this.filters.selectedGroupes = this.getAllGroupes();
+                this.filters.perimetres = this.getAllPerimetres();
+                this.filters.responsables = this.getAllResponsables();
+                this.filters.avancements = this.getAllAvancements();
+                this.filters.perimetreProcessus = this.getAllPerimetreProcessus();
+            }
 
         } catch (error) {
             console.error('Erreur chargement données roadmap chantiers:', error);
@@ -3548,17 +3553,21 @@ class RoadmapChantiersPage {
      * Affiche la modale d'export PDF
      */
     showPdfExportModal() {
-        const today = new Date().toISOString().split('T')[0];
+        const today = new Date();
+        const thirtyDaysAgo = new Date(today);
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const todayStr = today.toISOString().split('T')[0];
+        const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
 
         const content = `
             <form id="formPdfExport">
                 <div class="form-group">
                     <label>Notes du :</label>
-                    <input type="date" name="dateDebut" id="pdfDateDebut" value="${today}" required>
+                    <input type="date" name="dateDebut" id="pdfDateDebut" value="${thirtyDaysAgoStr}" required>
                 </div>
                 <div class="form-group">
                     <label>au :</label>
-                    <input type="date" name="dateFin" id="pdfDateFin" value="${today}" required>
+                    <input type="date" name="dateFin" id="pdfDateFin" value="${todayStr}" required>
                 </div>
                 <p class="text-muted" style="font-size: 12px; margin-top: 10px;">
                     Le tableau des chantiers utilisera les filtres actuels de la page (période, périmètre, responsable, périmètre-processus).
