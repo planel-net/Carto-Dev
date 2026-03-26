@@ -25,16 +25,16 @@ Office.onReady((info) => {
     console.log('[App] Office.onReady called, host:', info.host);
     console.log('[App] Running in DIALOG mode - using ExcelBridge for data');
 
-    // Initialiser ExcelBridge pour la communication avec le taskpane
+    // ExcelBridge s'auto-initialise dans excel-bridge.js via Office.onReady
+    // On vérifie juste qu'il est disponible
     if (typeof ExcelBridge !== 'undefined') {
-        ExcelBridge.init();
         AppState.bridgeReady = true;
-        console.log('[App] ExcelBridge initialized');
+        console.log('[App] ExcelBridge available');
     } else {
         console.error('[App] ExcelBridge not found! Data loading will fail.');
     }
 
-    // Initialiser l'application
+    // Initialiser l'application avec retry en cas de race condition bridge
     initializeApp();
 });
 
@@ -146,8 +146,11 @@ let navigationListenerAttached = false;
 /**
  * Initialise l'application
  */
-async function initializeApp() {
-    console.log('[App] Initialisation...');
+async function initializeApp(attempt = 1) {
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY = 1500; // ms
+
+    console.log(`[App] Initialisation... (tentative ${attempt}/${MAX_RETRIES})`);
     try {
         // Afficher le badge d'environnement
         showEnvironmentBadge();
@@ -172,14 +175,18 @@ async function initializeApp() {
             console.log('[App] localStorage cache cleaned');
         }
 
+        // Attendre que le bridge soit opérationnel (évite la race condition au démarrage)
+        console.log('[App] Waiting for bridge...');
+        const bridgeReady = await ExcelBridge.waitForReady();
+        if (!bridgeReady) {
+            throw new Error('Le bridge de communication n\'est pas disponible');
+        }
+        console.log('[App] Bridge ready');
+
         // Charger le cache des acteurs pour le formatage des noms
         console.log('[App] Loading actors cache...');
         await loadActorsCache();
         console.log('[App] Actors cache loaded');
-
-        // Skip Excel check - go directly to loading page
-        // (Excel availability will be checked when loading data)
-        console.log('[App] Skipping Excel check, loading page directly...');
 
         // Charger la page par défaut
         console.log('[App] Loading default page...');
@@ -190,9 +197,16 @@ async function initializeApp() {
         console.log('[App] Initialization complete');
 
     } catch (error) {
-        console.error('[App] Erreur initialisation:', error);
-        showError('Erreur lors de l\'initialisation de l\'application');
-        hideLoading();
+        console.error(`[App] Erreur initialisation (tentative ${attempt}):`, error);
+
+        if (attempt < MAX_RETRIES) {
+            console.log(`[App] Nouvelle tentative dans ${RETRY_DELAY}ms...`);
+            setTimeout(() => initializeApp(attempt + 1), RETRY_DELAY);
+        } else {
+            console.error('[App] Echec après ' + MAX_RETRIES + ' tentatives');
+            showError('Erreur lors de l\'initialisation. Fermez et rouvrez l\'application.');
+            hideLoading();
+        }
     }
 }
 

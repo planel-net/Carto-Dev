@@ -153,6 +153,10 @@ async function handleDialogMessage(arg) {
                         result = { success: true };
                         break;
 
+                    case 'PING':
+                        result = { pong: true };
+                        break;
+
                     default:
                         error = `Unknown request type: ${message.type}`;
                 }

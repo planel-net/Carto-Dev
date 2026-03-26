@@ -312,6 +312,59 @@ const ExcelBridge = {
     },
 
     /**
+     * Attend que le bridge soit opérationnel (round-trip dialog <-> taskpane)
+     * Envoie des PING avec un court timeout jusqu'à recevoir une réponse
+     * @param {number} maxWait - Temps max d'attente en ms (défaut 10s)
+     * @returns {Promise<boolean>} true si le bridge est prêt
+     */
+    async waitForReady(maxWait = 10000) {
+        const PING_TIMEOUT = 2000;
+        const startTime = Date.now();
+
+        while (Date.now() - startTime < maxWait) {
+            try {
+                await new Promise((resolve, reject) => {
+                    const requestId = ++this._requestId;
+                    this._pendingRequests.set(requestId, { resolve, reject });
+
+                    const timeoutId = setTimeout(() => {
+                        if (this._pendingRequests.has(requestId)) {
+                            this._pendingRequests.delete(requestId);
+                            reject(new Error('PING timeout'));
+                        }
+                    }, PING_TIMEOUT);
+
+                    this._pendingRequests.set(requestId, {
+                        resolve: (data) => { clearTimeout(timeoutId); resolve(data); },
+                        reject: (error) => { clearTimeout(timeoutId); reject(error); }
+                    });
+
+                    try {
+                        Office.context.ui.messageParent(JSON.stringify({
+                            requestId,
+                            type: 'PING',
+                            params: {}
+                        }));
+                    } catch (e) {
+                        this._pendingRequests.delete(requestId);
+                        clearTimeout(timeoutId);
+                        reject(e);
+                    }
+                });
+
+                console.log('[ExcelBridge] Bridge is ready');
+                return true;
+            } catch (e) {
+                console.log('[ExcelBridge] PING failed, retrying...');
+                await new Promise(r => setTimeout(r, 500));
+            }
+        }
+
+        console.error('[ExcelBridge] Bridge not ready after ' + maxWait + 'ms');
+        return false;
+    },
+
+    /**
      * Envoie une commande simple (sans attente de réponse)
      */
     sendCommand(type, params = {}) {
