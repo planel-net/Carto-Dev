@@ -1833,6 +1833,33 @@
     font-size: var(--font-size-sm);
 }
 
+.filter-search-input {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border: 1px solid #dee2e6;
+    border-radius: var(--border-radius-sm);
+    font-size: var(--font-size-sm);
+    width: 180px;
+}
+
+.filter-group-checkbox {
+    display: flex;
+    align-items: center;
+}
+
+.filter-group-checkbox .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    cursor: pointer;
+    font-weight: 500;
+    color: var(--mh-gris-fonce);
+    white-space: nowrap;
+}
+
+.filter-group-checkbox .checkbox-label input[type="checkbox"] {
+    cursor: pointer;
+}
+
 /* ===========================================
    ROADMAP CHANTIERS - Boutons d'action
    =========================================== */

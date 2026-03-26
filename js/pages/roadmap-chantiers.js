@@ -41,7 +41,9 @@ class RoadmapChantiersPage {
             perimetres: [],
             responsables: [],
             avancements: [],
-            perimetreProcessus: []
+            perimetreProcessus: [],
+            searchText: '',
+            showProgramme: false
         };
 
         // État
@@ -813,6 +815,16 @@ class RoadmapChantiersPage {
                     </div>
                 </div>
             </div>
+            <div class="filter-group">
+                <label>Rechercher :</label>
+                <input type="text" id="filterSearch" class="filter-search-input" placeholder="Nom ou code chantier..." value="${escapeHtml(this.filters.searchText)}">
+            </div>
+            <div class="filter-group filter-group-checkbox">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="filterProgramme" ${this.filters.showProgramme ? 'checked' : ''}>
+                    <span>Programme</span>
+                </label>
+            </div>
             <button class="btn btn-secondary btn-sm" id="btnResetFilters">
                 Réinitialiser
             </button>
@@ -958,6 +970,24 @@ class RoadmapChantiersPage {
             .map(pp => (pp || '').toLowerCase());
 
         return this.chantiers.filter(chantier => {
+            // Filtre par recherche texte (nom ou code chantier)
+            if (this.filters.searchText) {
+                const searchLower = this.filters.searchText.toLowerCase();
+                const numChantier = (chantier['NumChantier'] || '').toLowerCase();
+                const nomChantier = (chantier['Chantier'] || '').toLowerCase();
+                if (!numChantier.includes(searchLower) && !nomChantier.includes(searchLower)) {
+                    return false;
+                }
+            }
+
+            // Filtre par programme : décochée = seulement les chantiers sans programme
+            if (!this.filters.showProgramme) {
+                const programme = chantier['Programme'] || '';
+                if (programme.trim() !== '') {
+                    return false;
+                }
+            }
+
             // Filtre par périmètre (vide = afficher aucun) - comparaison insensible à la casse
             if (this.filters.perimetres.length === 0) {
                 return false;
@@ -1624,6 +1654,26 @@ class RoadmapChantiersPage {
             this.applyFilters();
         });
 
+        // Recherche texte avec debounce
+        const searchInput = document.getElementById('filterSearch');
+        if (searchInput) {
+            let searchTimeout = null;
+            searchInput.addEventListener('input', (e) => {
+                if (searchTimeout) clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    this.filters.searchText = e.target.value;
+                    this.renderStats();
+                    this.renderGantt();
+                }, 300);
+            });
+        }
+
+        // Checkbox Programme
+        document.getElementById('filterProgramme')?.addEventListener('change', (e) => {
+            this.filters.showProgramme = e.target.checked;
+            this.applyFilters();
+        });
+
         document.getElementById('btnResetFilters')?.addEventListener('click', () => {
             this.resetFilters();
         });
@@ -2187,7 +2237,9 @@ class RoadmapChantiersPage {
             perimetres: this.getAllPerimetres(),
             responsables: this.getAllResponsables(),
             avancements: this.getAllAvancements(),
-            perimetreProcessus: this.getAllPerimetreProcessus()
+            perimetreProcessus: this.getAllPerimetreProcessus(),
+            searchText: '',
+            showProgramme: false
         };
         this.applyFilters();
     }
