@@ -202,6 +202,10 @@ const ExcelBridge = {
                 if (data.error) {
                     reject(new Error(data.error));
                 } else {
+                    // Mettre à jour le timestamp d'activité bridge
+                    if (typeof _lastBridgeActivity !== 'undefined') {
+                        _lastBridgeActivity = Date.now();
+                    }
                     resolve(data.result);
                 }
             }
@@ -362,6 +366,47 @@ const ExcelBridge = {
 
         console.error('[ExcelBridge] Bridge not ready after ' + maxWait + 'ms');
         return false;
+    },
+
+    /**
+     * Vérifie rapidement si le bridge est toujours opérationnel
+     * @param {number} timeout - Timeout en ms (défaut 3s)
+     * @returns {Promise<boolean>} true si le bridge répond
+     */
+    async ping(timeout = 3000) {
+        try {
+            await new Promise((resolve, reject) => {
+                const requestId = ++this._requestId;
+                this._pendingRequests.set(requestId, { resolve, reject });
+
+                const timeoutId = setTimeout(() => {
+                    if (this._pendingRequests.has(requestId)) {
+                        this._pendingRequests.delete(requestId);
+                        reject(new Error('PING timeout'));
+                    }
+                }, timeout);
+
+                this._pendingRequests.set(requestId, {
+                    resolve: (data) => { clearTimeout(timeoutId); resolve(data); },
+                    reject: (error) => { clearTimeout(timeoutId); reject(error); }
+                });
+
+                try {
+                    Office.context.ui.messageParent(JSON.stringify({
+                        requestId,
+                        type: 'PING',
+                        params: {}
+                    }));
+                } catch (e) {
+                    this._pendingRequests.delete(requestId);
+                    clearTimeout(timeoutId);
+                    reject(e);
+                }
+            });
+            return true;
+        } catch (e) {
+            return false;
+        }
     },
 
     /**

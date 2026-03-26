@@ -568,6 +568,84 @@ function showEnvironmentBadge() {
 }
 
 /**
+ * ============================================
+ * RECONNEXION AUTOMATIQUE APRES INACTIVITE
+ * Détecte le retour d'activité et vérifie
+ * que le bridge est toujours opérationnel.
+ * Si non, recharge automatiquement le dialog.
+ * ============================================
+ */
+
+/** Timestamp de la dernière activité bridge confirmée */
+let _lastBridgeActivity = Date.now();
+
+/** Flag pour éviter les vérifications simultanées */
+let _isCheckingBridge = false;
+
+/**
+ * Vérifie la santé du bridge et recharge si nécessaire
+ */
+async function checkBridgeHealth() {
+    if (_isCheckingBridge) return;
+    _isCheckingBridge = true;
+
+    try {
+        console.log('[App] Vérification du bridge après retour d\'activité...');
+        const isAlive = await ExcelBridge.ping(3000);
+
+        if (isAlive) {
+            console.log('[App] Bridge OK');
+            _lastBridgeActivity = Date.now();
+            ConnectionStatus.setConnected();
+        } else {
+            console.warn('[App] Bridge ne répond pas, rechargement...');
+            location.reload();
+        }
+    } catch (e) {
+        console.error('[App] Erreur vérification bridge:', e);
+        location.reload();
+    } finally {
+        _isCheckingBridge = false;
+    }
+}
+
+// Détecter le retour d'activité (onglet redevient visible)
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return;
+
+    // Vérifier seulement si inactif depuis plus de 2 minutes
+    const idleTime = Date.now() - _lastBridgeActivity;
+    if (idleTime > 2 * 60 * 1000) {
+        console.log(`[App] Retour après ${Math.round(idleTime / 1000)}s d'inactivité`);
+        checkBridgeHealth();
+    }
+});
+
+/**
+ * ============================================
+ * GESTION GLOBALE DES ERREURS
+ * Capture les erreurs non gérées pour éviter
+ * les crashs silencieux.
+ * ============================================
+ */
+
+window.onerror = function(message, source, lineno, colno, error) {
+    console.error('[App] Erreur non gérée:', message, 'at', source, lineno, colno);
+    // Ne pas afficher de notification pour les erreurs de script externe
+    if (source && source.includes(window.location.hostname)) {
+        showError('Une erreur inattendue est survenue.');
+    }
+    return false;
+};
+
+window.addEventListener('unhandledrejection', (event) => {
+    console.error('[App] Promesse rejetée non gérée:', event.reason);
+    // Éviter le spam de notifications pour les timeouts bridge (déjà gérés)
+    if (event.reason?.message?.includes('timeout')) return;
+    if (event.reason?.message?.includes('PING')) return;
+});
+
+/**
  * Export des fonctions globales pour les autres modules
  */
 window.navigateTo = navigateTo;
