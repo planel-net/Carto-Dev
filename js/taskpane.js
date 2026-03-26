@@ -23,6 +23,10 @@ async function initializeTaskpane() {
     // Afficher le badge d'environnement
     showEnvironmentBadge();
 
+    // Mettre à jour la version affichée depuis CONFIG
+    const versionEl = document.getElementById('appVersion');
+    if (versionEl) versionEl.textContent = CONFIG.APP_VERSION;
+
     // Attacher les événements
     document.getElementById('btnOpenApp').addEventListener('click', openFullScreenApp);
     document.getElementById('btnUnlock').addEventListener('click', handleUnlock);

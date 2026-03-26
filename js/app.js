@@ -155,6 +155,10 @@ async function initializeApp(attempt = 1) {
         // Afficher le badge d'environnement
         showEnvironmentBadge();
 
+        // Mettre à jour la version affichée depuis CONFIG
+        const versionEl = document.getElementById('appVersion');
+        if (versionEl) versionEl.textContent = CONFIG.APP_VERSION;
+
         // Initialiser le sidebar
         console.log('[App] Init sidebar...');
         initSidebar();
