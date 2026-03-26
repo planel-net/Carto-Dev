@@ -1743,6 +1743,11 @@
    ROADMAP CHANTIERS - Page principale
    =========================================== */
 
+/* Empêcher le double scrollbar : main-body ne scrolle pas quand roadmap est affichée */
+.main-body:has(.roadmap-chantiers-page) {
+    overflow: hidden;
+}
+
 .roadmap-chantiers-page {
     display: flex;
     flex-direction: column;
@@ -1883,7 +1888,7 @@
 
 .gantt-container {
     height: 100%;
-    overflow: auto;
+    overflow: hidden;
     border: 1px solid #dee2e6;
     border-radius: var(--border-radius-sm);
     background: var(--mh-blanc);
