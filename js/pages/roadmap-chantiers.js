@@ -25,12 +25,15 @@ class RoadmapChantiersPage {
         this.phasesLien = [];
         this.chantierProduit = [];
         this.chantierDataAna = [];
+        this.chantierLien = [];
         this.chantierNotes = [];
         this.sprints = [];
         this.acteurs = [];
         this.perimetres = [];
+        this.programmes = [];
         this.produits = [];
         this.dataAnas = [];
+        this.mae = [];
         this.processus = [];
 
         // Filtres (période par défaut: 1 mois avant à 3 mois après)
@@ -100,12 +103,15 @@ class RoadmapChantiersPage {
                 phasesLienData,
                 chantierProduitData,
                 chantierDataAnaData,
+                chantierLienData,
                 chantierNotesData,
                 sprintsData,
                 acteursData,
                 perimetresData,
+                programmesData,
                 produitsData,
                 dataAnasData,
+                maeData,
                 processusData
             ] = await Promise.all([
                 readTable('tChantiers'),
@@ -113,12 +119,15 @@ class RoadmapChantiersPage {
                 readTable('tPhasesLien'),
                 readTable('tChantierProduit'),
                 readTable('tChantierDataAna'),
+                readTable('tChantierLien'),
                 readTable('tChantierNote'),
                 readTable('tSprints'),
                 readTable('tActeurs'),
                 readTable('tPerimetres'),
+                readTable('tProgrammes'),
                 readTable('tProduits'),
                 readTable('tDataAnas'),
+                readTable('tMAE'),
                 readTable('tProcessus')
             ]);
 
@@ -131,12 +140,15 @@ class RoadmapChantiersPage {
             this.phasesLien = phasesLienData.data || [];
             this.chantierProduit = chantierProduitData.data || [];
             this.chantierDataAna = chantierDataAnaData.data || [];
+            this.chantierLien = chantierLienData.data || [];
             this.chantierNotes = chantierNotesData.data || [];
             this.sprints = sprintsData.data || [];
             this.acteurs = acteursData.data || [];
             this.perimetres = perimetresData.data || [];
+            this.programmes = programmesData.data || [];
             this.produits = produitsData.data || [];
             this.dataAnas = dataAnasData.data || [];
+            this.mae = maeData.data || [];
             this.processus = processusData.data || [];
 
             // Trier les processus par ordre
@@ -2477,10 +2489,39 @@ class RoadmapChantiersPage {
     }
 
     async showEditChantierModal(chantierName) {
-        // Utiliser le composant partagé ChantierModal
+        // Utiliser le composant partagé ChantierModal en réutilisant les données
+        // déjà chargées par la page (évite 15 lectures Excel).
+        const preloaded = this._getModalPreloadedData();
         await ChantierModal.showEditModal(chantierName, async () => {
             await this.refresh();
-        });
+        }, preloaded);
+    }
+
+    /**
+     * Construit l'objet de données préchargées à passer à ChantierModal.
+     * Les tables sont partagées en référence (pas de copie) ; ChantierModal
+     * ne les mute pas directement.
+     */
+    _getModalPreloadedData() {
+        // Recomposer la liste complète (actifs + archivés) pour la modale
+        const allChantiers = this.chantiers.concat(this.chantiersArchives);
+        return {
+            acteurs: this.acteurs,
+            perimetres: this.perimetres,
+            programmes: this.programmes,
+            processus: this.processus,
+            produits: this.produits,
+            dataAnas: this.dataAnas,
+            mae: this.mae,
+            chantierProduit: this.chantierProduit,
+            chantierDataAna: this.chantierDataAna,
+            chantierLien: this.chantierLien,
+            chantiers: allChantiers,
+            chantierNotes: this.chantierNotes,
+            phases: this.phases,
+            phasesLien: this.phasesLien,
+            sprints: this.sprints
+        };
     }
 
     // ===========================================
@@ -4650,6 +4691,9 @@ class RoadmapChantiersPage {
         this.produits = [];
         this.dataAnas = [];
         this.processus = [];
+        this.chantierLien = [];
+        this.programmes = [];
+        this.mae = [];
 
         // Réinitialiser les filtres et l'état
         this.filters = null;

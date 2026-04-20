@@ -49,68 +49,59 @@ const ChantierModal = {
 
     /**
      * Charge toutes les données nécessaires
+     * @param {Object} preloaded - Données déjà chargées par la page appelante.
+     *   Clés possibles : acteurs, perimetres, programmes, processus, produits,
+     *   dataAnas, mae, chantierProduit, chantierDataAna, chantierLien,
+     *   chantiers, chantierNotes, phases, phasesLien, sprints.
+     *   Les tables fournies sont réutilisées ; les autres sont lues depuis Excel.
      */
-    async loadData() {
+    async loadData(preloaded = null) {
         try {
-            const [
-                acteursData,
-                perimetresData,
-                programmesData,
-                processusData,
-                produitsData,
-                dataAnasData,
-                maeData,
-                chantierProduitData,
-                chantierDataAnaData,
-                chantierLienData,
-                chantiersData,
-                chantierNotesData,
-                phasesData,
-                phasesLienData,
-                sprintsData
-            ] = await Promise.all([
-                readTable('tActeurs'),
-                readTable('tPerimetres'),
-                readTable('tProgrammes'),
-                readTable('tProcessus'),
-                readTable('tProduits'),
-                readTable('tDataAnas'),
-                readTable('tMAE'),
-                readTable('tChantierProduit'),
-                readTable('tChantierDataAna'),
-                readTable('tChantierLien'),
-                readTable('tChantiers'),
-                readTable('tChantierNote'),
-                readTable('tPhases'),
-                readTable('tPhasesLien'),
-                readTable('tSprints')
-            ]);
+            // Mapping table -> clé de _data -> nom de readTable
+            const tableMap = [
+                { key: 'acteurs', table: 'tActeurs' },
+                { key: 'perimetres', table: 'tPerimetres' },
+                { key: 'programmes', table: 'tProgrammes' },
+                { key: 'processus', table: 'tProcessus' },
+                { key: 'produits', table: 'tProduits' },
+                { key: 'dataAnas', table: 'tDataAnas' },
+                { key: 'mae', table: 'tMAE' },
+                { key: 'chantierProduit', table: 'tChantierProduit' },
+                { key: 'chantierDataAna', table: 'tChantierDataAna' },
+                { key: 'chantierLien', table: 'tChantierLien' },
+                { key: 'chantiers', table: 'tChantiers' },
+                { key: 'chantierNotes', table: 'tChantierNote' },
+                { key: 'phases', table: 'tPhases' },
+                { key: 'phasesLien', table: 'tPhasesLien' },
+                { key: 'sprints', table: 'tSprints' }
+            ];
 
-            this._data.acteurs = acteursData.data || [];
-            this._data.perimetres = perimetresData.data || [];
-            this._data.programmes = programmesData.data || [];
-            this._data.processus = processusData.data || [];
-            this._data.produits = produitsData.data || [];
-            this._data.dataAnas = dataAnasData.data || [];
-            this._data.mae = maeData.data || [];
-            this._data.chantierProduit = chantierProduitData.data || [];
-            this._data.chantierDataAna = chantierDataAnaData.data || [];
-            this._data.chantierLien = chantierLienData.data || [];
-            this._data.chantiers = chantiersData.data || [];
-            this._data.chantierNotes = chantierNotesData.data || [];
-            this._data.phases = phasesData.data || [];
-            this._data.phasesLien = phasesLienData.data || [];
-            this._data.sprints = sprintsData.data || [];
+            // Séparer les tables préchargées de celles à lire
+            const toFetch = [];
+            for (const { key, table } of tableMap) {
+                if (preloaded && Array.isArray(preloaded[key])) {
+                    this._data[key] = preloaded[key];
+                } else {
+                    toFetch.push({ key, table });
+                }
+            }
 
-            // Trier les processus par ordre
-            this._data.processus.sort((a, b) => {
+            if (toFetch.length > 0) {
+                const results = await Promise.all(toFetch.map(t => readTable(t.table)));
+                toFetch.forEach((t, i) => {
+                    this._data[t.key] = results[i].data || [];
+                });
+            }
+
+            // Trier les processus par ordre (toujours, même si préchargés)
+            this._data.processus = [...this._data.processus].sort((a, b) => {
                 const ordreA = a['Ordre'] || 999;
                 const ordreB = b['Ordre'] || 999;
                 return ordreA - ordreB;
             });
 
             // Trier les sprints par date de début
-            this._data.sprints.sort((a, b) => {
+            this._data.sprints = [...this._data.sprints].sort((a, b) => {
                 const dateA = this._parseDate(a['Début']);
                 const dateB = this._parseDate(b['Début']);
                 return dateA - dateB;
@@ -159,9 +150,10 @@ const ChantierModal = {
     /**
      * Affiche la modale d'ajout de chantier
      * @param {Function} onSuccess - Callback appelé après succès
+     * @param {Object} preloaded - Données déjà chargées à réutiliser (voir loadData)
      */
-    async showAddModal(onSuccess = null) {
-        await this.loadData();
+    async showAddModal(onSuccess = null, preloaded = null) {
+        await this.loadData(preloaded);
 
         this._state.mode = 'add';
         this._state.onSuccess = onSuccess;
@@ -326,9 +318,10 @@ const ChantierModal = {
      * Affiche la modale d'édition de chantier
      * @param {string} chantierName - Nom du chantier à modifier
      * @param {Function} onSuccess - Callback appelé après succès
+     * @param {Object} preloaded - Données déjà chargées à réutiliser (voir loadData)
      */
-    async showEditModal(chantierName, onSuccess = null) {
-        await this.loadData();
+    async showEditModal(chantierName, onSuccess = null, preloaded = null) {
+        await this.loadData(preloaded);
 
         const chantier = this._data.chantiers.find(c => c['Chantier'] === chantierName);
         if (!chantier) {
