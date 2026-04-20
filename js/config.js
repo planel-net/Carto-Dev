@@ -6,7 +6,7 @@
 const CONFIG = {
     // Nom de l'application
     APP_NAME: 'Carto',
-    APP_VERSION: '1.7.2',
+    APP_VERSION: '1.8.0',
 
     // Valeur spéciale pour filtrer les éléments sans valeur (périmètre/responsable vide)
     EMPTY_FILTER_VALUE: '(Non rempli)',
@@ -226,6 +226,7 @@ const CONFIG = {
                 { field: 'Chantier', label: 'Chantier', type: 'text', required: true },
                 { field: 'Description', label: 'Description', type: 'textarea' },
                 { field: 'Responsable', label: 'Responsable', type: 'select', source: 'ACTEURS', sourceField: 'Mail' },
+                { field: 'Resp. RPP', label: 'Resp. RPP', type: 'select', source: 'ACTEURS', sourceField: 'Mail' },
                 { field: 'Perimetre', label: 'Périmètre', type: 'select', source: 'PERIMETRES', sourceField: 'Périmetre' },
                 { field: 'Programme', label: 'Programme', type: 'select', source: 'PROGRAMMES', sourceField: 'Programme' },
                 { field: 'Processus', label: 'Processus', type: 'select', source: 'PROCESSUS', sourceField: 'Processus' },

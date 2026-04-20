@@ -39,6 +39,7 @@ const ChantierModal = {
         renderLiens: null,
         mode: null, // 'add' ou 'edit'
         chantierName: null,
+        numChantier: null,
         rowIndex: null,
         onSuccess: null,
         activeTab: 'general', // 'general', 'phases', 'associations' ou 'notes'
@@ -170,6 +171,7 @@ const ChantierModal = {
         this._state.liens = [];
 
         const acteursFiltered = this._data.acteurs.filter(a => a['Equipe'] !== 'RPP');
+        const acteursRpp = this._data.acteurs.filter(a => a['Equipe'] === 'RPP');
 
         this._state.renderProduits = () => this._renderAssignedProduits('Add');
         this._state.renderDataAnas = () => this._renderAssignedDataAnas('Add');
@@ -190,6 +192,15 @@ const ChantierModal = {
                         <select class="form-control" name="Responsable">
                             <option value="">-- Sélectionner --</option>
                             ${acteursFiltered.map(a => `
+                                <option value="${escapeHtml(a['Mail'])}">${escapeHtml(a['Prénom'] || '')} ${escapeHtml(a['Nom'] || '')}</option>
+                            `).join('')}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Resp. RPP</label>
+                        <select class="form-control" name="Resp. RPP">
+                            <option value="">-- Sélectionner --</option>
+                            ${acteursRpp.map(a => `
                                 <option value="${escapeHtml(a['Mail'])}">${escapeHtml(a['Prénom'] || '')} ${escapeHtml(a['Nom'] || '')}</option>
                             `).join('')}
                         </select>
@@ -297,6 +308,14 @@ const ChantierModal = {
                 }
             ]
         });
+
+        // Verrouiller la hauteur du modal-body après le rendu complet de l'onglet Général
+        setTimeout(() => {
+            const modalBody = document.querySelector('.modal-body');
+            if (modalBody) {
+                modalBody.style.minHeight = modalBody.offsetHeight + 'px';
+            }
+        }, 150);
     },
 
     // ==========================================
@@ -327,6 +346,7 @@ const ChantierModal = {
         this._state.mode = 'edit';
         this._state.onSuccess = onSuccess;
         this._state.chantierName = chantierName;
+        this._state.numChantier = chantier['NumChantier'] || '';
         this._state.rowIndex = rowIndex;
         this._state.activeTab = 'general';
         this._state.editingNoteIndex = null;
@@ -351,9 +371,9 @@ const ChantierModal = {
             .filter(l => l['Chantier'] === chantierName)
             .map(l => ({ 'Nom lien': l['Nom lien'] || '', 'Lien': l['Lien'] || '' }));
 
-        // Notes du chantier (triées par date décroissante)
+        // Notes du chantier (clé = NumChantier, triées par date décroissante)
         this._state.notes = this._data.chantierNotes
-            .filter(n => n['Chantier'] === chantierName)
+            .filter(n => this._state.numChantier && n['Chantier'] === this._state.numChantier)
             .sort((a, b) => {
                 const dateA = this._parseDate(a['Date']);
                 const dateB = this._parseDate(b['Date']);
@@ -361,6 +381,7 @@ const ChantierModal = {
             });
 
         const acteursFiltered = this._data.acteurs.filter(a => a['Equipe'] !== 'RPP');
+        const acteursRpp = this._data.acteurs.filter(a => a['Equipe'] === 'RPP');
 
         this._state.renderProduits = () => this._renderAssignedProduits('Edit');
         this._state.renderDataAnas = () => this._renderAssignedDataAnas('Edit');
@@ -409,6 +430,17 @@ const ChantierModal = {
                                 <option value="">-- Sélectionner --</option>
                                 ${acteursFiltered.map(a => `
                                     <option value="${escapeHtml(a['Mail'])}" ${a['Mail'] === chantier['Responsable'] ? 'selected' : ''}>
+                                        ${escapeHtml(a['Prénom'] || '')} ${escapeHtml(a['Nom'] || '')}
+                                    </option>
+                                `).join('')}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Resp. RPP</label>
+                            <select class="form-control" name="Resp. RPP">
+                                <option value="">-- Sélectionner --</option>
+                                ${acteursRpp.map(a => `
+                                    <option value="${escapeHtml(a['Mail'])}" ${a['Mail'] === chantier['Resp. RPP'] ? 'selected' : ''}>
                                         ${escapeHtml(a['Prénom'] || '')} ${escapeHtml(a['Nom'] || '')}
                                     </option>
                                 `).join('')}
@@ -606,6 +638,28 @@ const ChantierModal = {
             size: 'xl',
             buttons: [
                 { label: 'Annuler', class: 'btn-secondary', action: 'close' },
+                {
+                    label: '&#128230; Archiver',
+                    class: 'btn-warning',
+                    action: async () => {
+                        closeModal();
+                        if (typeof roadmapChantiersPageInstance !== 'undefined' && roadmapChantiersPageInstance) {
+                            roadmapChantiersPageInstance.showArchiveConfirmation(chantierName);
+                        } else {
+                            // Archivage direct depuis la modale (hors page Roadmap)
+                            try {
+                                const updatedData = { ...chantier, 'Archivé': true };
+                                await updateTableRow('tChantiers', chantier._rowIndex, updatedData);
+                                invalidateCache('tChantiers');
+                                showSuccess('Chantier archivé');
+                                if (this._state.onSuccess) this._state.onSuccess();
+                            } catch (error) {
+                                console.error('Erreur archivage:', error);
+                                showError('Erreur lors de l\'archivage');
+                            }
+                        }
+                    }
+                },
                 {
                     label: 'Enregistrer',
                     class: 'btn-primary',
@@ -1538,7 +1592,7 @@ const ChantierModal = {
 
         try {
             const noteData = {
-                'Chantier': this._state.chantierName,
+                'Chantier': this._state.numChantier || '',
                 'Date': dateValue,
                 'Note': noteContent
             };
@@ -1604,7 +1658,7 @@ const ChantierModal = {
             this._data.chantierNotes = notesData.data || [];
 
             this._state.notes = this._data.chantierNotes
-                .filter(n => n['Chantier'] === this._state.chantierName)
+                .filter(n => this._state.numChantier && n['Chantier'] === this._state.numChantier)
                 .sort((a, b) => {
                     const dateA = this._parseDate(a['Date']);
                     const dateB = this._parseDate(b['Date']);
@@ -1715,6 +1769,7 @@ const ChantierModal = {
             'Code': formData.get('Code') || '',
             'Description': descriptionValue,
             'Responsable': formData.get('Responsable'),
+            'Resp. RPP': formData.get('Resp. RPP') || '',
             'Perimetre': formData.get('Perimetre'),
             'Programme': formData.get('Programme') || '',
             'Processus': formData.get('Processus'),

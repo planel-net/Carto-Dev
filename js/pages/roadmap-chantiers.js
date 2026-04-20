@@ -186,10 +186,11 @@ class RoadmapChantiersPage {
     }
 
     /**
-     * Retourne le nombre de notes pour un chantier
+     * Retourne le nombre de notes pour un chantier (clé = NumChantier)
      */
-    getNoteCount(chantierName) {
-        return this.chantierNotes.filter(n => n['Chantier'] === chantierName).length;
+    getNoteCount(numChantier) {
+        if (!numChantier) return 0;
+        return this.chantierNotes.filter(n => n['Chantier'] === numChantier).length;
     }
 
     /**
@@ -1119,7 +1120,7 @@ class RoadmapChantiersPage {
             // Calculer les phases par position (semaine)
             const phasesByWeekRange = this.calculatePhasePositions(chantierPhases, visibleSprints, allWeeks);
 
-            const noteCount = this.getNoteCount(chantierName);
+            const noteCount = this.getNoteCount(numChantier);
             return `
                 <tr class="gantt-chantier-row" data-chantier="${escapeHtml(chantierName)}">
                     <td class="gantt-chantier-cell">
@@ -1131,10 +1132,7 @@ class RoadmapChantiersPage {
                                     &#9998;
                                 </button>
                                 <button class="btn btn-icon btn-xs" title="Archiver" onclick="roadmapChantiersPageInstance.showArchiveConfirmation('${escapeJsString(chantierName)}')">
-                                    &#128451;
-                                </button>
-                                <button class="btn btn-icon btn-xs btn-danger-icon" title="Supprimer" onclick="roadmapChantiersPageInstance.showDeleteChantierConfirmation('${escapeJsString(chantierName)}')">
-                                    &#128465;
+                                    &#128230;
                                 </button>
                             </div>
                         </div>
@@ -4028,13 +4026,15 @@ class RoadmapChantiersPage {
             const notesEndDate = new Date(notesDateFin);
             notesEndDate.setHours(23, 59, 59, 999);
 
-            // Regrouper les notes par chantier
+            // Regrouper les notes par chantier (clé = NumChantier, affichage = libellé)
             const notesByChantier = {};
             filteredChantiers.forEach(c => {
                 const chantierName = c['Chantier'];
+                const numChantier = c['NumChantier'] || '';
+                if (!numChantier) return;
                 const chantierNotes = allNotes
                     .filter(n => {
-                        if (n['Chantier'] !== chantierName) return false;
+                        if (n['Chantier'] !== numChantier) return false;
                         const noteDate = this.parseDate(n['Date']);
                         return noteDate >= notesStartDate && noteDate <= notesEndDate;
                     })

@@ -458,7 +458,7 @@ thead tr:nth-child(2) .matrix-col-fixed {
     box-shadow: var(--shadow-md);
     z-index: 100;
     display: none;
-    max-height: 300px;
+    max-height: 450px;
     overflow: hidden;
     flex-direction: column;
     min-width: 200px;
@@ -486,7 +486,7 @@ thead tr:nth-child(2) .matrix-col-fixed {
 
 .multi-select-options {
     overflow-y: auto;
-    max-height: 250px;
+    max-height: 400px;
     padding: var(--spacing-xs) 0;
 }
 
