@@ -639,7 +639,7 @@ const ChantierModal = {
             buttons: [
                 { label: 'Annuler', class: 'btn-secondary', action: 'close' },
                 {
-                    label: '&#128230; Archiver',
+                    label: '\uD83D\uDCE6 Archiver',
                     class: 'btn-warning',
                     action: async () => {
                         closeModal();
