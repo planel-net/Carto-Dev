@@ -898,7 +898,8 @@ class RoadmapChantiersPage {
         // Ordre logique et couleurs
         const ordreAvancements = [
             'Non démarré', 'En cadrage', 'Cadré', 'En développement',
-            'Développé', 'En recette', 'Recetté', 'Terminé', '(Non rempli)'
+            'Développé', 'En recette', 'Recetté', 'Terminé',
+            'Suspendu', 'Annulé', '(Non rempli)'
         ];
         const colorMap = {
             'Non démarré': '#6c757d',
@@ -909,6 +910,8 @@ class RoadmapChantiersPage {
             'En recette': '#9C27B0',
             'Recetté': '#28A745',
             'Terminé': '#155724',
+            'Suspendu': '#FFC107',
+            'Annulé': '#DC3545',
             '(Non rempli)': '#adb5bd'
         };
 

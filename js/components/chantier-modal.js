@@ -170,7 +170,7 @@ const ChantierModal = {
         this._state.renderMAE = () => this._renderAssignedMAE('Add');
         this._state.renderLiens = () => this._renderLiensList('Add');
 
-        const avancementOptions = ['Non démarré', 'En cadrage', 'Cadré', 'En développement', 'Développé', 'En recette', 'Recetté', 'Terminé'];
+        const avancementOptions = ['Non démarré', 'En cadrage', 'Cadré', 'En développement', 'Développé', 'En recette', 'Recetté', 'Terminé', 'Suspendu', 'Annulé'];
 
         const content = `
             <form id="formChantierModal" class="form">
@@ -476,7 +476,7 @@ const ChantierModal = {
                             <label class="form-label">Avancement</label>
                             <select class="form-control" name="Avancement">
                                 <option value="">-- Sélectionner --</option>
-                                ${['Non démarré', 'En cadrage', 'Cadré', 'En développement', 'Développé', 'En recette', 'Recetté', 'Terminé'].map(o => `
+                                ${['Non démarré', 'En cadrage', 'Cadré', 'En développement', 'Développé', 'En recette', 'Recetté', 'Terminé', 'Suspendu', 'Annulé'].map(o => `
                                     <option value="${escapeHtml(o)}" ${o === chantier['Avancement'] ? 'selected' : ''}>
                                         ${escapeHtml(o)}
                                     </option>
