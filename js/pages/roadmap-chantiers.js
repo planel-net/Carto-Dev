@@ -206,6 +206,29 @@ class RoadmapChantiersPage {
     }
 
     /**
+     * Génère un numéro de chantier au format C-YYYY-NNN (max + 1, reset chaque année)
+     */
+    generateNumChantier() {
+        const year = new Date().getFullYear();
+        const prefix = `C-${year}-`;
+        const allChantiers = this.chantiers.concat(this.chantiersArchives);
+
+        let maxNum = 0;
+        for (const c of allChantiers) {
+            const num = c['NumChantier'] || '';
+            if (num.startsWith(prefix)) {
+                const n = parseInt(num.slice(prefix.length), 10);
+                if (!isNaN(n) && n > maxNum) {
+                    maxNum = n;
+                }
+            }
+        }
+
+        const next = String(maxNum + 1).padStart(3, '0');
+        return `${prefix}${next}`;
+    }
+
+    /**
      * Retourne la liste unique des groupes triés
      */
     getAllGroupes() {
@@ -2425,6 +2448,7 @@ class RoadmapChantiersPage {
 
                         const formData = new FormData(form);
                         const chantierData = {
+                            'NumChantier': this.generateNumChantier(),
                             'Chantier': formData.get('Chantier'),
                             'Responsable': formData.get('Responsable'),
                             'Perimetre': formData.get('Perimetre'),
