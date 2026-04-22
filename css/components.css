@@ -1319,6 +1319,72 @@ tr.drag-over {
 }
 
 /* ===========================================
+   ONGLETS DÉCISIONS & ACTIONS
+   =========================================== */
+
+#tabDecisions.active,
+#tabActions.active {
+    display: flex;
+    flex-direction: column;
+}
+
+.action-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+    flex: 1;
+}
+
+.action-responsable,
+.action-echeance {
+    font-size: var(--font-size-sm);
+    color: var(--mh-gris-fonce);
+}
+
+.action-statut {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.action-statut.statut-non-demarre {
+    background-color: var(--mh-gris-clair);
+    color: var(--mh-gris-fonce);
+}
+
+.action-statut.statut-en-cours {
+    background-color: var(--mh-jaune-pastel);
+    color: var(--mh-jaune-dark);
+}
+
+.action-statut.statut-termine {
+    background-color: var(--mh-vert-pastel);
+    color: var(--mh-vert-dark);
+}
+
+.action-statut.statut-en-attente {
+    background-color: var(--mh-bleu-pastel);
+    color: var(--mh-bleu-fonce);
+}
+
+.action-statut.statut-annulee {
+    background-color: var(--mh-corail-pastel);
+    color: var(--mh-rouge-erreur);
+}
+
+.action-form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+}
+
+/* ===========================================
    CHANTIER MODAL - Grille formulaire 2 colonnes
    =========================================== */
 

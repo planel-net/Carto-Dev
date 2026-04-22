@@ -6,7 +6,7 @@
 const CONFIG = {
     // Nom de l'application
     APP_NAME: 'Carto',
-    APP_VERSION: '1.8.4',
+    APP_VERSION: '1.9.0',
 
     // Valeur spéciale pour filtrer les éléments sans valeur (périmètre/responsable vide)
     EMPTY_FILTER_VALUE: '(Non rempli)',
@@ -323,6 +323,31 @@ const CONFIG = {
                 { field: 'Chantier', label: 'Chantier', type: 'select', source: 'CHANTIER', sourceField: 'Chantier' },
                 { field: 'Nom lien', label: 'Nom du lien', type: 'text' },
                 { field: 'Lien', label: 'URL', type: 'text' }
+            ]
+        },
+        CHANTIER_DECISIONS: {
+            name: 'tChantierDecisions',
+            sheet: 'ChantierDecisions',
+            displayName: 'Décisions Chantiers',
+            icon: '&#128203;',
+            columns: [
+                { field: 'Chantier', label: 'Chantier', type: 'text', required: true },
+                { field: 'Date', label: 'Date', type: 'date', required: true },
+                { field: 'Decision', label: 'Décision', type: 'textarea', required: true }
+            ]
+        },
+        CHANTIER_ACTIONS: {
+            name: 'tChantierActions',
+            sheet: 'ChantierActions',
+            displayName: 'Actions Chantiers',
+            icon: '&#9989;',
+            columns: [
+                { field: 'Chantier', label: 'Chantier', type: 'text', required: true },
+                { field: 'Date creation', label: 'Date création', type: 'date', required: true },
+                { field: 'Description', label: 'Description', type: 'textarea', required: true },
+                { field: 'Responsable', label: 'Responsable', type: 'select', source: 'ACTEURS', sourceField: 'Mail' },
+                { field: 'Statut', label: 'Statut', type: 'select', options: ['Non démarré', 'En Cours', 'Terminé', 'En attente', 'Annulée'] },
+                { field: 'Echeance', label: 'Échéance', type: 'date' }
             ]
         },
         // Tables MAE (Demandes Data)

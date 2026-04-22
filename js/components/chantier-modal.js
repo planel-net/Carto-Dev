@@ -22,6 +22,8 @@ const ChantierModal = {
         chantierLien: [],
         chantiers: [],
         chantierNotes: [],
+        chantierDecisions: [],
+        chantierActions: [],
         phases: [],
         phasesLien: [],
         sprints: []
@@ -42,9 +44,13 @@ const ChantierModal = {
         numChantier: null,
         rowIndex: null,
         onSuccess: null,
-        activeTab: 'general', // 'general', 'phases', 'associations' ou 'notes'
+        activeTab: 'general', // 'general', 'phases', 'associations', 'notes', 'decisions' ou 'actions'
         notes: [],
-        editingNoteIndex: null
+        editingNoteIndex: null,
+        decisions: [],
+        editingDecisionIndex: null,
+        actions: [],
+        editingActionIndex: null
     },
 
     /**
@@ -52,7 +58,8 @@ const ChantierModal = {
      * @param {Object} preloaded - Données déjà chargées par la page appelante.
      *   Clés possibles : acteurs, perimetres, programmes, processus, produits,
      *   dataAnas, mae, chantierProduit, chantierDataAna, chantierLien,
-     *   chantiers, chantierNotes, phases, phasesLien, sprints.
+     *   chantiers, chantierNotes, chantierDecisions, chantierActions,
+     *   phases, phasesLien, sprints.
      *   Les tables fournies sont réutilisées ; les autres sont lues depuis Excel.
      */
     async loadData(preloaded = null) {
@@ -71,6 +78,8 @@ const ChantierModal = {
                 { key: 'chantierLien', table: 'tChantierLien' },
                 { key: 'chantiers', table: 'tChantiers' },
                 { key: 'chantierNotes', table: 'tChantierNote' },
+                { key: 'chantierDecisions', table: 'tChantierDecisions' },
+                { key: 'chantierActions', table: 'tChantierActions' },
                 { key: 'phases', table: 'tPhases' },
                 { key: 'phasesLien', table: 'tPhasesLien' },
                 { key: 'sprints', table: 'tSprints' }
@@ -343,6 +352,8 @@ const ChantierModal = {
         this._state.rowIndex = rowIndex;
         this._state.activeTab = 'general';
         this._state.editingNoteIndex = null;
+        this._state.editingDecisionIndex = null;
+        this._state.editingActionIndex = null;
 
         // Produits associés
         this._state.selectedProduits = this._data.chantierProduit
@@ -370,6 +381,24 @@ const ChantierModal = {
             .sort((a, b) => {
                 const dateA = this._parseDate(a['Date']);
                 const dateB = this._parseDate(b['Date']);
+                return dateB - dateA;
+            });
+
+        // Décisions du chantier (clé = NumChantier, triées par date décroissante)
+        this._state.decisions = this._data.chantierDecisions
+            .filter(d => this._state.numChantier && d['Chantier'] === this._state.numChantier)
+            .sort((a, b) => {
+                const dateA = this._parseDate(a['Date']);
+                const dateB = this._parseDate(b['Date']);
+                return dateB - dateA;
+            });
+
+        // Actions du chantier (clé = NumChantier, triées par date création décroissante)
+        this._state.actions = this._data.chantierActions
+            .filter(a => this._state.numChantier && a['Chantier'] === this._state.numChantier)
+            .sort((a, b) => {
+                const dateA = this._parseDate(a['Date creation']);
+                const dateB = this._parseDate(b['Date creation']);
                 return dateB - dateA;
             });
 
@@ -406,6 +435,12 @@ const ChantierModal = {
                 </button>
                 <button type="button" class="modal-tab" data-tab="notes" onclick="ChantierModal.switchTab('notes')">
                     Notes <span class="tab-badge" id="notesBadge">${this._state.notes.length > 0 ? this._state.notes.length : ''}</span>
+                </button>
+                <button type="button" class="modal-tab" data-tab="decisions" onclick="ChantierModal.switchTab('decisions')">
+                    Décisions <span class="tab-badge" id="decisionsBadge">${this._state.decisions.length > 0 ? this._state.decisions.length : ''}</span>
+                </button>
+                <button type="button" class="modal-tab" data-tab="actions" onclick="ChantierModal.switchTab('actions')">
+                    Actions <span class="tab-badge" id="actionsBadge">${this._state.actions.length > 0 ? this._state.actions.length : ''}</span>
                 </button>
             </div>
 
@@ -620,6 +655,34 @@ const ChantierModal = {
                     <div class="notes-list" id="notesList"></div>
                 </div>
             </div>
+
+            <!-- Contenu onglet Décisions -->
+            <div class="modal-tab-content" id="tabDecisions">
+                <div class="notes-section">
+                    <div class="notes-header">
+                        <h4>Décisions du chantier</h4>
+                        <button type="button" class="btn btn-sm btn-primary" onclick="ChantierModal.showAddDecisionForm()">
+                            + Ajouter une décision
+                        </button>
+                    </div>
+                    <div class="notes-form-container" id="decisionFormContainer" style="display: none;"></div>
+                    <div class="notes-list" id="decisionsList"></div>
+                </div>
+            </div>
+
+            <!-- Contenu onglet Actions -->
+            <div class="modal-tab-content" id="tabActions">
+                <div class="notes-section">
+                    <div class="notes-header">
+                        <h4>Actions du chantier</h4>
+                        <button type="button" class="btn btn-sm btn-primary" onclick="ChantierModal.showAddActionForm()">
+                            + Ajouter une action
+                        </button>
+                    </div>
+                    <div class="notes-form-container" id="actionFormContainer" style="display: none;"></div>
+                    <div class="notes-list" id="actionsList"></div>
+                </div>
+            </div>
         `;
 
         const numChantier = chantier['NumChantier'] || '';
@@ -754,11 +817,15 @@ const ChantierModal = {
         const tabPhases = document.getElementById('tabPhases');
         const tabAssociations = document.getElementById('tabAssociations');
         const tabNotes = document.getElementById('tabNotes');
+        const tabDecisions = document.getElementById('tabDecisions');
+        const tabActions = document.getElementById('tabActions');
 
         if (tabGeneral) tabGeneral.classList.toggle('active', tabName === 'general');
         if (tabPhases) tabPhases.classList.toggle('active', tabName === 'phases');
         if (tabAssociations) tabAssociations.classList.toggle('active', tabName === 'associations');
         if (tabNotes) tabNotes.classList.toggle('active', tabName === 'notes');
+        if (tabDecisions) tabDecisions.classList.toggle('active', tabName === 'decisions');
+        if (tabActions) tabActions.classList.toggle('active', tabName === 'actions');
 
         if (tabName === 'general') {
             this._renderMiniRoadmap();
@@ -775,6 +842,12 @@ const ChantierModal = {
         }
         if (tabName === 'notes') {
             this._renderNotesList();
+        }
+        if (tabName === 'decisions') {
+            this._renderDecisionsList();
+        }
+        if (tabName === 'actions') {
+            this._renderActionsList();
         }
     },
 
@@ -1666,6 +1739,524 @@ const ChantierModal = {
         const badge = document.getElementById('notesBadge');
         if (badge) {
             badge.textContent = this._state.notes.length > 0 ? this._state.notes.length : '';
+        }
+    },
+
+    // ==========================================
+    // ONGLET DÉCISIONS
+    // ==========================================
+
+    _renderDecisionsList() {
+        const container = document.getElementById('decisionsList');
+        if (!container) return;
+
+        if (this._state.decisions.length === 0) {
+            container.innerHTML = '<div class="notes-empty">Aucune décision pour ce chantier</div>';
+            return;
+        }
+
+        container.innerHTML = this._state.decisions.map((decision, index) => {
+            const dateStr = this._formatDate(decision['Date']);
+            const decisionContent = decision['Decision'] || '';
+            return `
+                <div class="note-item" data-index="${index}">
+                    <div class="note-header">
+                        <span class="note-date">${escapeHtml(dateStr)}</span>
+                        <div class="note-actions">
+                            <button type="button" class="btn btn-icon btn-xs btn-secondary" title="Modifier" onclick="ChantierModal.showEditDecisionForm(${index})">
+                                &#9998;
+                            </button>
+                            <button type="button" class="btn btn-icon btn-xs btn-danger" title="Supprimer" onclick="ChantierModal.confirmDeleteDecision(${index})">
+                                &#128465;
+                            </button>
+                        </div>
+                    </div>
+                    <div class="note-content">${decisionContent}</div>
+                </div>
+            `;
+        }).join('');
+    },
+
+    showAddDecisionForm() {
+        this._state.editingDecisionIndex = null;
+        this._showDecisionForm(null);
+    },
+
+    showEditDecisionForm(index) {
+        this._state.editingDecisionIndex = index;
+        const decision = this._state.decisions[index];
+        this._showDecisionForm(decision);
+    },
+
+    _showDecisionForm(decision) {
+        const container = document.getElementById('decisionFormContainer');
+        if (!container) return;
+
+        const isEdit = decision !== null;
+        const dateValue = isEdit ? this._formatDateForInput(decision['Date']) : new Date().toISOString().split('T')[0];
+        const decisionContent = isEdit ? (decision['Decision'] || '') : '';
+
+        container.innerHTML = `
+            <div class="note-form">
+                <div class="note-form-header">
+                    <h5>${isEdit ? 'Modifier la décision' : 'Nouvelle décision'}</h5>
+                    <button type="button" class="btn btn-icon btn-xs btn-secondary" onclick="ChantierModal.hideDecisionForm()">
+                        &#10005;
+                    </button>
+                </div>
+                <div class="form-group">
+                    <label class="form-label required">Date</label>
+                    <input type="date" class="form-control" id="decisionDate" value="${dateValue}" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label required">Décision</label>
+                    <div class="rich-text-toolbar">
+                        <button type="button" class="rich-text-btn" onclick="ChantierModal.execDecisionCommand('bold')" title="Gras">
+                            <strong>G</strong>
+                        </button>
+                        <button type="button" class="rich-text-btn" onclick="ChantierModal.execDecisionCommand('italic')" title="Italique">
+                            <em>I</em>
+                        </button>
+                        <button type="button" class="rich-text-btn" onclick="ChantierModal.execDecisionCommand('underline')" title="Souligné">
+                            <u>S</u>
+                        </button>
+                        <span class="rich-text-separator"></span>
+                        <button type="button" class="rich-text-btn" onclick="ChantierModal.execDecisionCommand('insertUnorderedList')" title="Liste à puces">
+                            &#8226;
+                        </button>
+                        <button type="button" class="rich-text-btn" onclick="ChantierModal.execDecisionCommand('insertOrderedList')" title="Liste numérotée">
+                            1.
+                        </button>
+                    </div>
+                    <div class="rich-text-editor" id="decisionEditor" contenteditable="true">${decisionContent}</div>
+                </div>
+                <div class="note-form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="ChantierModal.hideDecisionForm()">Annuler</button>
+                    <button type="button" class="btn btn-primary" onclick="ChantierModal.saveDecision()">
+                        ${isEdit ? 'Modifier' : 'Ajouter'}
+                    </button>
+                </div>
+            </div>
+        `;
+
+        container.style.display = 'block';
+
+        setTimeout(() => {
+            const editor = document.getElementById('decisionEditor');
+            if (editor) editor.focus();
+        }, 100);
+    },
+
+    hideDecisionForm() {
+        const container = document.getElementById('decisionFormContainer');
+        if (container) {
+            container.style.display = 'none';
+            container.innerHTML = '';
+        }
+        this._state.editingDecisionIndex = null;
+    },
+
+    execDecisionCommand(command) {
+        document.execCommand(command, false, null);
+        const editor = document.getElementById('decisionEditor');
+        if (editor) editor.focus();
+    },
+
+    async saveDecision() {
+        const dateInput = document.getElementById('decisionDate');
+        const editor = document.getElementById('decisionEditor');
+
+        if (!dateInput || !editor) return;
+
+        const dateValue = dateInput.value;
+        const decisionContent = editor.innerHTML.trim();
+
+        if (!dateValue) {
+            showError('Veuillez saisir une date');
+            return;
+        }
+
+        if (!decisionContent || decisionContent === '<br>') {
+            showError('Veuillez saisir une décision');
+            return;
+        }
+
+        try {
+            const decisionData = {
+                'Chantier': this._state.numChantier || '',
+                'Date': dateValue,
+                'Decision': decisionContent
+            };
+
+            if (this._state.editingDecisionIndex !== null) {
+                const existingDecision = this._state.decisions[this._state.editingDecisionIndex];
+                if (existingDecision._rowIndex !== undefined) {
+                    await updateTableRow('tChantierDecisions', existingDecision._rowIndex, decisionData);
+                    invalidateCache('tChantierDecisions');
+                    showSuccess('Décision modifiée');
+                }
+            } else {
+                await addTableRow('tChantierDecisions', decisionData);
+                invalidateCache('tChantierDecisions');
+                showSuccess('Décision ajoutée');
+            }
+
+            await this._reloadDecisions();
+            this.hideDecisionForm();
+            this._renderDecisionsList();
+            this._updateDecisionsBadge();
+        } catch (error) {
+            console.error('Erreur sauvegarde décision:', error);
+            showError('Erreur lors de la sauvegarde de la décision');
+        }
+    },
+
+    confirmDeleteDecision(index) {
+        const decision = this._state.decisions[index];
+        const dateStr = this._formatDate(decision['Date']);
+
+        showConfirmModal(
+            'Supprimer la décision',
+            `Êtes-vous sûr de vouloir supprimer la décision du ${dateStr} ?`,
+            async () => {
+                await this._deleteDecision(index);
+            },
+            { confirmText: 'Supprimer', cancelText: 'Annuler' }
+        );
+    },
+
+    async _deleteDecision(index) {
+        try {
+            const decision = this._state.decisions[index];
+            if (decision._rowIndex !== undefined) {
+                await deleteTableRow('tChantierDecisions', decision._rowIndex);
+                invalidateCache('tChantierDecisions');
+                showSuccess('Décision supprimée');
+
+                await this._reloadDecisions();
+                this._renderDecisionsList();
+                this._updateDecisionsBadge();
+            }
+        } catch (error) {
+            console.error('Erreur suppression décision:', error);
+            showError('Erreur lors de la suppression de la décision');
+        }
+    },
+
+    async _reloadDecisions() {
+        try {
+            const decisionsData = await readTable('tChantierDecisions');
+            this._data.chantierDecisions = decisionsData.data || [];
+
+            this._state.decisions = this._data.chantierDecisions
+                .filter(d => this._state.numChantier && d['Chantier'] === this._state.numChantier)
+                .sort((a, b) => {
+                    const dateA = this._parseDate(a['Date']);
+                    const dateB = this._parseDate(b['Date']);
+                    return dateB - dateA;
+                });
+        } catch (error) {
+            console.error('Erreur rechargement décisions:', error);
+        }
+    },
+
+    _updateDecisionsBadge() {
+        const badge = document.getElementById('decisionsBadge');
+        if (badge) {
+            badge.textContent = this._state.decisions.length > 0 ? this._state.decisions.length : '';
+        }
+    },
+
+    // ==========================================
+    // ONGLET ACTIONS
+    // ==========================================
+
+    _getActionStatutClass(statut) {
+        const map = {
+            'Non démarré': 'statut-non-demarre',
+            'En Cours': 'statut-en-cours',
+            'Terminé': 'statut-termine',
+            'En attente': 'statut-en-attente',
+            'Annulée': 'statut-annulee'
+        };
+        return map[statut] || 'statut-non-demarre';
+    },
+
+    _getActeurNameByMail(mail) {
+        if (!mail) return '';
+        const acteur = this._data.acteurs.find(a => a['Mail'] === mail);
+        if (!acteur) return mail;
+        return `${acteur['Prénom'] || ''} ${acteur['Nom'] || ''}`.trim() || mail;
+    },
+
+    _getActeursSortedByPrenomNom() {
+        return [...this._data.acteurs].sort((a, b) => {
+            const nameA = `${a['Prénom'] || ''} ${a['Nom'] || ''}`.trim().toLowerCase();
+            const nameB = `${b['Prénom'] || ''} ${b['Nom'] || ''}`.trim().toLowerCase();
+            return nameA.localeCompare(nameB);
+        });
+    },
+
+    _renderActionsList() {
+        const container = document.getElementById('actionsList');
+        if (!container) return;
+
+        if (this._state.actions.length === 0) {
+            container.innerHTML = '<div class="notes-empty">Aucune action pour ce chantier</div>';
+            return;
+        }
+
+        container.innerHTML = this._state.actions.map((action, index) => {
+            const dateCreationStr = this._formatDate(action['Date creation']);
+            const echeanceStr = this._formatDate(action['Echeance']);
+            const description = action['Description'] || '';
+            const responsableName = this._getActeurNameByMail(action['Responsable']);
+            const statut = action['Statut'] || '';
+            const statutClass = this._getActionStatutClass(statut);
+
+            return `
+                <div class="note-item" data-index="${index}">
+                    <div class="note-header">
+                        <div class="action-meta">
+                            <span class="note-date">${escapeHtml(dateCreationStr)}</span>
+                            ${statut ? `<span class="action-statut ${statutClass}">${escapeHtml(statut)}</span>` : ''}
+                            ${responsableName ? `<span class="action-responsable">&#128100; ${escapeHtml(responsableName)}</span>` : ''}
+                            ${echeanceStr ? `<span class="action-echeance">&#128197; Échéance : ${escapeHtml(echeanceStr)}</span>` : ''}
+                        </div>
+                        <div class="note-actions">
+                            <button type="button" class="btn btn-icon btn-xs btn-secondary" title="Modifier" onclick="ChantierModal.showEditActionForm(${index})">
+                                &#9998;
+                            </button>
+                            <button type="button" class="btn btn-icon btn-xs btn-danger" title="Supprimer" onclick="ChantierModal.confirmDeleteAction(${index})">
+                                &#128465;
+                            </button>
+                        </div>
+                    </div>
+                    <div class="note-content">${description}</div>
+                </div>
+            `;
+        }).join('');
+    },
+
+    showAddActionForm() {
+        this._state.editingActionIndex = null;
+        this._showActionForm(null);
+    },
+
+    showEditActionForm(index) {
+        this._state.editingActionIndex = index;
+        const action = this._state.actions[index];
+        this._showActionForm(action);
+    },
+
+    _showActionForm(action) {
+        const container = document.getElementById('actionFormContainer');
+        if (!container) return;
+
+        const isEdit = action !== null;
+        const today = new Date().toISOString().split('T')[0];
+        const dateCreationValue = isEdit ? this._formatDateForInput(action['Date creation']) : today;
+        const echeanceValue = isEdit ? this._formatDateForInput(action['Echeance']) : '';
+        const description = isEdit ? (action['Description'] || '') : '';
+        const responsableMail = isEdit ? (action['Responsable'] || '') : '';
+        const statut = isEdit ? (action['Statut'] || 'Non démarré') : 'Non démarré';
+
+        const statutOptions = ['Non démarré', 'En Cours', 'Terminé', 'En attente', 'Annulée'];
+        const acteursSorted = this._getActeursSortedByPrenomNom();
+
+        container.innerHTML = `
+            <div class="note-form">
+                <div class="note-form-header">
+                    <h5>${isEdit ? 'Modifier l\'action' : 'Nouvelle action'}</h5>
+                    <button type="button" class="btn btn-icon btn-xs btn-secondary" onclick="ChantierModal.hideActionForm()">
+                        &#10005;
+                    </button>
+                </div>
+                <div class="action-form-grid">
+                    <div class="form-group">
+                        <label class="form-label">Date création</label>
+                        <input type="date" class="form-control" id="actionDateCreation" value="${dateCreationValue}" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Responsable</label>
+                        <select class="form-control" id="actionResponsable">
+                            <option value="">-- Sélectionner --</option>
+                            ${acteursSorted.map(a => `
+                                <option value="${escapeHtml(a['Mail'])}" ${a['Mail'] === responsableMail ? 'selected' : ''}>
+                                    ${escapeHtml(a['Prénom'] || '')} ${escapeHtml(a['Nom'] || '')}
+                                </option>
+                            `).join('')}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Statut</label>
+                        <select class="form-control" id="actionStatut">
+                            ${statutOptions.map(s => `
+                                <option value="${escapeHtml(s)}" ${s === statut ? 'selected' : ''}>${escapeHtml(s)}</option>
+                            `).join('')}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Échéance</label>
+                        <input type="date" class="form-control" id="actionEcheance" value="${echeanceValue}">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label required">Description</label>
+                    <div class="rich-text-toolbar">
+                        <button type="button" class="rich-text-btn" onclick="ChantierModal.execActionCommand('bold')" title="Gras">
+                            <strong>G</strong>
+                        </button>
+                        <button type="button" class="rich-text-btn" onclick="ChantierModal.execActionCommand('italic')" title="Italique">
+                            <em>I</em>
+                        </button>
+                        <button type="button" class="rich-text-btn" onclick="ChantierModal.execActionCommand('underline')" title="Souligné">
+                            <u>S</u>
+                        </button>
+                        <span class="rich-text-separator"></span>
+                        <button type="button" class="rich-text-btn" onclick="ChantierModal.execActionCommand('insertUnorderedList')" title="Liste à puces">
+                            &#8226;
+                        </button>
+                        <button type="button" class="rich-text-btn" onclick="ChantierModal.execActionCommand('insertOrderedList')" title="Liste numérotée">
+                            1.
+                        </button>
+                    </div>
+                    <div class="rich-text-editor" id="actionDescriptionEditor" contenteditable="true">${description}</div>
+                </div>
+                <div class="note-form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="ChantierModal.hideActionForm()">Annuler</button>
+                    <button type="button" class="btn btn-primary" onclick="ChantierModal.saveAction()">
+                        ${isEdit ? 'Modifier' : 'Ajouter'}
+                    </button>
+                </div>
+            </div>
+        `;
+
+        container.style.display = 'block';
+
+        setTimeout(() => {
+            const editor = document.getElementById('actionDescriptionEditor');
+            if (editor) editor.focus();
+        }, 100);
+    },
+
+    hideActionForm() {
+        const container = document.getElementById('actionFormContainer');
+        if (container) {
+            container.style.display = 'none';
+            container.innerHTML = '';
+        }
+        this._state.editingActionIndex = null;
+    },
+
+    execActionCommand(command) {
+        document.execCommand(command, false, null);
+        const editor = document.getElementById('actionDescriptionEditor');
+        if (editor) editor.focus();
+    },
+
+    async saveAction() {
+        const dateCreationInput = document.getElementById('actionDateCreation');
+        const responsableSelect = document.getElementById('actionResponsable');
+        const statutSelect = document.getElementById('actionStatut');
+        const echeanceInput = document.getElementById('actionEcheance');
+        const editor = document.getElementById('actionDescriptionEditor');
+
+        if (!dateCreationInput || !editor || !responsableSelect || !statutSelect || !echeanceInput) return;
+
+        const description = editor.innerHTML.trim();
+
+        if (!description || description === '<br>') {
+            showError('Veuillez saisir une description');
+            return;
+        }
+
+        try {
+            const actionData = {
+                'Chantier': this._state.numChantier || '',
+                'Date creation': dateCreationInput.value,
+                'Description': description,
+                'Responsable': responsableSelect.value || '',
+                'Statut': statutSelect.value || 'Non démarré',
+                'Echeance': echeanceInput.value || ''
+            };
+
+            if (this._state.editingActionIndex !== null) {
+                const existingAction = this._state.actions[this._state.editingActionIndex];
+                if (existingAction._rowIndex !== undefined) {
+                    await updateTableRow('tChantierActions', existingAction._rowIndex, actionData);
+                    invalidateCache('tChantierActions');
+                    showSuccess('Action modifiée');
+                }
+            } else {
+                await addTableRow('tChantierActions', actionData);
+                invalidateCache('tChantierActions');
+                showSuccess('Action ajoutée');
+            }
+
+            await this._reloadActions();
+            this.hideActionForm();
+            this._renderActionsList();
+            this._updateActionsBadge();
+        } catch (error) {
+            console.error('Erreur sauvegarde action:', error);
+            showError('Erreur lors de la sauvegarde de l\'action');
+        }
+    },
+
+    confirmDeleteAction(index) {
+        const action = this._state.actions[index];
+        const dateStr = this._formatDate(action['Date creation']);
+
+        showConfirmModal(
+            'Supprimer l\'action',
+            `Êtes-vous sûr de vouloir supprimer l'action du ${dateStr} ?`,
+            async () => {
+                await this._deleteAction(index);
+            },
+            { confirmText: 'Supprimer', cancelText: 'Annuler' }
+        );
+    },
+
+    async _deleteAction(index) {
+        try {
+            const action = this._state.actions[index];
+            if (action._rowIndex !== undefined) {
+                await deleteTableRow('tChantierActions', action._rowIndex);
+                invalidateCache('tChantierActions');
+                showSuccess('Action supprimée');
+
+                await this._reloadActions();
+                this._renderActionsList();
+                this._updateActionsBadge();
+            }
+        } catch (error) {
+            console.error('Erreur suppression action:', error);
+            showError('Erreur lors de la suppression de l\'action');
+        }
+    },
+
+    async _reloadActions() {
+        try {
+            const actionsData = await readTable('tChantierActions');
+            this._data.chantierActions = actionsData.data || [];
+
+            this._state.actions = this._data.chantierActions
+                .filter(a => this._state.numChantier && a['Chantier'] === this._state.numChantier)
+                .sort((a, b) => {
+                    const dateA = this._parseDate(a['Date creation']);
+                    const dateB = this._parseDate(b['Date creation']);
+                    return dateB - dateA;
+                });
+        } catch (error) {
+            console.error('Erreur rechargement actions:', error);
+        }
+    },
+
+    _updateActionsBadge() {
+        const badge = document.getElementById('actionsBadge');
+        if (badge) {
+            badge.textContent = this._state.actions.length > 0 ? this._state.actions.length : '';
         }
     },
 
