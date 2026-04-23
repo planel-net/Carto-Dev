@@ -29,6 +29,7 @@ class RoadmapChantiersPage {
         this.chantierNotes = [];
         this.sprints = [];
         this.acteurs = [];
+        this.equipesRef = [];
         this.perimetres = [];
         this.programmes = [];
         this.produits = [];
@@ -109,6 +110,7 @@ class RoadmapChantiersPage {
                 chantierNotesData,
                 sprintsData,
                 acteursData,
+                equipesRefData,
                 perimetresData,
                 programmesData,
                 produitsData,
@@ -125,6 +127,7 @@ class RoadmapChantiersPage {
                 readTable('tChantierNote'),
                 readTable('tSprints'),
                 readTable('tActeurs'),
+                readTable('tEquipe'),
                 readTable('tPerimetres'),
                 readTable('tProgrammes'),
                 readTable('tProduits'),
@@ -146,6 +149,7 @@ class RoadmapChantiersPage {
             this.chantierNotes = chantierNotesData.data || [];
             this.sprints = sprintsData.data || [];
             this.acteurs = acteursData.data || [];
+            this.equipesRef = equipesRefData.data || [];
             this.perimetres = perimetresData.data || [];
             this.programmes = programmesData.data || [];
             this.produits = produitsData.data || [];
@@ -371,23 +375,16 @@ class RoadmapChantiersPage {
     }
 
     /**
-     * Retourne la liste des équipes (via le Responsable du chantier), triée alphabétiquement
-     * Inclut "(Non rempli)" si des chantiers n'ont pas d'équipe rattachée
+     * Retourne la liste des équipes depuis la table tEquipe, triée alphabétiquement
+     * Inclut "(Non rempli)" si des chantiers n'ont pas d'équipe rattachée (via leur Responsable)
      */
     getAllEquipes() {
-        const equipesSet = new Set();
-        let hasEmpty = false;
+        const equipes = (this.equipesRef || [])
+            .map(e => e['Equipe'])
+            .filter(Boolean);
+        const result = [...new Set(equipes)].sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
 
-        this.chantiers.forEach(c => {
-            const equipe = this.getChantierEquipe(c);
-            if (equipe) {
-                equipesSet.add(equipe);
-            } else {
-                hasEmpty = true;
-            }
-        });
-
-        const result = [...equipesSet].sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+        const hasEmpty = this.chantiers.some(c => !this.getChantierEquipe(c));
         if (hasEmpty) {
             result.push(CONFIG.EMPTY_FILTER_VALUE);
         }
@@ -5012,6 +5009,7 @@ class RoadmapChantiersPage {
         this.chantierNotes = [];
         this.sprints = [];
         this.acteurs = [];
+        this.equipesRef = [];
         this.perimetres = [];
         this.produits = [];
         this.dataAnas = [];
