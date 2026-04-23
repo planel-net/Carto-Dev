@@ -179,7 +179,7 @@ const ChantierModal = {
         this._state.renderMAE = () => this._renderAssignedMAE('Add');
         this._state.renderLiens = () => this._renderLiensList('Add');
 
-        const avancementOptions = ['Non démarré', 'En cadrage', 'Cadré', 'En développement', 'Développé', 'En recette', 'Recetté', 'Terminé', 'Suspendu', 'Annulé'];
+        const avancementOptions = ['Non démarré', 'En cadrage', 'Cadré', 'En développement', 'Développé', 'En recette', 'Recetté', 'Terminé', 'Suspendu', 'Annulé', 'Récurrent'];
 
         const content = `
             <form id="formChantierModal" class="form">
@@ -511,7 +511,7 @@ const ChantierModal = {
                             <label class="form-label">Avancement</label>
                             <select class="form-control" name="Avancement">
                                 <option value="">-- Sélectionner --</option>
-                                ${['Non démarré', 'En cadrage', 'Cadré', 'En développement', 'Développé', 'En recette', 'Recetté', 'Terminé', 'Suspendu', 'Annulé'].map(o => `
+                                ${['Non démarré', 'En cadrage', 'Cadré', 'En développement', 'Développé', 'En recette', 'Recetté', 'Terminé', 'Suspendu', 'Annulé', 'Récurrent'].map(o => `
                                     <option value="${escapeHtml(o)}" ${o === chantier['Avancement'] ? 'selected' : ''}>
                                         ${escapeHtml(o)}
                                     </option>
@@ -714,6 +714,21 @@ const ChantierModal = {
                                 showError('Erreur lors de l\'archivage');
                             }
                         }
+                    }
+                },
+                {
+                    label: '📋 Dupliquer',
+                    class: 'btn-secondary',
+                    action: () => {
+                        showConfirmModal(
+                            'Dupliquer le chantier',
+                            'Créer une copie de ce chantier et de ses phases ? Les notes, décisions, actions, liens et associations (produits, MAE, DataAna) ne seront pas copiés.',
+                            async () => {
+                                await this._duplicateChantier(chantier);
+                            },
+                            { confirmText: 'Dupliquer', cancelText: 'Annuler' }
+                        );
+                        return false;
                     }
                 },
                 {
@@ -2491,6 +2506,64 @@ const ChantierModal = {
             console.error('Erreur sauvegarde chantier:', error);
             showError(isEdit ? 'Erreur lors de la modification' : 'Erreur lors de l\'ajout');
             return false;
+        }
+    },
+
+    /**
+     * Génère un nom unique pour la copie d'un chantier
+     * Base : "<nom> (copie)". Si déjà pris : "<nom> (copie 2)", etc.
+     */
+    _generateUniqueCopyName(originalName) {
+        const base = `${originalName} (copie)`;
+        const existing = this._data.chantiers.map(c => c['Chantier']);
+        if (!existing.includes(base)) return base;
+        let i = 2;
+        while (existing.includes(`${originalName} (copie ${i})`)) {
+            i++;
+        }
+        return `${originalName} (copie ${i})`;
+    },
+
+    /**
+     * Duplique un chantier et ses phases (sans notes, décisions, actions, liens, associations)
+     */
+    async _duplicateChantier(originalChantier) {
+        try {
+            const originalName = originalChantier['Chantier'];
+            const newName = this._generateUniqueCopyName(originalName);
+            const newNumChantier = this._generateNumChantier();
+
+            // Construire la copie : mêmes champs, nouveau Num/Nom, archivé = false
+            const newChantier = { ...originalChantier };
+            delete newChantier._rowIndex;
+            newChantier['Chantier'] = newName;
+            newChantier['NumChantier'] = newNumChantier;
+            newChantier['Archivé'] = false;
+
+            await addTableRow('tChantiers', newChantier);
+            invalidateCache('tChantiers');
+
+            // Dupliquer les phases du chantier d'origine
+            const originalPhases = this._data.phases.filter(p => p['Chantier'] === originalName);
+            for (const phase of originalPhases) {
+                const newPhase = { ...phase };
+                delete newPhase._rowIndex;
+                newPhase['Chantier'] = newName;
+                await addTableRow('tPhases', newPhase);
+            }
+            if (originalPhases.length > 0) {
+                invalidateCache('tPhases');
+            }
+
+            closeModal();
+            showSuccess(`Chantier dupliqué : ${newName}`);
+
+            if (this._state.onSuccess) {
+                await this._state.onSuccess();
+            }
+        } catch (error) {
+            console.error('Erreur duplication chantier:', error);
+            showError('Erreur lors de la duplication du chantier');
         }
     },
 

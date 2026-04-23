@@ -6,7 +6,7 @@
 const CONFIG = {
     // Nom de l'application
     APP_NAME: 'Carto',
-    APP_VERSION: '1.9.0',
+    APP_VERSION: '1.10.0',
 
     // Valeur spéciale pour filtrer les éléments sans valeur (périmètre/responsable vide)
     EMPTY_FILTER_VALUE: '(Non rempli)',
@@ -230,7 +230,7 @@ const CONFIG = {
                 { field: 'Perimetre', label: 'Périmètre', type: 'select', source: 'PERIMETRES', sourceField: 'Périmetre' },
                 { field: 'Programme', label: 'Programme', type: 'select', source: 'PROGRAMMES', sourceField: 'Programme' },
                 { field: 'Processus', label: 'Processus', type: 'select', source: 'PROCESSUS', sourceField: 'Processus' },
-                { field: 'Avancement', label: 'Avancement', type: 'select', options: ['Non démarré', 'En cadrage', 'Cadré', 'En développement', 'Développé', 'En recette', 'Recetté', 'Terminé', 'Suspendu', 'Annulé'] },
+                { field: 'Avancement', label: 'Avancement', type: 'select', options: ['Non démarré', 'En cadrage', 'Cadré', 'En développement', 'Développé', 'En recette', 'Recetté', 'Terminé', 'Suspendu', 'Annulé', 'Récurrent'] },
                 { field: 'Date fin souhaitée', label: 'Date fin souhaitée', type: 'date' },
                 { field: 'JH Vigie', label: 'JH Vigie', type: 'number' },
                 { field: 'JH Pilotage', label: 'JH Pilotage', type: 'number' },

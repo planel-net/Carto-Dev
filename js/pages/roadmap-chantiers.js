@@ -43,10 +43,12 @@ class RoadmapChantiersPage {
             selectedGroupes: [],
             perimetres: [],
             responsables: [],
+            respRpps: [],
+            programmes: [],
+            equipes: [],
             avancements: [],
             perimetreProcessus: [],
-            searchText: '',
-            showProgramme: false
+            searchText: ''
         };
 
         // État
@@ -173,6 +175,9 @@ class RoadmapChantiersPage {
                 this.filters.selectedGroupes = this.getAllGroupes();
                 this.filters.perimetres = this.getAllPerimetres();
                 this.filters.responsables = this.getAllResponsables();
+                this.filters.respRpps = this.getAllRespRpps();
+                this.filters.programmes = this.getAllProgrammes();
+                this.filters.equipes = this.getAllEquipes();
                 this.filters.avancements = this.getAllAvancements();
                 this.filters.perimetreProcessus = this.getAllPerimetreProcessus();
             }
@@ -325,6 +330,79 @@ class RoadmapChantiersPage {
         }
 
         return result;
+    }
+
+    /**
+     * Retourne la liste des Resp. RPP (emails) triée par "Prénom Nom"
+     * Inclut "(Non rempli)" si des chantiers n'ont pas de Resp. RPP
+     */
+    getAllRespRpps() {
+        const emails = [...new Set(this.chantiers.map(c => c['Resp. RPP']).filter(Boolean))];
+        const result = emails.sort((a, b) => {
+            const nameA = this.formatActorName(a).toLowerCase();
+            const nameB = this.formatActorName(b).toLowerCase();
+            return nameA.localeCompare(nameB);
+        });
+
+        const hasEmpty = this.chantiers.some(c => !c['Resp. RPP']);
+        if (hasEmpty) {
+            result.push(CONFIG.EMPTY_FILTER_VALUE);
+        }
+
+        return result;
+    }
+
+    /**
+     * Retourne la liste des programmes utilisés par les chantiers, triée alphabétiquement
+     * Ajoute "Sans programme" au début si des chantiers n'ont pas de programme
+     */
+    getAllProgrammes() {
+        const programmes = [...new Set(this.chantiers.map(c => c['Programme']).filter(Boolean))];
+        const sorted = programmes.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+
+        const result = [];
+        const hasEmpty = this.chantiers.some(c => !c['Programme'] || String(c['Programme']).trim() === '');
+        if (hasEmpty) {
+            result.push('Sans programme');
+        }
+        sorted.forEach(p => result.push(p));
+
+        return result;
+    }
+
+    /**
+     * Retourne la liste des équipes (via le Responsable du chantier), triée alphabétiquement
+     * Inclut "(Non rempli)" si des chantiers n'ont pas d'équipe rattachée
+     */
+    getAllEquipes() {
+        const equipesSet = new Set();
+        let hasEmpty = false;
+
+        this.chantiers.forEach(c => {
+            const equipe = this.getChantierEquipe(c);
+            if (equipe) {
+                equipesSet.add(equipe);
+            } else {
+                hasEmpty = true;
+            }
+        });
+
+        const result = [...equipesSet].sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+        if (hasEmpty) {
+            result.push(CONFIG.EMPTY_FILTER_VALUE);
+        }
+
+        return result;
+    }
+
+    /**
+     * Retourne l'équipe d'un chantier via son Responsable
+     */
+    getChantierEquipe(chantier) {
+        const mail = chantier && chantier['Responsable'];
+        if (!mail) return '';
+        const acteur = this.acteurs.find(a => a['Mail'] === mail);
+        return (acteur && acteur['Equipe']) ? acteur['Equipe'] : '';
     }
 
     /**
@@ -700,6 +778,9 @@ class RoadmapChantiersPage {
         const groupesList = this.getAllGroupes();
         const perimetresList = this.getFilteredPerimetres();
         const responsablesList = this.getAllResponsables();
+        const respRppsList = this.getAllRespRpps();
+        const programmesList = this.getAllProgrammes();
+        const equipesList = this.getAllEquipes();
         const avancementsList = this.getAllAvancements();
         const perimetreProcessusList = this.getFilteredPerimetreProcessus();
 
@@ -715,6 +796,18 @@ class RoadmapChantiersPage {
         const responsableAllSelected = this.filters.responsables.length === responsablesList.length;
         const responsableLabel = responsableAllSelected ? 'Tous' :
             (this.filters.responsables.length === 0 ? 'Aucun' : this.filters.responsables.length + ' sélectionné(s)');
+
+        const respRppAllSelected = this.filters.respRpps.length === respRppsList.length;
+        const respRppLabel = respRppAllSelected ? 'Tous' :
+            (this.filters.respRpps.length === 0 ? 'Aucun' : this.filters.respRpps.length + ' sélectionné(s)');
+
+        const programmeAllSelected = this.filters.programmes.length === programmesList.length;
+        const programmeLabel = programmeAllSelected ? 'Tous' :
+            (this.filters.programmes.length === 0 ? 'Aucun' : this.filters.programmes.length + ' sélectionné(s)');
+
+        const equipeAllSelected = this.filters.equipes.length === equipesList.length;
+        const equipeLabel = equipeAllSelected ? 'Tous' :
+            (this.filters.equipes.length === 0 ? 'Aucun' : this.filters.equipes.length + ' sélectionné(s)');
 
         const avancementAllSelected = this.filters.avancements.length === avancementsList.length;
         const avancementLabel = avancementAllSelected ? 'Tous' :
@@ -807,6 +900,81 @@ class RoadmapChantiersPage {
                 </div>
             </div>
             <div class="filter-group">
+                <label>Resp. RPP :</label>
+                <div class="multi-select-wrapper" id="respRppFilterWrapper">
+                    <div class="multi-select-trigger" onclick="roadmapChantiersPageInstance.toggleMultiSelect('respRpp')">
+                        <span class="multi-select-label">${respRppLabel}</span>
+                        <span class="multi-select-arrow">&#9662;</span>
+                    </div>
+                    <div class="multi-select-dropdown" id="respRppDropdown">
+                        <div class="multi-select-actions">
+                            <button class="btn btn-xs" onclick="roadmapChantiersPageInstance.selectAllRespRpps()">Tous</button>
+                            <button class="btn btn-xs" onclick="roadmapChantiersPageInstance.clearRespRppsFilter()">Aucun</button>
+                        </div>
+                        <div class="multi-select-options">
+                            ${respRppsList.map(r => `
+                                <label class="multi-select-option${r === CONFIG.EMPTY_FILTER_VALUE ? ' empty-option' : ''}">
+                                    <input type="checkbox" value="${escapeHtml(r)}"
+                                        ${this.filters.respRpps.includes(r) ? 'checked' : ''}
+                                        onchange="roadmapChantiersPageInstance.onRespRppCheckChange()">
+                                    <span>${r === CONFIG.EMPTY_FILTER_VALUE ? r : this.formatActorName(r)}</span>
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="filter-group">
+                <label>Programme :</label>
+                <div class="multi-select-wrapper" id="programmeFilterWrapper">
+                    <div class="multi-select-trigger" onclick="roadmapChantiersPageInstance.toggleMultiSelect('programme')">
+                        <span class="multi-select-label">${programmeLabel}</span>
+                        <span class="multi-select-arrow">&#9662;</span>
+                    </div>
+                    <div class="multi-select-dropdown" id="programmeDropdown">
+                        <div class="multi-select-actions">
+                            <button class="btn btn-xs" onclick="roadmapChantiersPageInstance.selectAllProgrammes()">Tous</button>
+                            <button class="btn btn-xs" onclick="roadmapChantiersPageInstance.clearProgrammesFilter()">Aucun</button>
+                        </div>
+                        <div class="multi-select-options">
+                            ${programmesList.map(p => `
+                                <label class="multi-select-option${p === 'Sans programme' ? ' empty-option' : ''}">
+                                    <input type="checkbox" value="${escapeHtml(p)}"
+                                        ${this.filters.programmes.includes(p) ? 'checked' : ''}
+                                        onchange="roadmapChantiersPageInstance.onProgrammeCheckChange()">
+                                    <span>${escapeHtml(p)}</span>
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="filter-group">
+                <label>Équipe :</label>
+                <div class="multi-select-wrapper" id="equipeFilterWrapper">
+                    <div class="multi-select-trigger" onclick="roadmapChantiersPageInstance.toggleMultiSelect('equipe')">
+                        <span class="multi-select-label">${equipeLabel}</span>
+                        <span class="multi-select-arrow">&#9662;</span>
+                    </div>
+                    <div class="multi-select-dropdown" id="equipeDropdown">
+                        <div class="multi-select-actions">
+                            <button class="btn btn-xs" onclick="roadmapChantiersPageInstance.selectAllEquipes()">Tous</button>
+                            <button class="btn btn-xs" onclick="roadmapChantiersPageInstance.clearEquipesFilter()">Aucun</button>
+                        </div>
+                        <div class="multi-select-options">
+                            ${equipesList.map(e => `
+                                <label class="multi-select-option${e === CONFIG.EMPTY_FILTER_VALUE ? ' empty-option' : ''}">
+                                    <input type="checkbox" value="${escapeHtml(e)}"
+                                        ${this.filters.equipes.includes(e) ? 'checked' : ''}
+                                        onchange="roadmapChantiersPageInstance.onEquipeCheckChange()">
+                                    <span>${escapeHtml(e)}</span>
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="filter-group">
                 <label>Avancement :</label>
                 <div class="multi-select-wrapper" id="avancementFilterWrapper">
                     <div class="multi-select-trigger" onclick="roadmapChantiersPageInstance.toggleMultiSelect('avancement')">
@@ -859,12 +1027,6 @@ class RoadmapChantiersPage {
             <div class="filter-group">
                 <label>Rechercher :</label>
                 <input type="text" id="filterSearch" class="filter-search-input" placeholder="Nom ou code chantier..." value="${escapeHtml(this.filters.searchText)}">
-            </div>
-            <div class="filter-group filter-group-checkbox">
-                <label class="checkbox-label">
-                    <input type="checkbox" id="filterProgramme" ${this.filters.showProgramme ? 'checked' : ''}>
-                    <span>Programme</span>
-                </label>
             </div>
             <button class="btn btn-secondary btn-sm" id="btnResetFilters">
                 Réinitialiser
@@ -922,7 +1084,7 @@ class RoadmapChantiersPage {
         const ordreAvancements = [
             'Non démarré', 'En cadrage', 'Cadré', 'En développement',
             'Développé', 'En recette', 'Recetté', 'Terminé',
-            'Suspendu', 'Annulé', '(Non rempli)'
+            'Suspendu', 'Annulé', 'Récurrent', '(Non rempli)'
         ];
         const colorMap = {
             'Non démarré': '#6c757d',
@@ -935,6 +1097,7 @@ class RoadmapChantiersPage {
             'Terminé': '#155724',
             'Suspendu': '#FFC107',
             'Annulé': '#DC3545',
+            'Récurrent': '#17a2b8',
             '(Non rempli)': '#adb5bd'
         };
 
@@ -1005,6 +1168,9 @@ class RoadmapChantiersPage {
             .map(p => (p || '').toLowerCase());
         const includeEmptyPerimetre = this.filters.perimetres.includes(CONFIG.EMPTY_FILTER_VALUE);
         const includeEmptyResponsable = this.filters.responsables.includes(CONFIG.EMPTY_FILTER_VALUE);
+        const includeEmptyRespRpp = this.filters.respRpps.includes(CONFIG.EMPTY_FILTER_VALUE);
+        const includeEmptyEquipe = this.filters.equipes.includes(CONFIG.EMPTY_FILTER_VALUE);
+        const includeSansProgramme = this.filters.programmes.includes('Sans programme');
         const includeEmptyAvancement = this.filters.avancements.includes(CONFIG.EMPTY_FILTER_VALUE);
         const includeEmptyPerimProcessus = this.filters.perimetreProcessus.includes(CONFIG.EMPTY_FILTER_VALUE);
 
@@ -1020,14 +1186,6 @@ class RoadmapChantiersPage {
                 const numChantier = (chantier['NumChantier'] || '').toLowerCase();
                 const nomChantier = (chantier['Chantier'] || '').toLowerCase();
                 if (!numChantier.includes(searchLower) && !nomChantier.includes(searchLower)) {
-                    return false;
-                }
-            }
-
-            // Filtre par programme : décochée = seulement les chantiers sans programme
-            if (!this.filters.showProgramme) {
-                const programme = chantier['Programme'] || '';
-                if (programme.trim() !== '') {
                     return false;
                 }
             }
@@ -1053,6 +1211,42 @@ class RoadmapChantiersPage {
                 ? includeEmptyResponsable
                 : this.filters.responsables.includes(chantierResponsable);
             if (!responsableMatch) {
+                return false;
+            }
+
+            // Filtre par Resp. RPP (vide = afficher aucun)
+            if (this.filters.respRpps.length === 0) {
+                return false;
+            }
+            const chantierRespRpp = chantier['Resp. RPP'];
+            const respRppMatch = !chantierRespRpp
+                ? includeEmptyRespRpp
+                : this.filters.respRpps.includes(chantierRespRpp);
+            if (!respRppMatch) {
+                return false;
+            }
+
+            // Filtre par programme (vide = afficher aucun)
+            if (this.filters.programmes.length === 0) {
+                return false;
+            }
+            const chantierProgramme = (chantier['Programme'] || '').trim();
+            const programmeMatch = chantierProgramme === ''
+                ? includeSansProgramme
+                : this.filters.programmes.includes(chantierProgramme);
+            if (!programmeMatch) {
+                return false;
+            }
+
+            // Filtre par équipe (via le Responsable du chantier)
+            if (this.filters.equipes.length === 0) {
+                return false;
+            }
+            const chantierEquipe = this.getChantierEquipe(chantier);
+            const equipeMatch = !chantierEquipe
+                ? includeEmptyEquipe
+                : this.filters.equipes.includes(chantierEquipe);
+            if (!equipeMatch) {
                 return false;
             }
 
@@ -1709,12 +1903,6 @@ class RoadmapChantiersPage {
             });
         }
 
-        // Checkbox Programme
-        document.getElementById('filterProgramme')?.addEventListener('change', (e) => {
-            this.filters.showProgramme = e.target.checked;
-            this.applyFilters();
-        });
-
         document.getElementById('btnResetFilters')?.addEventListener('click', () => {
             this.resetFilters();
         });
@@ -2182,6 +2370,114 @@ class RoadmapChantiersPage {
         }
     }
 
+    // Resp. RPP
+    selectAllRespRpps() {
+        const checkboxes = document.querySelectorAll('#respRppDropdown input[type="checkbox"]');
+        checkboxes.forEach(cb => cb.checked = true);
+        this.filters.respRpps = this.getAllRespRpps();
+        this.updateRespRppLabel();
+        this.applyFiltersWithoutRenderingFilters();
+    }
+
+    clearRespRppsFilter() {
+        const checkboxes = document.querySelectorAll('#respRppDropdown input[type="checkbox"]');
+        checkboxes.forEach(cb => cb.checked = false);
+        this.filters.respRpps = [];
+        this.updateRespRppLabel();
+        this.applyFiltersWithoutRenderingFilters();
+    }
+
+    onRespRppCheckChange() {
+        const checkboxes = document.querySelectorAll('#respRppDropdown input[type="checkbox"]');
+        this.filters.respRpps = Array.from(checkboxes)
+            .filter(cb => cb.checked)
+            .map(cb => cb.value);
+        this.updateRespRppLabel();
+        this.applyFiltersWithoutRenderingFilters();
+    }
+
+    updateRespRppLabel() {
+        const label = document.querySelector('#respRppFilterWrapper .multi-select-label');
+        if (label) {
+            const all = this.getAllRespRpps();
+            const allSelected = this.filters.respRpps.length === all.length;
+            label.textContent = allSelected ? 'Tous' :
+                (this.filters.respRpps.length === 0 ? 'Aucun' : this.filters.respRpps.length + ' sélectionné(s)');
+        }
+    }
+
+    // Programme
+    selectAllProgrammes() {
+        const checkboxes = document.querySelectorAll('#programmeDropdown input[type="checkbox"]');
+        checkboxes.forEach(cb => cb.checked = true);
+        this.filters.programmes = this.getAllProgrammes();
+        this.updateProgrammeLabel();
+        this.applyFiltersWithoutRenderingFilters();
+    }
+
+    clearProgrammesFilter() {
+        const checkboxes = document.querySelectorAll('#programmeDropdown input[type="checkbox"]');
+        checkboxes.forEach(cb => cb.checked = false);
+        this.filters.programmes = [];
+        this.updateProgrammeLabel();
+        this.applyFiltersWithoutRenderingFilters();
+    }
+
+    onProgrammeCheckChange() {
+        const checkboxes = document.querySelectorAll('#programmeDropdown input[type="checkbox"]');
+        this.filters.programmes = Array.from(checkboxes)
+            .filter(cb => cb.checked)
+            .map(cb => cb.value);
+        this.updateProgrammeLabel();
+        this.applyFiltersWithoutRenderingFilters();
+    }
+
+    updateProgrammeLabel() {
+        const label = document.querySelector('#programmeFilterWrapper .multi-select-label');
+        if (label) {
+            const all = this.getAllProgrammes();
+            const allSelected = this.filters.programmes.length === all.length;
+            label.textContent = allSelected ? 'Tous' :
+                (this.filters.programmes.length === 0 ? 'Aucun' : this.filters.programmes.length + ' sélectionné(s)');
+        }
+    }
+
+    // Équipe
+    selectAllEquipes() {
+        const checkboxes = document.querySelectorAll('#equipeDropdown input[type="checkbox"]');
+        checkboxes.forEach(cb => cb.checked = true);
+        this.filters.equipes = this.getAllEquipes();
+        this.updateEquipeLabel();
+        this.applyFiltersWithoutRenderingFilters();
+    }
+
+    clearEquipesFilter() {
+        const checkboxes = document.querySelectorAll('#equipeDropdown input[type="checkbox"]');
+        checkboxes.forEach(cb => cb.checked = false);
+        this.filters.equipes = [];
+        this.updateEquipeLabel();
+        this.applyFiltersWithoutRenderingFilters();
+    }
+
+    onEquipeCheckChange() {
+        const checkboxes = document.querySelectorAll('#equipeDropdown input[type="checkbox"]');
+        this.filters.equipes = Array.from(checkboxes)
+            .filter(cb => cb.checked)
+            .map(cb => cb.value);
+        this.updateEquipeLabel();
+        this.applyFiltersWithoutRenderingFilters();
+    }
+
+    updateEquipeLabel() {
+        const label = document.querySelector('#equipeFilterWrapper .multi-select-label');
+        if (label) {
+            const all = this.getAllEquipes();
+            const allSelected = this.filters.equipes.length === all.length;
+            label.textContent = allSelected ? 'Tous' :
+                (this.filters.equipes.length === 0 ? 'Aucun' : this.filters.equipes.length + ' sélectionné(s)');
+        }
+    }
+
     selectAllAvancements() {
         const checkboxes = document.querySelectorAll('#avancementDropdown input[type="checkbox"]');
         checkboxes.forEach(cb => cb.checked = true);
@@ -2277,10 +2573,12 @@ class RoadmapChantiersPage {
             selectedGroupes: this.getAllGroupes(),
             perimetres: this.getAllPerimetres(),
             responsables: this.getAllResponsables(),
+            respRpps: this.getAllRespRpps(),
+            programmes: this.getAllProgrammes(),
+            equipes: this.getAllEquipes(),
             avancements: this.getAllAvancements(),
             perimetreProcessus: this.getAllPerimetreProcessus(),
-            searchText: '',
-            showProgramme: false
+            searchText: ''
         };
         this.applyFilters();
     }
@@ -4772,8 +5070,12 @@ async function cleanAndReloadRoadmapChantiersPage() {
                 selectedGroupes: [...roadmapChantiersPageInstance.filters.selectedGroupes],
                 perimetres: [...roadmapChantiersPageInstance.filters.perimetres],
                 responsables: [...roadmapChantiersPageInstance.filters.responsables],
+                respRpps: [...roadmapChantiersPageInstance.filters.respRpps],
+                programmes: [...roadmapChantiersPageInstance.filters.programmes],
+                equipes: [...roadmapChantiersPageInstance.filters.equipes],
                 avancements: [...roadmapChantiersPageInstance.filters.avancements],
-                perimetreProcessus: [...roadmapChantiersPageInstance.filters.perimetreProcessus]
+                perimetreProcessus: [...roadmapChantiersPageInstance.filters.perimetreProcessus],
+                searchText: roadmapChantiersPageInstance.filters.searchText || ''
             };
         }
 
