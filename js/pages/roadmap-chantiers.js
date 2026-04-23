@@ -384,7 +384,7 @@ class RoadmapChantiersPage {
             .filter(Boolean);
         const result = [...new Set(equipes)].sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
 
-        const hasEmpty = this.chantiers.some(c => !this.getChantierEquipe(c));
+        const hasEmpty = this.chantiers.some(c => this.getChantierEquipes(c).length === 0);
         if (hasEmpty) {
             result.push(CONFIG.EMPTY_FILTER_VALUE);
         }
@@ -393,13 +393,34 @@ class RoadmapChantiersPage {
     }
 
     /**
-     * Retourne l'équipe d'un chantier via son Responsable
+     * Retourne l'équipe d'un acteur via son mail
      */
-    getChantierEquipe(chantier) {
-        const mail = chantier && chantier['Responsable'];
+    getEquipeByMail(mail) {
         if (!mail) return '';
         const acteur = this.acteurs.find(a => a['Mail'] === mail);
         return (acteur && acteur['Equipe']) ? acteur['Equipe'] : '';
+    }
+
+    /**
+     * Retourne les équipes d'un chantier (Responsable + Resp. RPP)
+     * Un chantier peut avoir 0, 1 ou 2 équipes selon les rattachements
+     */
+    getChantierEquipes(chantier) {
+        if (!chantier) return [];
+        const equipes = new Set();
+        const eqResp = this.getEquipeByMail(chantier['Responsable']);
+        const eqRpp = this.getEquipeByMail(chantier['Resp. RPP']);
+        if (eqResp) equipes.add(eqResp);
+        if (eqRpp) equipes.add(eqRpp);
+        return [...equipes];
+    }
+
+    /**
+     * Conserve pour compatibilité : retourne la première équipe trouvée (Responsable prioritaire)
+     */
+    getChantierEquipe(chantier) {
+        const equipes = this.getChantierEquipes(chantier);
+        return equipes[0] || '';
     }
 
     /**
@@ -1235,14 +1256,14 @@ class RoadmapChantiersPage {
                 return false;
             }
 
-            // Filtre par équipe (via le Responsable du chantier)
+            // Filtre par équipe (via Responsable OU Resp. RPP du chantier)
             if (this.filters.equipes.length === 0) {
                 return false;
             }
-            const chantierEquipe = this.getChantierEquipe(chantier);
-            const equipeMatch = !chantierEquipe
+            const chantierEquipes = this.getChantierEquipes(chantier);
+            const equipeMatch = chantierEquipes.length === 0
                 ? includeEmptyEquipe
-                : this.filters.equipes.includes(chantierEquipe);
+                : chantierEquipes.some(eq => this.filters.equipes.includes(eq));
             if (!equipeMatch) {
                 return false;
             }
