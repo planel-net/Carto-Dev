@@ -2125,6 +2125,70 @@
     background: var(--mh-blanc);
 }
 
+/* Lignes d'en-tete de programme (regroupement) */
+.gantt-programme-row {
+    background: var(--mh-gris-clair);
+}
+
+.gantt-programme-cell {
+    position: sticky;
+    left: 0;
+    z-index: 12;
+    background: var(--mh-gris-clair);
+    min-width: 260px;
+    width: 260px;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-right: 2px solid var(--mh-bleu-clair);
+    border-top: 1px solid var(--mh-gris-sable-dark);
+    border-bottom: 1px solid var(--mh-gris-sable-dark);
+    cursor: pointer;
+    user-select: none;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--mh-gris-fonce);
+    font-size: 11px;
+    letter-spacing: 0.3px;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.gantt-programme-cell:hover {
+    background: var(--mh-gris-sable-light);
+}
+
+.gantt-programme-spacer {
+    background: var(--mh-gris-clair);
+    border-top: 1px solid var(--mh-gris-sable-dark);
+    border-bottom: 1px solid var(--mh-gris-sable-dark);
+}
+
+.programme-arrow {
+    font-size: 9px;
+    color: var(--mh-bleu-fonce);
+    flex-shrink: 0;
+    width: 12px;
+    text-align: center;
+}
+
+.programme-label {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: normal;
+    line-height: 1.2;
+}
+
+.programme-count {
+    flex-shrink: 0;
+    background: var(--mh-bleu-clair);
+    color: var(--mh-blanc);
+    border-radius: 10px;
+    padding: 1px 8px;
+    font-size: 10px;
+    font-weight: 600;
+}
+
 /* Cellules de données pour roadmap-chantiers - PAS de fond pour permettre aux phases de s'étendre */
 .gantt-chantiers-table .gantt-data-cell {
     /* Largeur fixe correspondant à SPRINT_COL_WIDTH dans roadmap-chantiers.js */

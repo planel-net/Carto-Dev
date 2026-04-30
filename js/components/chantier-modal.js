@@ -171,8 +171,8 @@ const ChantierModal = {
         this._state.selectedMAE = [];
         this._state.liens = [];
 
-        const acteursFiltered = this._data.acteurs.filter(a => a['Equipe'] !== 'RPP');
-        const acteursRpp = this._data.acteurs.filter(a => a['Equipe'] === 'RPP');
+        const acteursFiltered = this._data.acteurs.filter(a => !(a['Equipe'] || '').startsWith('RPP'));
+        const acteursRpp = this._data.acteurs.filter(a => (a['Equipe'] || '').startsWith('RPP'));
 
         this._state.renderProduits = () => this._renderAssignedProduits('Add');
         this._state.renderDataAnas = () => this._renderAssignedDataAnas('Add');
@@ -402,8 +402,8 @@ const ChantierModal = {
                 return dateB - dateA;
             });
 
-        const acteursFiltered = this._data.acteurs.filter(a => a['Equipe'] !== 'RPP');
-        const acteursRpp = this._data.acteurs.filter(a => a['Equipe'] === 'RPP');
+        const acteursFiltered = this._data.acteurs.filter(a => !(a['Equipe'] || '').startsWith('RPP'));
+        const acteursRpp = this._data.acteurs.filter(a => (a['Equipe'] || '').startsWith('RPP'));
 
         this._state.renderProduits = () => this._renderAssignedProduits('Edit');
         this._state.renderDataAnas = () => this._renderAssignedDataAnas('Edit');

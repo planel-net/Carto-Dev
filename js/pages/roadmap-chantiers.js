@@ -57,6 +57,34 @@ class RoadmapChantiersPage {
         this.draggedPhase = null;
         this.resizingPhase = null;
         this.contextMenu = null;
+        // Programmes repliés (libellé du programme, ou '__SANS_PROGRAMME__')
+        this.collapsedProgrammes = new Set();
+    }
+
+    /**
+     * Clé de regroupement pour un chantier (programme ou sentinel "Sans programme")
+     */
+    static SANS_PROGRAMME = '__SANS_PROGRAMME__';
+
+    getProgrammeKey(chantier) {
+        const p = (chantier['Programme'] || '').trim();
+        return p || RoadmapChantiersPage.SANS_PROGRAMME;
+    }
+
+    getProgrammeLabel(key) {
+        return key === RoadmapChantiersPage.SANS_PROGRAMME ? 'Sans programme' : key;
+    }
+
+    /**
+     * Bascule l'état replié/déplié d'un programme et re-rend le Gantt
+     */
+    toggleProgramme(key) {
+        if (this.collapsedProgrammes.has(key)) {
+            this.collapsedProgrammes.delete(key);
+        } else {
+            this.collapsedProgrammes.add(key);
+        }
+        this.renderGantt();
     }
 
     /**
@@ -212,29 +240,6 @@ class RoadmapChantiersPage {
     getNoteCount(numChantier) {
         if (!numChantier) return 0;
         return this.chantierNotes.filter(n => n['Chantier'] === numChantier).length;
-    }
-
-    /**
-     * Génère un numéro de chantier au format C-YYYY-NNN (max + 1, reset chaque année)
-     */
-    generateNumChantier() {
-        const year = new Date().getFullYear();
-        const prefix = `C-${year}-`;
-        const allChantiers = this.chantiers.concat(this.chantiersArchives);
-
-        let maxNum = 0;
-        for (const c of allChantiers) {
-            const num = c['NumChantier'] || '';
-            if (num.startsWith(prefix)) {
-                const n = parseInt(num.slice(prefix.length), 10);
-                if (!isNaN(n) && n > maxNum) {
-                    maxNum = n;
-                }
-            }
-        }
-
-        const next = String(maxNum + 1).padStart(3, '0');
-        return `${prefix}${next}`;
     }
 
     /**
@@ -1360,16 +1365,26 @@ class RoadmapChantiersPage {
         // Stocker les semaines pour référence ultérieure
         this._allWeeks = allWeeks;
 
-        // Construire les lignes de chantiers
-        const rowsHtml = filteredChantiers.map((chantier, chantierIndex) => {
+        // Regrouper les chantiers par Programme (Sans programme en dernier)
+        const groupsMap = new Map();
+        filteredChantiers.forEach(chantier => {
+            const key = this.getProgrammeKey(chantier);
+            if (!groupsMap.has(key)) groupsMap.set(key, []);
+            groupsMap.get(key).push(chantier);
+        });
+        const sansProgKey = RoadmapChantiersPage.SANS_PROGRAMME;
+        const orderedKeys = Array.from(groupsMap.keys())
+            .filter(k => k !== sansProgKey)
+            .sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }));
+        if (groupsMap.has(sansProgKey)) orderedKeys.push(sansProgKey);
+
+        // Construire les lignes (header de groupe + chantiers)
+        const renderChantierRow = (chantier) => {
             const chantierName = chantier['Chantier'];
             const numChantier = chantier['NumChantier'] || '';
             const chantierDisplayName = numChantier ? `${numChantier} - ${chantierName}` : chantierName;
             const chantierPhases = this.getPhasesForChantier(chantierName);
-
-            // Calculer les phases par position (semaine)
             const phasesByWeekRange = this.calculatePhasePositions(chantierPhases, visibleSprints, allWeeks);
-
             const noteCount = this.getNoteCount(numChantier);
             return `
                 <tr class="gantt-chantier-row" data-chantier="${escapeHtml(chantierName)}">
@@ -1390,6 +1405,26 @@ class RoadmapChantiersPage {
                     ${this.renderChantierCells(chantier, chantierPhases, visibleSprints, phasesByWeekRange, allWeeks)}
                 </tr>
             `;
+        };
+
+        const rowsHtml = orderedKeys.map(key => {
+            const chantiersDuGroupe = groupsMap.get(key);
+            const isCollapsed = this.collapsedProgrammes.has(key);
+            const label = this.getProgrammeLabel(key);
+            const count = chantiersDuGroupe.length;
+            const arrow = isCollapsed ? '&#9654;' : '&#9660;';
+            const headerHtml = `
+                <tr class="gantt-programme-row${isCollapsed ? ' collapsed' : ''}" data-programme="${escapeHtml(key)}">
+                    <td class="gantt-programme-cell" onclick="roadmapChantiersPageInstance.toggleProgramme('${escapeJsString(key)}')">
+                        <span class="programme-arrow">${arrow}</span>
+                        <span class="programme-label">${escapeHtml(label)}</span>
+                        <span class="programme-count">${count}</span>
+                    </td>
+                    <td class="gantt-programme-spacer" colspan="${totalWeekColumns}"></td>
+                </tr>
+            `;
+            const childrenHtml = isCollapsed ? '' : chantiersDuGroupe.map(renderChantierRow).join('');
+            return headerHtml + childrenHtml;
         }).join('');
 
         // Générer les colgroup avec largeurs fixes (une colonne par semaine)
@@ -2606,229 +2641,11 @@ class RoadmapChantiersPage {
     // ==========================================
 
     async showAddChantierModal() {
-        // Filtrer les acteurs (exclure équipe RPP)
-        const acteursFiltered = this.acteurs.filter(a => a['Equipe'] !== 'RPP');
-
-        // Listes temporaires pour les produits et DataAnas sélectionnés
-        let selectedProduits = [];
-        let selectedDataAnas = [];
-
-        const renderAssignedProduits = () => {
-            const container = document.getElementById('assignedProduitsAdd');
-            if (!container) return;
-
-            if (selectedProduits.length === 0) {
-                container.innerHTML = '<div class="assigned-items-empty">Aucun produit assigné</div>';
-                return;
-            }
-
-            container.innerHTML = selectedProduits.map(produitName => {
-                const produit = this.produits.find(p => p['Nom'] === produitName);
-                let responsableDisplay = '';
-                if (produit && produit['Responsable']) {
-                    const acteur = this.acteurs.find(a => a['Mail'] === produit['Responsable']);
-                    responsableDisplay = acteur ? `${acteur['Prénom'] || ''} ${acteur['Nom'] || ''}`.trim() : produit['Responsable'];
-                }
-                return `
-                    <div class="assigned-item" data-produit="${escapeHtml(produitName)}">
-                        <div class="assigned-item-info">
-                            <div class="assigned-item-name">${escapeHtml(produitName)}</div>
-                            ${responsableDisplay ? `<div class="assigned-item-detail">${escapeHtml(responsableDisplay)}</div>` : ''}
-                        </div>
-                        <div class="assigned-item-actions">
-                            <button type="button" class="btn btn-icon btn-xs btn-secondary" title="Modifier" onclick="roadmapChantiersPageInstance.editProduit('${escapeJsString(produitName)}')">&#9998;</button>
-                            <button type="button" class="btn btn-icon btn-xs btn-danger" title="Enlever" onclick="roadmapChantiersPageInstance.removeAssignedProduitAdd('${escapeJsString(produitName)}')">&#10005;</button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        };
-
-        const renderAssignedDataAnas = () => {
-            const container = document.getElementById('assignedDataAnasAdd');
-            if (!container) return;
-
-            if (selectedDataAnas.length === 0) {
-                container.innerHTML = '<div class="assigned-items-empty">Aucun DataAna assigné</div>';
-                return;
-            }
-
-            container.innerHTML = selectedDataAnas.map(dataAnaKey => {
-                const dataAna = this.dataAnas.find(d => d['Clé'] === dataAnaKey);
-                const jiraUrl = `https://malakoffhumanis.atlassian.net/browse/${dataAnaKey}`;
-                return `
-                    <div class="assigned-item" data-dataana="${escapeHtml(dataAnaKey)}">
-                        <div class="assigned-item-info">
-                            <a href="${escapeHtml(jiraUrl)}" target="_blank" rel="noopener noreferrer" class="assigned-item-link">${escapeHtml(dataAnaKey)}</a>
-                            ${dataAna && dataAna['Résumé'] ? `<div class="assigned-item-detail">${escapeHtml(dataAna['Résumé'])}</div>` : ''}
-                        </div>
-                        <div class="assigned-item-actions">
-                            <button type="button" class="btn btn-icon btn-xs btn-secondary" title="Modifier" onclick="roadmapChantiersPageInstance.editDataAna('${escapeJsString(dataAnaKey)}')">&#9998;</button>
-                            <button type="button" class="btn btn-icon btn-xs btn-danger" title="Enlever" onclick="roadmapChantiersPageInstance.removeAssignedDataAnaAdd('${escapeJsString(dataAnaKey)}')">&#10005;</button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        };
-
-        // Stocker les fonctions de mise à jour pour les appels externes
-        this._addModalSelectedProduits = selectedProduits;
-        this._addModalSelectedDataAnas = selectedDataAnas;
-        this._addModalRenderProduits = renderAssignedProduits;
-        this._addModalRenderDataAnas = renderAssignedDataAnas;
-
-        const content = `
-            <form id="formAddChantier" class="form">
-                <div class="form-group">
-                    <label class="form-label required">Nom du chantier</label>
-                    <input type="text" class="form-control" name="Chantier" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Responsable</label>
-                    <select class="form-control" name="Responsable">
-                        <option value="">-- Sélectionner --</option>
-                        ${acteursFiltered.map(a => `
-                            <option value="${escapeHtml(a['Mail'])}">${escapeHtml(a['Prénom'] || '')} ${escapeHtml(a['Nom'] || '')}</option>
-                        `).join('')}
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Périmètre</label>
-                    <select class="form-control" name="Perimetre">
-                        <option value="">-- Sélectionner --</option>
-                        ${this.perimetres.map(p => `
-                            <option value="${escapeHtml(p['Périmetre'])}">${escapeHtml(p['Périmetre'])}</option>
-                        `).join('')}
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Processus</label>
-                    <select class="form-control" name="Processus">
-                        <option value="">-- Sélectionner --</option>
-                        ${this.getOrderedProcessus().map(p => `
-                            <option value="${escapeHtml(p)}">${escapeHtml(p)}</option>
-                        `).join('')}
-                    </select>
-                </div>
-
-                <!-- Section Produits -->
-                <div class="assigned-section">
-                    <div class="assigned-section-header">
-                        <h4>&#128202; Produits associés</h4>
-                        <button type="button" class="btn btn-sm btn-primary" onclick="roadmapChantiersPageInstance.showSelectProduitsModal('add')">
-                            Assigner produit
-                        </button>
-                    </div>
-                    <div class="assigned-items-list" id="assignedProduitsAdd">
-                        <div class="assigned-items-empty">Aucun produit assigné</div>
-                    </div>
-                </div>
-
-                <!-- Section DataAnas -->
-                <div class="assigned-section">
-                    <div class="assigned-section-header">
-                        <h4>&#128202; DataAnas associés</h4>
-                        <button type="button" class="btn btn-sm btn-primary" onclick="roadmapChantiersPageInstance.showSelectDataAnasModal('add')">
-                            Assigner DataAna
-                        </button>
-                    </div>
-                    <div class="assigned-items-list" id="assignedDataAnasAdd">
-                        <div class="assigned-items-empty">Aucun DataAna assigné</div>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label class="checkbox-label">
-                        <input type="checkbox" name="Archivé">
-                        <span>Archivé</span>
-                    </label>
-                </div>
-            </form>
-        `;
-
-        showModal({
-            title: 'Ajouter un chantier',
-            content: content,
-            size: 'lg',
-            buttons: [
-                { label: 'Annuler', class: 'btn-secondary', action: 'close' },
-                {
-                    label: 'Ajouter',
-                    class: 'btn-primary',
-                    action: async (modal) => {
-                        const form = document.getElementById('formAddChantier');
-                        if (!form.checkValidity()) {
-                            form.reportValidity();
-                            return false;
-                        }
-
-                        const formData = new FormData(form);
-                        const chantierData = {
-                            'NumChantier': this.generateNumChantier(),
-                            'Chantier': formData.get('Chantier'),
-                            'Responsable': formData.get('Responsable'),
-                            'Perimetre': formData.get('Perimetre'),
-                            'Processus': formData.get('Processus'),
-                            'Archivé': form.querySelector('input[name="Archivé"]').checked ? true : false
-                        };
-
-                        try {
-                            // Ajouter le chantier
-                            console.log('Ajout chantier:', chantierData);
-                            await addTableRow('tChantiers', chantierData);
-                            invalidateCache('tChantiers');
-                            console.log('Chantier ajouté avec succès');
-
-                            // Ajouter les liens chantier-produit
-                            for (const produit of this._addModalSelectedProduits) {
-                                await addTableRow('tChantierProduit', {
-                                    'Chantier': chantierData['Chantier'],
-                                    'Produit': produit
-                                });
-                            }
-                            invalidateCache('tChantierProduit');
-
-                            // Mettre à jour le champ Chantier des DataAnas sélectionnés
-                            for (const dataAnaKey of this._addModalSelectedDataAnas) {
-                                const dataAna = this.dataAnas.find(d => d['Clé'] === dataAnaKey);
-                                if (dataAna && dataAna._rowIndex !== undefined && dataAna._rowIndex !== null) {
-                                    const updatedData = { ...dataAna, 'Chantier': chantierData['Chantier'] };
-                                    delete updatedData._rowIndex;
-                                    await updateTableRow('tDataAnas', dataAna._rowIndex, updatedData);
-                                }
-                            }
-                            invalidateCache('tDataAnas');
-
-                            showSuccess('Chantier ajouté avec succès');
-                            await this.refresh();
-                            return true;
-                        } catch (error) {
-                            console.error('Erreur ajout chantier:', error);
-                            const errorMsg = error.message || 'Erreur inconnue';
-                            showError(`Erreur lors de l'ajout du chantier: ${errorMsg}`);
-                            return false;
-                        }
-                    }
-                }
-            ]
-        });
-    }
-
-    // Méthodes pour gérer les produits/DataAnas dans la modal d'ajout
-    removeAssignedProduitAdd(produitName) {
-        const idx = this._addModalSelectedProduits.indexOf(produitName);
-        if (idx > -1) {
-            this._addModalSelectedProduits.splice(idx, 1);
-            this._addModalRenderProduits();
-        }
-    }
-
-    removeAssignedDataAnaAdd(dataAnaKey) {
-        const idx = this._addModalSelectedDataAnas.indexOf(dataAnaKey);
-        if (idx > -1) {
-            this._addModalSelectedDataAnas.splice(idx, 1);
-            this._addModalRenderDataAnas();
-        }
+        // Utilise la modale partagée (mêmes onglets que la modification)
+        const preloaded = this._getModalPreloadedData();
+        await ChantierModal.showAddModal(async () => {
+            await this.refresh();
+        }, preloaded);
     }
 
     async showEditChantierModal(chantierName) {
@@ -2865,226 +2682,6 @@ class RoadmapChantiersPage {
             phasesLien: this.phasesLien,
             sprints: this.sprints
         };
-    }
-
-    // ===========================================
-    // MODALES DE SÉLECTION (Produits / DataAnas)
-    // ===========================================
-
-    showSelectProduitsModal(mode) {
-        const isAddMode = mode === 'add';
-        const selectedProduits = isAddMode ? this._addModalSelectedProduits : this._editModalSelectedProduits;
-        const renderCallback = isAddMode ? this._addModalRenderProduits : this._editModalRenderProduits;
-
-        // Séparer les produits sélectionnés et non sélectionnés
-        const selectedProduitsData = this.produits.filter(p => selectedProduits.includes(p['Nom']));
-        const unselectedProduitsData = this.produits.filter(p => !selectedProduits.includes(p['Nom']));
-
-        // Trier alphabétiquement
-        selectedProduitsData.sort((a, b) => (a['Nom'] || '').localeCompare(b['Nom'] || ''));
-        unselectedProduitsData.sort((a, b) => (a['Nom'] || '').localeCompare(b['Nom'] || ''));
-
-        const renderList = (searchTerm = '') => {
-            const list = document.getElementById('selectionProduitsList');
-            if (!list) return;
-
-            const term = searchTerm.toLowerCase();
-            const filteredSelected = selectedProduitsData.filter(p => (p['Nom'] || '').toLowerCase().includes(term));
-            const filteredUnselected = unselectedProduitsData.filter(p => (p['Nom'] || '').toLowerCase().includes(term));
-
-            let html = '';
-
-            // Produits sélectionnés en premier
-            if (filteredSelected.length > 0) {
-                html += '<div class="selection-separator">Sélectionnés</div>';
-                html += filteredSelected.map(p => `
-                    <label class="selection-item selected">
-                        <input type="checkbox" value="${escapeHtml(p['Nom'])}" checked>
-                        <div class="selection-item-info">
-                            <div class="selection-item-name">${escapeHtml(p['Nom'])}</div>
-                            ${p['Responsable'] ? `<div class="selection-item-detail">${escapeHtml(p['Responsable'])}</div>` : ''}
-                        </div>
-                    </label>
-                `).join('');
-            }
-
-            // Produits non sélectionnés
-            if (filteredUnselected.length > 0) {
-                if (filteredSelected.length > 0) {
-                    html += '<div class="selection-separator">Autres produits</div>';
-                }
-                html += filteredUnselected.map(p => `
-                    <label class="selection-item">
-                        <input type="checkbox" value="${escapeHtml(p['Nom'])}">
-                        <div class="selection-item-info">
-                            <div class="selection-item-name">${escapeHtml(p['Nom'])}</div>
-                            ${p['Responsable'] ? `<div class="selection-item-detail">${escapeHtml(p['Responsable'])}</div>` : ''}
-                        </div>
-                    </label>
-                `).join('');
-            }
-
-            if (html === '') {
-                html = '<div class="assigned-items-empty">Aucun produit trouvé</div>';
-            }
-
-            list.innerHTML = html;
-        };
-
-        const content = `
-            <div class="selection-modal-content">
-                <div class="selection-modal-search">
-                    <input type="text" class="form-control" id="searchProduitsSelection" placeholder="Rechercher un produit...">
-                </div>
-                <div class="selection-modal-list" id="selectionProduitsList"></div>
-            </div>
-        `;
-
-        showModal({
-            title: 'Sélectionner des produits',
-            content: content,
-            size: 'lg',
-            buttons: [
-                { label: 'Annuler', class: 'btn-secondary', action: 'close' },
-                {
-                    label: 'Valider',
-                    class: 'btn-primary',
-                    action: (modal) => {
-                        const list = document.getElementById('selectionProduitsList');
-                        const checkedBoxes = list.querySelectorAll('input[type="checkbox"]:checked');
-                        const newSelection = Array.from(checkedBoxes).map(cb => cb.value);
-
-                        // Mettre à jour la sélection
-                        selectedProduits.length = 0;
-                        newSelection.forEach(p => selectedProduits.push(p));
-
-                        // Mettre à jour l'affichage
-                        renderCallback();
-                        return true;
-                    }
-                }
-            ]
-        });
-
-        // Initialiser la liste et le champ de recherche
-        setTimeout(() => {
-            renderList();
-            const searchInput = document.getElementById('searchProduitsSelection');
-            if (searchInput) {
-                searchInput.addEventListener('input', (e) => renderList(e.target.value));
-            }
-        }, 100);
-    }
-
-    showSelectDataAnasModal(mode) {
-        const isAddMode = mode === 'add';
-        const selectedDataAnas = isAddMode ? this._addModalSelectedDataAnas : this._editModalSelectedDataAnas;
-        const renderCallback = isAddMode ? this._addModalRenderDataAnas : this._editModalRenderDataAnas;
-
-        // Séparer les DataAnas sélectionnés et non sélectionnés
-        const selectedDataAnasData = this.dataAnas.filter(d => selectedDataAnas.includes(d['Clé']));
-        const unselectedDataAnasData = this.dataAnas.filter(d => !selectedDataAnas.includes(d['Clé']));
-
-        // Trier alphabétiquement
-        selectedDataAnasData.sort((a, b) => (a['Clé'] || '').localeCompare(b['Clé'] || ''));
-        unselectedDataAnasData.sort((a, b) => (a['Clé'] || '').localeCompare(b['Clé'] || ''));
-
-        const renderList = (searchTerm = '') => {
-            const list = document.getElementById('selectionDataAnasList');
-            if (!list) return;
-
-            const term = searchTerm.toLowerCase();
-            const filteredSelected = selectedDataAnasData.filter(d =>
-                (d['Clé'] || '').toLowerCase().includes(term) ||
-                (d['Résumé'] || '').toLowerCase().includes(term)
-            );
-            const filteredUnselected = unselectedDataAnasData.filter(d =>
-                (d['Clé'] || '').toLowerCase().includes(term) ||
-                (d['Résumé'] || '').toLowerCase().includes(term)
-            );
-
-            let html = '';
-
-            // DataAnas sélectionnés en premier
-            if (filteredSelected.length > 0) {
-                html += '<div class="selection-separator">Sélectionnés</div>';
-                html += filteredSelected.map(d => `
-                    <label class="selection-item selected">
-                        <input type="checkbox" value="${escapeHtml(d['Clé'])}" checked>
-                        <div class="selection-item-info">
-                            <div class="selection-item-name">${escapeHtml(d['Clé'])}</div>
-                            ${d['Résumé'] ? `<div class="selection-item-detail">${escapeHtml(d['Résumé'])}</div>` : ''}
-                        </div>
-                    </label>
-                `).join('');
-            }
-
-            // DataAnas non sélectionnés
-            if (filteredUnselected.length > 0) {
-                if (filteredSelected.length > 0) {
-                    html += '<div class="selection-separator">Autres DataAnas</div>';
-                }
-                html += filteredUnselected.map(d => `
-                    <label class="selection-item">
-                        <input type="checkbox" value="${escapeHtml(d['Clé'])}">
-                        <div class="selection-item-info">
-                            <div class="selection-item-name">${escapeHtml(d['Clé'])}</div>
-                            ${d['Résumé'] ? `<div class="selection-item-detail">${escapeHtml(d['Résumé'])}</div>` : ''}
-                        </div>
-                    </label>
-                `).join('');
-            }
-
-            if (html === '') {
-                html = '<div class="assigned-items-empty">Aucun DataAna trouvé</div>';
-            }
-
-            list.innerHTML = html;
-        };
-
-        const content = `
-            <div class="selection-modal-content">
-                <div class="selection-modal-search">
-                    <input type="text" class="form-control" id="searchDataAnasSelection" placeholder="Rechercher un DataAna (clé ou résumé)...">
-                </div>
-                <div class="selection-modal-list" id="selectionDataAnasList"></div>
-            </div>
-        `;
-
-        showModal({
-            title: 'Sélectionner des DataAnas',
-            content: content,
-            size: 'lg',
-            buttons: [
-                { label: 'Annuler', class: 'btn-secondary', action: 'close' },
-                {
-                    label: 'Valider',
-                    class: 'btn-primary',
-                    action: (modal) => {
-                        const list = document.getElementById('selectionDataAnasList');
-                        const checkedBoxes = list.querySelectorAll('input[type="checkbox"]:checked');
-                        const newSelection = Array.from(checkedBoxes).map(cb => cb.value);
-
-                        // Mettre à jour la sélection
-                        selectedDataAnas.length = 0;
-                        newSelection.forEach(d => selectedDataAnas.push(d));
-
-                        // Mettre à jour l'affichage
-                        renderCallback();
-                        return true;
-                    }
-                }
-            ]
-        });
-
-        // Initialiser la liste et le champ de recherche
-        setTimeout(() => {
-            renderList();
-            const searchInput = document.getElementById('searchDataAnasSelection');
-            if (searchInput) {
-                searchInput.addEventListener('input', (e) => renderList(e.target.value));
-            }
-        }, 100);
     }
 
     // Fonctions pour éditer un produit ou un DataAna
