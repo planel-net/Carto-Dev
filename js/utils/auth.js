@@ -112,7 +112,8 @@ async function lockWorkbook() {
             const visibleSheets = [
                 CONFIG.SHEETS.HOME,  // Intro
                 'DataAnaJira',
-                'MAEJiras'
+                'MAEJiras',
+                'JiraDocc'
             ].map(s => s.toLowerCase());
 
             // Masquer toutes les feuilles sauf celles listées ci-dessus
