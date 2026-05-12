@@ -6,7 +6,7 @@
 const CONFIG = {
     // Nom de l'application
     APP_NAME: 'Carto',
-    APP_VERSION: '1.11.2',
+    APP_VERSION: '1.12.0',
 
     // Valeur spéciale pour filtrer les éléments sans valeur (périmètre/responsable vide)
     EMPTY_FILTER_VALUE: '(Non rempli)',
@@ -401,6 +401,28 @@ const CONFIG = {
                 { field: 'Nom lien', label: 'Nom du lien', type: 'text' },
                 { field: 'Lien', label: 'URL', type: 'text' }
             ]
+        },
+        // Table JiraDOCC (Stories DOCC importées depuis Jira)
+        JIRADOCC: {
+            name: 'tJiraDOCC',
+            sheet: 'JiraDOCC',
+            displayName: 'JiraDOCC',
+            icon: '&#128203;',
+            jiraSheet: 'JiraDocc',
+            columns: [
+                { field: 'Clé', label: 'Clé', type: 'text', required: true, linkPattern: 'https://malakoffhumanis.atlassian.net/browse/{value}' },
+                { field: 'Résumé', label: 'Résumé', type: 'text' },
+                { field: 'Priorité', label: 'Priorité', type: 'text' },
+                { field: 'Sprint', label: 'Sprint', type: 'text' },
+                { field: 'État', label: 'État', type: 'text' },
+                { field: 'Personne assignée', label: 'Personne assignée', type: 'select', source: 'ACTEURS', sourceField: 'Mail' },
+                { field: 'Composants', label: 'Composants', type: 'text' },
+                { field: 'Parent', label: 'Parent', type: 'text' },
+                { field: 'EPIC', label: 'EPIC', type: 'text' },
+                { field: 'Code Chantier', label: 'Code Chantier', type: 'select', source: 'CHANTIER', sourceField: 'Chantier' },
+                { field: 'Produit', label: 'Produit', type: 'text' },
+                { field: 'Version', label: 'Version', type: 'text' }
+            ]
         }
     },
 
@@ -510,7 +532,8 @@ const CONFIG = {
             vignettes: [
                 { id: 'chantiers', label: 'Chantiers', icon: '&#128736;', table: 'CHANTIER' },
                 { id: 'phases', label: 'Phases', icon: '&#128197;', table: 'PHASES' },
-                { id: 'dataana', label: 'DataAna', icon: '&#128202;', table: 'DATAANA' }
+                { id: 'dataana', label: 'DataAna', icon: '&#128202;', table: 'DATAANA' },
+                { id: 'jiradocc', label: 'JiraDOCC', icon: '&#128203;', table: 'JIRADOCC' }
             ]
         }
     ],

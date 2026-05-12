@@ -315,6 +315,10 @@ const ExcelBridge = {
         return this.request('COPY_FROM_JIRA', { jiraSheetName, tableName, keyField, options });
     },
 
+    async copyFromJiraDOCC() {
+        return this.request('COPY_FROM_JIRA_DOCC', {});
+    },
+
     /**
      * Attend que le bridge soit opérationnel (round-trip dialog <-> taskpane)
      * Envoie des PING avec un court timeout jusqu'à recevoir une réponse

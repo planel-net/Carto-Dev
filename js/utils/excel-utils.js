@@ -950,3 +950,224 @@ async function copyFromJira(jiraSheetName, tableName, keyField = 'Clé', options
         return { success: false, added: 0, updated: 0, skipped: 0, error: error.message };
     }
 }
+
+/**
+ * Extrait le sprint le plus élevé depuis une chaîne du type "DOCC-Sprint 12;DOCC-Sprint 13".
+ * Si pas de ';' ou chaîne vide, retourne la chaîne telle quelle.
+ * Sinon, prend le token dont le dernier nombre extrait est le plus grand.
+ * @param {string} raw - Valeur brute de la colonne Sprint
+ * @returns {string} Sprint le plus élevé ou valeur originale
+ */
+function extractHighestSprint(raw) {
+    const value = String(raw == null ? '' : raw).trim();
+    if (!value) return '';
+    if (value.indexOf(';') === -1) return value;
+
+    const tokens = value.split(';').map(t => t.trim()).filter(t => t.length > 0);
+    if (tokens.length === 0) return '';
+    if (tokens.length === 1) return tokens[0];
+
+    let best = tokens[0];
+    let bestNum = -Infinity;
+    for (const t of tokens) {
+        const match = t.match(/(\d+)\s*$/);
+        const num = match ? parseInt(match[1], 10) : -Infinity;
+        if (num > bestNum) {
+            bestNum = num;
+            best = t;
+        }
+    }
+    return best;
+}
+
+/**
+ * Copie spécialisée depuis la feuille JiraDocc vers la table tJiraDOCC.
+ * - Ne recopie que les lignes Type de ticket = "Story"
+ * - Sprint = sprint max parmi les sprints séparés par ';'
+ * - Personne assignée → résolu en email via tActeurs.Nom Jira
+ * - EPIC → résumé du ticket Epic dont la clé = Parent
+ * - Code Chantier → tChantiers.Chantier où Chantier = EPIC (texte)
+ * - Une ligne par "versions corrigées" (séparées par ';') : Produit = texte avant " : ", Version = texte après
+ * - Match par Clé : si existe, update tous les champs SAUF Code Chantier ; sinon insert (une ligne par version, ou 1 ligne vide si aucune)
+ * @returns {Promise<Object>} { success, added, updated, skipped, message }
+ */
+async function copyFromJiraDOCC() {
+    const jiraSheetName = 'JiraDocc';
+    const tableName = 'tJiraDOCC';
+    const keyField = 'Clé';
+
+    console.log('[copyFromJiraDOCC] Start');
+
+    try {
+        tableCache.delete(tableName);
+
+        // Lire la feuille source
+        const jira = await readSheet(jiraSheetName);
+        if (jira.data.length === 0) {
+            return { success: true, added: 0, updated: 0, skipped: 0, message: 'Aucune donnée dans la feuille JiraDocc' };
+        }
+
+        // Lire la table destination existante
+        const existing = await readTable(tableName, false);
+        const existingByKey = new Map();
+        existing.data.forEach(row => {
+            const key = String(row[keyField] || '').trim().toLowerCase();
+            if (!key) return;
+            if (!existingByKey.has(key)) existingByKey.set(key, []);
+            existingByKey.get(key).push(row);
+        });
+
+        // Charger acteurs (Nom Jira → Mail) et chantiers (Chantier set)
+        const acteurs = await readTable('tActeurs', false);
+        const nomJiraToMail = new Map();
+        acteurs.data.forEach(a => {
+            const nj = String(a['Nom Jira'] || '').trim().toLowerCase();
+            const mail = String(a['Mail'] || '').trim();
+            if (nj && mail) nomJiraToMail.set(nj, mail);
+        });
+
+        const chantiers = await readTable('tChantiers', false);
+        const chantierSet = new Set();
+        chantiers.data.forEach(c => {
+            const ch = String(c['Chantier'] || '').trim();
+            if (ch) chantierSet.add(ch);
+        });
+
+        // Construire la map Epic : Clé Jira (lower) → Résumé
+        const epicResumeByKey = new Map();
+        const typeFieldCandidates = ['Type de ticket', 'Type de Ticket', 'Type'];
+        const findField = (row, candidates) => {
+            for (const c of candidates) {
+                if (Object.prototype.hasOwnProperty.call(row, c)) return c;
+            }
+            return null;
+        };
+        if (jira.data.length > 0) {
+            const typeField = findField(jira.data[0], typeFieldCandidates);
+            if (typeField) {
+                jira.data.forEach(r => {
+                    const type = String(r[typeField] || '').trim().toLowerCase();
+                    if (type === 'epic') {
+                        const k = String(r['Clé'] || '').trim().toLowerCase();
+                        const res = String(r['Résumé'] || '').trim();
+                        if (k) epicResumeByKey.set(k, res);
+                    }
+                });
+            }
+        }
+
+        // Détecter le nom exact des champs (accents/majuscules variables) sur la source
+        const sample = jira.data[0];
+        const fTypeTicket = findField(sample, typeFieldCandidates);
+        const fVersionsCor = findField(sample, ['versions corrigées', 'Versions corrigées', 'versions corrigees', 'Versions corrigees']);
+        const fPersonne = findField(sample, ['Personne assignée', 'Personne assignee', 'Assignee']);
+
+        // Itérer sur les Stories
+        const rowsToAdd = [];
+        const rowsToUpdate = [];
+        let skippedNonStory = 0;
+        let processed = 0;
+
+        for (const jr of jira.data) {
+            const type = fTypeTicket ? String(jr[fTypeTicket] || '').trim().toLowerCase() : '';
+            if (type !== 'story') {
+                skippedNonStory++;
+                continue;
+            }
+
+            const key = String(jr['Clé'] || '').trim();
+            if (!key) continue;
+            processed++;
+
+            const parent = String(jr['Parent'] || '').trim();
+            const epicResume = parent ? (epicResumeByKey.get(parent.toLowerCase()) || '') : '';
+            const codeChantier = epicResume && chantierSet.has(epicResume) ? epicResume : '';
+
+            const personneSrc = fPersonne ? String(jr[fPersonne] || '').trim() : '';
+            const mail = personneSrc ? (nomJiraToMail.get(personneSrc.toLowerCase()) || '') : '';
+
+            const sprint = extractHighestSprint(jr['Sprint']);
+
+            // Versions corrigées → split
+            const versionsRaw = fVersionsCor ? String(jr[fVersionsCor] || '').trim() : '';
+            let versionTokens = [];
+            if (versionsRaw) {
+                versionTokens = versionsRaw.split(';').map(t => t.trim()).filter(t => t.length > 0);
+            }
+            if (versionTokens.length === 0) versionTokens = [''];
+
+            const baseRow = {
+                'Clé': key,
+                'Résumé': String(jr['Résumé'] || ''),
+                'Priorité': String(jr['Priorité'] || ''),
+                'Sprint': sprint,
+                'État': String(jr['État'] || jr['Etat'] || ''),
+                'Personne assignée': mail,
+                'Composants': String(jr['Composants'] || ''),
+                'Parent': parent,
+                'EPIC': epicResume
+            };
+
+            const versionRows = versionTokens.map(token => {
+                let produit = '';
+                let version = '';
+                if (token) {
+                    const idx = token.indexOf(' : ');
+                    if (idx >= 0) {
+                        produit = token.substring(0, idx).trim();
+                        version = token.substring(idx + 3).trim();
+                    } else {
+                        produit = token;
+                    }
+                }
+                return Object.assign({}, baseRow, { 'Produit': produit, 'Version': version });
+            });
+
+            const keyLower = key.toLowerCase();
+            const existingRows = existingByKey.get(keyLower);
+
+            if (existingRows && existingRows.length > 0) {
+                // Mise à jour : on garde Code Chantier de l'existant
+                // On met à jour les lignes existantes avec la 1ère versionRow (idem pour toutes)
+                const updateData = versionRows[0];
+                for (const er of existingRows) {
+                    const merged = Object.assign({}, updateData, {
+                        'Code Chantier': er['Code Chantier'] || ''
+                    });
+                    rowsToUpdate.push({ rowIndex: er._rowIndex, rowData: merged });
+                }
+            } else {
+                // Insertion : une ligne par version corrigée
+                for (const vr of versionRows) {
+                    rowsToAdd.push(Object.assign({}, vr, { 'Code Chantier': codeChantier }));
+                }
+            }
+        }
+
+        console.log(`[copyFromJiraDOCC] Stories: ${processed}, à ajouter: ${rowsToAdd.length}, à mettre à jour: ${rowsToUpdate.length}, ignorés (non-Story): ${skippedNonStory}`);
+
+        if (rowsToAdd.length > 0) {
+            await addTableRows(tableName, rowsToAdd);
+        }
+        if (rowsToUpdate.length > 0) {
+            await updateTableRows(tableName, rowsToUpdate);
+        }
+
+        const parts = [];
+        if (rowsToAdd.length > 0) parts.push(`${rowsToAdd.length} ajoutée(s)`);
+        if (rowsToUpdate.length > 0) parts.push(`${rowsToUpdate.length} mise(s) à jour`);
+        if (skippedNonStory > 0) parts.push(`${skippedNonStory} ignorée(s) (non-Story)`);
+        const message = parts.length > 0 ? parts.join(', ') : 'Aucune modification';
+
+        return {
+            success: true,
+            added: rowsToAdd.length,
+            updated: rowsToUpdate.length,
+            skipped: skippedNonStory,
+            message
+        };
+    } catch (error) {
+        console.error('[copyFromJiraDOCC] Error:', error);
+        return { success: false, added: 0, updated: 0, skipped: 0, error: error.message };
+    }
+}

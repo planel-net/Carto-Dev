@@ -24,6 +24,16 @@ class ParamsPage {
             };
         }
 
+        // JiraDOCC specific: filter state (Personne assignée seulement)
+        this._jiraDoccFilters = null;
+        this._jiraDoccFiltersInitialized = false;
+        if (tableKey === 'JIRADOCC') {
+            this._jiraDoccFilters = {
+                personnes: new Set(),
+                allPersonnes: []
+            };
+        }
+
         // Chantier specific: filter state
         this._chantierFilters = null;
         this._chantierFiltersInitialized = false;
@@ -54,6 +64,7 @@ class ParamsPage {
 
         const isDataAna = this.tableKey === 'DATAANA';
         const isChantier = this.tableKey === 'CHANTIER';
+        const isJiraDocc = this.tableKey === 'JIRADOCC';
 
         // Bouton Copie Jira
         const jiraButtonHtml = this.tableConfig.jiraSheet ? `
@@ -145,6 +156,26 @@ class ParamsPage {
                     </div>
                 </div>
             `;
+        } else if (isJiraDocc) {
+            topBarHtml = `
+                <div class="mae-filters" id="jiraDoccFilters">
+                    <div class="mae-filter-group" id="filterGroupJDPersonne">
+                        <label>Personne assignée</label>
+                        <div class="mae-filter-trigger" id="filterTriggerJDPersonne">
+                            <span class="filter-text">Chargement...</span>
+                            <span class="arrow">&#9660;</span>
+                        </div>
+                        <div class="mae-filter-dropdown" id="filterDropdownJDPersonne">
+                            <div class="mae-filter-dropdown-actions">
+                                <button data-action="all">Tous</button>
+                                <button data-action="none">Aucun</button>
+                            </div>
+                            <div class="mae-filter-options" id="filterOptionsJDPersonne"></div>
+                        </div>
+                    </div>
+                    ${jiraButtonHtml ? `<div class="mae-filters-actions">${jiraButtonHtml}</div>` : ''}
+                </div>
+            `;
         } else if (jiraButtonHtml) {
             topBarHtml = `<div class="params-toolbar">${jiraButtonHtml}</div>`;
         }
@@ -176,6 +207,11 @@ class ParamsPage {
             this._attachChantierFilterEvents();
         }
 
+        // Attacher les événements du filtre JiraDOCC
+        if (isJiraDocc) {
+            this._attachJiraDoccFilterEvents();
+        }
+
         await this.renderTable();
     }
 
@@ -187,27 +223,42 @@ class ParamsPage {
         const tableName = this.tableConfig.name;
         const keyField = 'Clé';
         const isDataAna = this.tableKey === 'DATAANA';
+        const isJiraDocc = this.tableKey === 'JIRADOCC';
 
-        const confirmMessage = isDataAna
-            ? `Voulez-vous synchroniser les données depuis la feuille "${jiraSheet}" ?\n\n` +
-              `• Nouveaux éléments ajoutés (sauf état "Résolue")\n` +
-              `• État mis à jour pour les éléments existants`
-            : `Voulez-vous copier les données depuis la feuille "${jiraSheet}" vers la table "${tableName}" ?\n\nLes clés existantes seront ignorées.`;
+        let confirmMessage;
+        if (isDataAna) {
+            confirmMessage = `Voulez-vous synchroniser les données depuis la feuille "${jiraSheet}" ?\n\n` +
+                `• Nouveaux éléments ajoutés (sauf état "Résolue")\n` +
+                `• État mis à jour pour les éléments existants`;
+        } else if (isJiraDocc) {
+            confirmMessage = `Voulez-vous synchroniser les Stories depuis la feuille "${jiraSheet}" vers ${tableName} ?\n\n` +
+                `• Seules les lignes Type de ticket = "Story" sont importées\n` +
+                `• Une ligne par version corrigée\n` +
+                `• Si la clé existe déjà : tous les champs sont mis à jour SAUF Code Chantier`;
+        } else {
+            confirmMessage = `Voulez-vous copier les données depuis la feuille "${jiraSheet}" vers la table "${tableName}" ?\n\nLes clés existantes seront ignorées.`;
+        }
+
+        const confirmText = isDataAna ? 'Synchroniser' : (isJiraDocc ? 'Synchroniser' : 'Copier');
 
         showConfirmModal(
             'Copie depuis Jira',
             confirmMessage,
             async () => {
                 try {
-                    showInfo(isDataAna ? 'Synchronisation en cours...' : 'Copie en cours...');
+                    showInfo((isDataAna || isJiraDocc) ? 'Synchronisation en cours...' : 'Copie en cours...');
 
-                    const options = isDataAna ? {
-                        skipStates: ['Résolue'],
-                        stateField: 'État',
-                        updateFields: ['État']
-                    } : {};
-
-                    const result = await copyFromJira(jiraSheet, tableName, keyField, options);
+                    let result;
+                    if (isJiraDocc) {
+                        result = await copyFromJiraDOCC();
+                    } else {
+                        const options = isDataAna ? {
+                            skipStates: ['Résolue'],
+                            stateField: 'État',
+                            updateFields: ['État']
+                        } : {};
+                        result = await copyFromJira(jiraSheet, tableName, keyField, options);
+                    }
 
                     if (result.success) {
                         showSuccess(result.message);
@@ -221,7 +272,7 @@ class ParamsPage {
                     return false;
                 }
             },
-            { confirmText: isDataAna ? 'Synchroniser' : 'Copier' }
+            { confirmText }
         );
     }
 
@@ -264,6 +315,23 @@ class ParamsPage {
                 });
             };
             options.onDataLoaded = (data) => this._populateDataAnaFilters(data);
+        }
+
+        // JiraDOCC : filtre Personne assignée
+        if (this.tableKey === 'JIRADOCC') {
+            options.externalFilter = (data) => {
+                if (!this._jiraDoccFiltersInitialized) return data;
+                return data.filter(row => {
+                    const personne = String(row['Personne assignée'] || '').trim();
+                    if (personne) {
+                        if (!this._jiraDoccFilters.personnes.has(personne)) return false;
+                    } else {
+                        if (!this._jiraDoccFilters.personnes.has('(Non rempli)')) return false;
+                    }
+                    return true;
+                });
+            };
+            options.onDataLoaded = (data) => this._populateJiraDoccFilters(data);
         }
 
         // Chantier : ajouter filtre externe et callback chargement
@@ -664,6 +732,143 @@ class ParamsPage {
 
     // ── Fin Chantier Filters ──────────────────────────────────
 
+    // ── JiraDOCC Filters ──────────────────────────────────────
+
+    /**
+     * Peuple le filtre Personne assignée à partir des données chargées
+     */
+    _populateJiraDoccFilters(data) {
+        const personnesSet = new Set();
+        let hasEmpty = false;
+
+        data.forEach(row => {
+            const personne = String(row['Personne assignée'] || '').trim();
+            if (personne) personnesSet.add(personne);
+            else hasEmpty = true;
+        });
+
+        const newAll = [...personnesSet].sort();
+        if (hasEmpty) newAll.push('(Non rempli)');
+
+        if (!this._jiraDoccFiltersInitialized) {
+            this._jiraDoccFilters.personnes = new Set(newAll);
+            this._jiraDoccFiltersInitialized = true;
+        } else {
+            // Conserver la sélection précédente, en filtrant les valeurs disparues
+            this._jiraDoccFilters.personnes = new Set(
+                [...this._jiraDoccFilters.personnes].filter(v => newAll.includes(v))
+            );
+            // Ajouter les nouvelles valeurs
+            newAll.forEach(v => {
+                if (!this._jiraDoccFilters.allPersonnes.includes(v)) {
+                    this._jiraDoccFilters.personnes.add(v);
+                }
+            });
+        }
+
+        this._jiraDoccFilters.allPersonnes = newAll;
+
+        this._renderJiraDoccFilterOptions(newAll, this._jiraDoccFilters.personnes);
+        this._updateJiraDoccFilterLabel();
+    }
+
+    /**
+     * Attache les événements du filtre JiraDOCC
+     */
+    _attachJiraDoccFilterEvents() {
+        const trigger = document.getElementById('filterTriggerJDPersonne');
+        const dropdown = document.getElementById('filterDropdownJDPersonne');
+        if (!trigger || !dropdown) return;
+
+        trigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            dropdown.classList.toggle('open');
+            trigger.classList.toggle('open');
+        });
+
+        dropdown.querySelectorAll('.mae-filter-dropdown-actions button').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const action = e.target.dataset.action;
+                if (action === 'all') {
+                    this._jiraDoccFilters.personnes = new Set(this._jiraDoccFilters.allPersonnes);
+                } else {
+                    this._jiraDoccFilters.personnes = new Set();
+                }
+                this._updateJiraDoccFilterCheckboxes();
+                this._updateJiraDoccFilterLabel();
+                this._applyJiraDoccFilters();
+            });
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.mae-filter-group')) {
+                document.querySelectorAll('#jiraDoccFilters .mae-filter-dropdown.open').forEach(d => d.classList.remove('open'));
+                document.querySelectorAll('#jiraDoccFilters .mae-filter-trigger.open').forEach(t => t.classList.remove('open'));
+            }
+        });
+    }
+
+    _renderJiraDoccFilterOptions(allValues, selectedValues) {
+        const container = document.getElementById('filterOptionsJDPersonne');
+        if (!container) return;
+
+        container.innerHTML = allValues.map(val => `
+            <label class="mae-filter-option">
+                <input type="checkbox" value="${escapeHtml(val)}" ${selectedValues.has(val) ? 'checked' : ''}>
+                <span>${escapeHtml(val)}</span>
+            </label>
+        `).join('');
+
+        container.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+            cb.addEventListener('change', (e) => {
+                e.stopPropagation();
+                if (cb.checked) {
+                    this._jiraDoccFilters.personnes.add(cb.value);
+                } else {
+                    this._jiraDoccFilters.personnes.delete(cb.value);
+                }
+                this._updateJiraDoccFilterLabel();
+                this._applyJiraDoccFilters();
+            });
+        });
+    }
+
+    _updateJiraDoccFilterCheckboxes() {
+        const container = document.getElementById('filterOptionsJDPersonne');
+        if (!container) return;
+        container.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+            cb.checked = this._jiraDoccFilters.personnes.has(cb.value);
+        });
+    }
+
+    _updateJiraDoccFilterLabel() {
+        const trigger = document.getElementById('filterTriggerJDPersonne');
+        if (!trigger) return;
+        const textEl = trigger.querySelector('.filter-text');
+        const selected = this._jiraDoccFilters.personnes;
+        const total = this._jiraDoccFilters.allPersonnes.length;
+
+        if (selected.size === 0) {
+            textEl.textContent = 'Aucun';
+        } else if (selected.size === total) {
+            textEl.textContent = 'Tous';
+        } else if (selected.size <= 2) {
+            textEl.textContent = [...selected].join(', ');
+        } else {
+            textEl.textContent = `${selected.size} / ${total}`;
+        }
+    }
+
+    _applyJiraDoccFilters() {
+        if (this.dataTable) {
+            this.dataTable.currentPage = 1;
+            this.dataTable.applyFilters();
+        }
+    }
+
+    // ── Fin JiraDOCC Filters ──────────────────────────────────
+
     /**
      * Affiche le formulaire d'ajout
      */
@@ -794,6 +999,13 @@ class ParamsPage {
             this._chantierFilters.allResponsables = [];
             this._chantierFilters.allAvancements = [];
             this._chantierFilters = null;
+        }
+
+        // Nettoyer les filtres JiraDOCC
+        if (this._jiraDoccFilters) {
+            this._jiraDoccFilters.personnes.clear();
+            this._jiraDoccFilters.allPersonnes = [];
+            this._jiraDoccFilters = null;
         }
 
         // Réinitialiser la config

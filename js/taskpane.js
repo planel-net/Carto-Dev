@@ -151,6 +151,10 @@ async function handleDialogMessage(arg) {
                         );
                         break;
 
+                    case 'COPY_FROM_JIRA_DOCC':
+                        result = await copyFromJiraDOCC();
+                        break;
+
                     case 'INVALIDATE_CACHE':
                         // Invalider le cache mémoire et localStorage
                         invalidateCache(message.params.tableName);

@@ -138,6 +138,13 @@ async function copyFromJira(jiraSheetName, tableName, keyField = 'Clé', options
     return await ExcelBridge.copyFromJira(jiraSheetName, tableName, keyField, options);
 }
 
+// Override copyFromJiraDOCC pour utiliser le bridge
+async function copyFromJiraDOCC() {
+    console.log('[App] copyFromJiraDOCC via bridge');
+    if (!AppState.bridgeReady) throw new Error('Bridge not ready');
+    return await ExcelBridge.copyFromJiraDOCC();
+}
+
 /**
  * Flag pour éviter les doublons de listeners
  */
