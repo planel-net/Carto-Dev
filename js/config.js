@@ -6,7 +6,7 @@
 const CONFIG = {
     // Nom de l'application
     APP_NAME: 'Carto',
-    APP_VERSION: '1.11.1',
+    APP_VERSION: '1.11.2',
 
     // Valeur spéciale pour filtrer les éléments sans valeur (périmètre/responsable vide)
     EMPTY_FILTER_VALUE: '(Non rempli)',
@@ -30,6 +30,7 @@ const CONFIG = {
             columns: [
                 { field: 'Prénom', label: 'Prénom', type: 'text', required: true },
                 { field: 'Nom', label: 'Nom', type: 'text', required: true },
+                { field: 'Nom Jira', label: 'Nom Jira', type: 'text' },
                 { field: 'Mail', label: 'Email', type: 'email', required: true },
                 { field: 'Equipe', label: 'Équipe', type: 'select', source: 'EQUIPES', sourceField: 'Equipe', required: true }
             ]
