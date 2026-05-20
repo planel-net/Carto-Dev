@@ -4367,33 +4367,51 @@ class RoadmapChantiersPage {
         const todayCode = this.formatWeekCode(new Date());
         const dateFinWeekCode = dateFin && !isNaN(dateFin.getTime()) ? this.formatWeekCode(dateFin) : null;
 
-        // Calculer les positions de chaque phase
+        // Calculer les positions de chaque phase (en filtrant celles hors période visible)
+        const firstVisibleWeek = weekCodes[0];
+        const lastVisibleWeek = weekCodes[weekCodes.length - 1];
+
         const phasePositions = [];
         chantierPhases.forEach(phase => {
             const mode = phase['Mode'] || 'Sprint';
-            let startWeekIdx, endWeekIdx;
+            let phaseStartWeek, phaseEndWeek;
 
             if (mode === 'Semaine') {
-                startWeekIdx = weekCodes.indexOf(phase['Semaine début']);
-                endWeekIdx = weekCodes.indexOf(phase['Semaine fin']);
+                phaseStartWeek = phase['Semaine début'];
+                phaseEndWeek = phase['Semaine fin'] || phaseStartWeek;
+                if (!phaseStartWeek) return;
             } else {
-                const startSprint = this.sprints.find(s => s['Sprint'] === phase['Sprint début']);
-                const endSprint = this.sprints.find(s => s['Sprint'] === phase['Sprint fin']);
-                if (startSprint && endSprint) {
-                    const startWeeks = this.getWeeksForSprint(startSprint);
-                    const endWeeks = this.getWeeksForSprint(endSprint);
-                    startWeekIdx = weekCodes.indexOf(startWeeks[0]);
-                    endWeekIdx = weekCodes.indexOf(endWeeks[endWeeks.length - 1]);
-                }
+                const startSprintName = phase['Sprint début'];
+                const endSprintName = phase['Sprint fin'] || startSprintName;
+                if (!startSprintName) return;
+                const allSprintNames = this.sprints.map(s => s['Sprint']);
+                const sIdx = allSprintNames.indexOf(startSprintName);
+                if (sIdx === -1) return;
+                const eIdx = allSprintNames.indexOf(endSprintName);
+                const startSprintObj = this.sprints[sIdx];
+                const endSprintObj = this.sprints[eIdx !== -1 ? eIdx : sIdx];
+                const startWeeks = this.getWeeksForSprint(startSprintObj);
+                const endWeeks = this.getWeeksForSprint(endSprintObj);
+                if (startWeeks.length === 0 || endWeeks.length === 0) return;
+                phaseStartWeek = startWeeks[0];
+                phaseEndWeek = endWeeks[endWeeks.length - 1];
             }
 
-            if (startWeekIdx === undefined || startWeekIdx === -1) startWeekIdx = 0;
-            if (endWeekIdx === undefined || endWeekIdx === -1) endWeekIdx = weekCodes.length - 1;
+            if (!phaseStartWeek || !phaseEndWeek) return;
+            // Exclure les phases entièrement hors de la période visible
+            if (phaseEndWeek < firstVisibleWeek || phaseStartWeek > lastVisibleWeek) return;
+
+            // Clamper les phases qui dépassent partiellement
+            let startIdx = weekCodes.indexOf(phaseStartWeek);
+            let endIdx = weekCodes.indexOf(phaseEndWeek);
+            if (startIdx === -1 && phaseStartWeek < firstVisibleWeek) startIdx = 0;
+            if (endIdx === -1 && phaseEndWeek > lastVisibleWeek) endIdx = weekCodes.length - 1;
+            if (startIdx < 0 || endIdx < 0 || startIdx > endIdx) return;
 
             phasePositions.push({
                 phase,
-                startIdx: startWeekIdx,
-                endIdx: endWeekIdx,
+                startIdx,
+                endIdx,
                 color: phase['Couleur'] || CONFIG.PHASE_COLORS[phase['Type phase']] || '#cccccc'
             });
         });
@@ -4411,6 +4429,15 @@ class RoadmapChantiersPage {
             pp.lane = lane;
         });
         const totalLanes = Math.max(lanes.length, 1);
+
+        // Si aucune phase n'est dans la période, indiquer juste un message court
+        if (phasePositions.length === 0) {
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'italic');
+            doc.setTextColor(150, 150, 150);
+            doc.text('Aucune phase dans la période sélectionnée.', margin, yStart);
+            return yStart + 6;
+        }
 
         // Utiliser toute la largeur disponible
         const availableWidth = pageWidth - 2 * margin;
