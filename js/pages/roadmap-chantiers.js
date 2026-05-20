@@ -3775,129 +3775,119 @@ class RoadmapChantiersPage {
                 })
             ];
 
-            // Construire les données du tableau avec gestion des phases par semaine
-            const tableData = [];
-            const phasesMap = new Map(); // Pour stocker les infos de phases par cellule (clé: rowIdx-colIdx où colIdx est 1-based)
+            // Construire les données du tableau avec lanes (1 barre continue par phase)
+            // Regroupement par Programme (Sans programme en dernier)
+            const weekCodes = allWeeks.map(w => w.weekCode);
+            const firstVisibleWeek = weekCodes[0];
+            const lastVisibleWeek = weekCodes[weekCodes.length - 1];
+            const LANE_HEIGHT_MM = 4.2;
+            const CHANTIER_PAD_MM = 1.2;
 
-            // Helper: vérifier si une semaine est dans une plage de sprints
-            const isWeekInSprintRange = (weekCode, sprintStart, sprintEnd) => {
-                const startSprint = visibleSprints.find(s => s['Sprint'] === sprintStart);
-                const endSprint = visibleSprints.find(s => s['Sprint'] === (sprintEnd || sprintStart));
-                if (!startSprint) return false;
+            const groupsMap = new Map();
+            filteredChantiers.forEach(chantier => {
+                const key = this.getProgrammeKey(chantier);
+                if (!groupsMap.has(key)) groupsMap.set(key, []);
+                groupsMap.get(key).push(chantier);
+            });
+            const sansProgKey = RoadmapChantiersPage.SANS_PROGRAMME;
+            const orderedGroupKeys = Array.from(groupsMap.keys())
+                .filter(k => k !== sansProgKey)
+                .sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }));
+            if (groupsMap.has(sansProgKey)) orderedGroupKeys.push(sansProgKey);
 
-                const startWeeks = this.getWeeksForSprint(startSprint);
-                const endWeeks = endSprint ? this.getWeeksForSprint(endSprint) : startWeeks;
+            // Construire phasePositions pour un chantier, en réutilisant calculatePhaseLanes
+            const buildPhasePositions = (chantierPhases) => {
+                const { phaseLanes, totalLanes } = this.calculatePhaseLanes(chantierPhases, allWeeks);
+                const phasePositions = [];
 
-                if (startWeeks.length === 0 || endWeeks.length === 0) return false;
+                chantierPhases.forEach(phase => {
+                    const mode = phase['Mode'] || 'Sprint';
+                    let phaseStartWeek, phaseEndWeek;
 
-                const firstWeek = startWeeks[0];
-                const lastWeek = endWeeks[endWeeks.length - 1];
+                    if (mode === 'Semaine') {
+                        phaseStartWeek = phase['Semaine début'];
+                        phaseEndWeek = phase['Semaine fin'] || phaseStartWeek;
+                        if (!phaseStartWeek) return;
+                    } else {
+                        const startSprintName = phase['Sprint début'];
+                        const endSprintName = phase['Sprint fin'] || startSprintName;
+                        if (!startSprintName) return;
+                        const allSprintNames = this.sprints.map(s => s['Sprint']);
+                        const sIdx = allSprintNames.indexOf(startSprintName);
+                        if (sIdx === -1) return;
+                        const eIdx = allSprintNames.indexOf(endSprintName);
+                        const startSprintObj = this.sprints[sIdx];
+                        const endSprintObj = this.sprints[eIdx !== -1 ? eIdx : sIdx];
+                        const startWeeks = this.getWeeksForSprint(startSprintObj);
+                        const endWeeks = this.getWeeksForSprint(endSprintObj);
+                        if (startWeeks.length === 0 || endWeeks.length === 0) return;
+                        phaseStartWeek = startWeeks[0];
+                        phaseEndWeek = endWeeks[endWeeks.length - 1];
+                    }
 
-                return weekCode >= firstWeek && weekCode <= lastWeek;
+                    if (!phaseStartWeek || !phaseEndWeek) return;
+                    if (phaseEndWeek < firstVisibleWeek || phaseStartWeek > lastVisibleWeek) return;
+
+                    let startIdx = weekCodes.indexOf(phaseStartWeek);
+                    let endIdx = weekCodes.indexOf(phaseEndWeek);
+                    if (startIdx === -1 && phaseStartWeek < firstVisibleWeek) startIdx = 0;
+                    if (endIdx === -1 && phaseEndWeek > lastVisibleWeek) endIdx = weekCodes.length - 1;
+                    if (startIdx < 0 || endIdx < 0 || startIdx > endIdx) return;
+
+                    const lane = phaseLanes.get(phase['Phase']) || 0;
+                    phasePositions.push({ phase, startIdx, endIdx, lane });
+                });
+
+                return { phasePositions, totalLanes };
             };
 
-            filteredChantiers.forEach((chantier, rowIdx) => {
-                const chantierName = chantier['Chantier'] || '';
-                const numChantier = chantier['NumChantier'] || '';
-                const chantierDisplayName = numChantier ? `${numChantier} - ${chantierName}` : chantierName;
-                const chantierPhases = this.phases.filter(p => p['Chantier'] === chantierName);
-                const row = [chantierDisplayName];
+            const tableData = [];
+            const rowMeta = []; // index parallèle à tableData : { type: 'programme'|'chantier', ... }
 
-                let weekIdx = 0;
-                while (weekIdx < allWeeks.length) {
-                    const weekInfo = allWeeks[weekIdx];
-                    const weekCode = weekInfo.weekCode;
-                    const colIdx = weekIdx + 1; // Index de colonne (1-based car colonne 0 = chantier)
+            orderedGroupKeys.forEach(groupKey => {
+                const chantiersOfGroup = groupsMap.get(groupKey);
+                const isCollapsed = this.collapsedProgrammes.has(groupKey);
+                const label = this.getProgrammeLabel(groupKey);
+                const count = chantiersOfGroup.length;
+                const arrow = isCollapsed ? '▶' : '▼';
 
-                    // Collecter les phases actives pour cette semaine
-                    const activePhases = chantierPhases.filter(phase => {
-                        const mode = phase['Mode'] || 'Sprint';
-                        if (mode === 'Semaine') {
-                            const startWeek = phase['Semaine début'];
-                            const endWeek = phase['Semaine fin'] || startWeek;
-                            return startWeek && weekCode >= startWeek && weekCode <= endWeek;
-                        } else {
-                            const phaseStart = phase['Sprint début'];
-                            const phaseEnd = phase['Sprint fin'] || phaseStart;
-                            return isWeekInSprintRange(weekCode, phaseStart, phaseEnd);
-                        }
-                    });
-
-                    if (activePhases.length === 0) {
-                        row.push('');
-                        phasesMap.set(`${rowIdx}-${colIdx}`, []);
-                        weekIdx++;
-                    } else if (activePhases.length === 1) {
-                        // Une seule phase - vérifier si on peut fusionner sur plusieurs semaines
-                        const phase = activePhases[0];
-                        let colSpan = 1;
-
-                        for (let nextIdx = weekIdx + 1; nextIdx < allWeeks.length; nextIdx++) {
-                            const nextWeekCode = allWeeks[nextIdx].weekCode;
-                            const mode = phase['Mode'] || 'Sprint';
-                            let stillActive = false;
-
-                            if (mode === 'Semaine') {
-                                const startWeek = phase['Semaine début'];
-                                const endWeek = phase['Semaine fin'] || startWeek;
-                                stillActive = startWeek && nextWeekCode >= startWeek && nextWeekCode <= endWeek;
-                            } else {
-                                const phaseStart = phase['Sprint début'];
-                                const phaseEnd = phase['Sprint fin'] || phaseStart;
-                                stillActive = isWeekInSprintRange(nextWeekCode, phaseStart, phaseEnd);
-                            }
-
-                            if (!stillActive) break;
-
-                            // Vérifier qu'il n'y a pas d'autres phases sur cette semaine
-                            const nextActivePhases = chantierPhases.filter(p => {
-                                const pMode = p['Mode'] || 'Sprint';
-                                if (pMode === 'Semaine') {
-                                    const sw = p['Semaine début'];
-                                    const ew = p['Semaine fin'] || sw;
-                                    return sw && nextWeekCode >= sw && nextWeekCode <= ew;
-                                } else {
-                                    const ps = p['Sprint début'];
-                                    const pe = p['Sprint fin'] || ps;
-                                    return isWeekInSprintRange(nextWeekCode, ps, pe);
-                                }
-                            });
-
-                            if (nextActivePhases.length !== 1 || nextActivePhases[0] !== phase) break;
-                            colSpan++;
-                        }
-
-                        const phasesInfo = [{
-                            title: phase['Phase'] || phase['Type phase'] || '',
-                            type: phase['Type phase'] || ''
-                        }];
-
-                        if (colSpan > 1) {
-                            row.push({ content: '', colSpan: colSpan });
-                        } else {
-                            row.push('');
-                        }
-
-                        phasesMap.set(`${rowIdx}-${colIdx}`, phasesInfo);
-                        weekIdx += colSpan;
-                    } else {
-                        // Plusieurs phases - pas de fusion, empilement vertical
-                        const phasesInfo = activePhases.map(p => ({
-                            title: p['Phase'] || p['Type phase'] || '',
-                            type: p['Type phase'] || ''
-                        }));
-
-                        row.push('');
-                        phasesMap.set(`${rowIdx}-${colIdx}`, phasesInfo);
-                        weekIdx++;
+                // Ligne header de programme : spanne toutes les colonnes
+                tableData.push([{
+                    content: `${arrow} ${label}   (${count})`,
+                    colSpan: totalWeekColumns + 1,
+                    styles: {
+                        fillColor: [230, 235, 245],
+                        textColor: [0, 51, 102],
+                        fontStyle: 'bold',
+                        halign: 'left',
+                        cellPadding: 1.5,
+                        fontSize: 7,
+                        minCellHeight: 6
                     }
-                }
+                }]);
+                rowMeta.push({ type: 'programme', key: groupKey });
 
-                tableData.push(row);
+                if (isCollapsed) return;
+
+                chantiersOfGroup.forEach(chantier => {
+                    const chantierName = chantier['Chantier'] || '';
+                    const numChantier = chantier['NumChantier'] || '';
+                    const chantierDisplayName = numChantier ? `${numChantier} - ${chantierName}` : chantierName;
+                    const chantierPhases = this.phases.filter(p => p['Chantier'] === chantierName);
+                    const { phasePositions, totalLanes } = buildPhasePositions(chantierPhases);
+
+                    // Ligne chantier : 1 cellule pour le nom + N cellules vides (1 par semaine)
+                    const row = [chantierDisplayName];
+                    for (let i = 0; i < totalWeekColumns; i++) {
+                        row.push('');
+                    }
+                    tableData.push(row);
+                    rowMeta.push({ type: 'chantier', phasePositions, totalLanes, chantierName });
+                });
             });
 
             // Générer les colonnes styles avec largeurs égales (une colonne par semaine)
-            const columnStyles = { 0: { cellWidth: chantierColWidth, fontStyle: 'bold', valign: 'middle' } };
+            const columnStyles = { 0: { cellWidth: chantierColWidth, fontStyle: 'bold', valign: 'middle', halign: 'left' } };
             for (let i = 1; i <= totalWeekColumns; i++) {
                 columnStyles[i] = { cellWidth: weekColWidth, halign: 'center', valign: 'middle' };
             }
@@ -3914,9 +3904,10 @@ class RoadmapChantiersPage {
                 tableWidth: availableWidth,
                 styles: {
                     fontSize: 6,
-                    cellPadding: 0,
+                    cellPadding: 0.5,
                     overflow: 'hidden',
                     lineWidth: 0.1,
+                    lineColor: [210, 210, 210],
                     valign: 'middle',
                     halign: 'center',
                     minCellHeight: 8
@@ -3934,56 +3925,68 @@ class RoadmapChantiersPage {
                 alternateRowStyles: {
                     fillColor: [255, 255, 255]
                 },
+                didParseCell: function(data) {
+                    if (data.section !== 'body') return;
+                    const meta = rowMeta[data.row.index];
+                    if (!meta) return;
+                    if (meta.type === 'chantier') {
+                        // Hauteur de ligne = nombre de lanes * laneHeight + padding
+                        const minH = Math.max(8, meta.totalLanes * LANE_HEIGHT_MM + CHANTIER_PAD_MM * 2);
+                        data.cell.styles.minCellHeight = minH;
+                        if (data.column.index === 0) {
+                            data.cell.styles.fontStyle = 'bold';
+                            data.cell.styles.halign = 'left';
+                            data.cell.styles.cellPadding = { top: 1, right: 1, bottom: 1, left: 1.5 };
+                        }
+                    } else if (meta.type === 'programme') {
+                        data.cell.styles.minCellHeight = 6;
+                    }
+                },
                 didDrawCell: function(data) {
-                    // Dessiner les phases avec couleurs dans les cellules du body
-                    if (data.section === 'body' && data.column.index > 0) {
-                        const phases = phasesMap.get(`${data.row.index}-${data.column.index}`);
-                        if (phases && phases.length > 0) {
-                            const cellX = data.cell.x;
-                            const cellY = data.cell.y;
-                            const cellW = data.cell.width;
-                            const cellH = data.cell.height;
-                            const padding = 0.5;
+                    if (data.section !== 'body') return;
+                    const meta = rowMeta[data.row.index];
+                    if (!meta || meta.type !== 'chantier') return;
+                    // Ne dessiner les barres qu'une seule fois par ligne, sur la dernière colonne
+                    // (toutes les cellules précédentes sont déjà dessinées, donc on n'est pas écrasé)
+                    if (data.column.index !== totalWeekColumns) return;
 
-                            // Diviser la cellule verticalement pour chaque phase
-                            const phaseHeight = (cellH - padding * 2) / phases.length;
+                    const rowY = data.cell.y;
+                    const rowH = data.cell.height;
+                    const firstWeekX = data.cell.x - (totalWeekColumns - 1) * weekColWidth;
 
-                            phases.forEach((phase, idx) => {
-                                const phaseY = cellY + padding + (idx * phaseHeight);
-                                const phaseW = cellW - padding * 2;
-                                const phaseH = phaseHeight - 0.3;
+                    const availableH = rowH - CHANTIER_PAD_MM * 2;
+                    const laneH = availableH / Math.max(1, meta.totalLanes);
 
-                                // Couleur de fond
-                                const color = CONFIG.PHASE_COLORS[phase.type];
-                                if (color) {
-                                    const rgb = self.hexToRgb(color);
-                                    doc.setFillColor(rgb[0], rgb[1], rgb[2]);
-                                } else {
-                                    doc.setFillColor(220, 220, 220); // Gris clair par défaut
-                                }
+                    meta.phasePositions.forEach(({ phase, startIdx, endIdx, lane }) => {
+                        const phaseStartX = firstWeekX + startIdx * weekColWidth;
+                        const phaseW = (endIdx - startIdx + 1) * weekColWidth - 0.5;
+                        const yPos = rowY + CHANTIER_PAD_MM + lane * laneH;
+                        const phaseH = laneH - 0.5;
 
-                                // Dessiner le rectangle de fond
-                                doc.rect(cellX + padding, phaseY, phaseW, phaseH, 'F');
+                        const colorHex = phase['Couleur'] || CONFIG.PHASE_COLORS[phase['Type phase']] || '#cccccc';
+                        const rgb = self.hexToRgb(colorHex);
+                        const darken = (c) => Math.max(0, Math.floor(c * 0.7));
+                        doc.setFillColor(rgb[0], rgb[1], rgb[2]);
+                        doc.setDrawColor(darken(rgb[0]), darken(rgb[1]), darken(rgb[2]));
+                        doc.setLineWidth(0.15);
+                        doc.rect(phaseStartX + 0.25, yPos, phaseW, phaseH, 'FD');
 
-                                // Texte de la phase
-                                doc.setFontSize(phases.length > 1 ? 4 : 5);
-                                doc.setFont('helvetica', 'normal');
-                                doc.setTextColor(0, 0, 0);
-
-                                // Tronquer le texte si nécessaire
-                                let text = phase.title;
-                                const maxTextWidth = phaseW - 1;
-                                while (doc.getTextWidth(text) > maxTextWidth && text.length > 3) {
-                                    text = text.slice(0, -4) + '...';
-                                }
-
-                                // Centrer le texte verticalement et horizontalement
-                                const textX = cellX + cellW / 2;
-                                const textY = phaseY + phaseH / 2 + 1;
-                                doc.text(text, textX, textY, { align: 'center', maxWidth: maxTextWidth });
+                        // Texte centré sur la barre, tronqué si nécessaire
+                        let displayText = phase['Phase'] || phase['Type phase'] || '';
+                        doc.setFontSize(5.5);
+                        doc.setFont('helvetica', 'normal');
+                        doc.setTextColor(0, 0, 0);
+                        const maxTextW = phaseW - 1;
+                        while (doc.getTextWidth(displayText) > maxTextW && displayText.length > 3) {
+                            displayText = displayText.slice(0, -4) + '...';
+                        }
+                        if (doc.getTextWidth(displayText) <= maxTextW) {
+                            doc.text(displayText, phaseStartX + 0.25 + phaseW / 2, yPos + phaseH / 2 + 1, {
+                                align: 'center',
+                                maxWidth: maxTextW
                             });
                         }
-                    }
+                    });
                 },
                 didDrawPage: function(data) {
                     // Titre sur les pages suivantes (sans légende)
@@ -4575,21 +4578,27 @@ class RoadmapChantiersPage {
             const g = parseInt(hex.substr(2, 2), 16);
             const b = parseInt(hex.substr(4, 2), 16);
 
-            // Dessiner le rectangle de la phase avec bordure
+            // Dessiner le rectangle de la phase avec bordure plus foncée
             doc.setFillColor(r, g, b);
-            doc.setDrawColor(r * 0.8, g * 0.8, b * 0.8); // Bordure plus foncée
+            doc.setDrawColor(Math.max(0, Math.floor(r * 0.7)), Math.max(0, Math.floor(g * 0.7)), Math.max(0, Math.floor(b * 0.7)));
             doc.setLineWidth(0.2);
             doc.rect(phaseStartX + 0.5, yPos + 0.5, phaseWidth - 1, laneHeight - 1, 'FD');
 
-            // Texte de la phase (toujours afficher)
-            doc.setFontSize(5);
-            doc.setTextColor(255, 255, 255);
+            // Texte de la phase : noir, tronqué avec "..." si trop long (pas de wrap qui déborde la lane)
+            doc.setFontSize(5.5);
+            doc.setTextColor(0, 0, 0);
             doc.setFont('helvetica', 'normal');
-            const text = pp.phase['Phase'];
-            doc.text(text, phaseStartX + phaseWidth / 2, yPos + laneHeight / 2 + 0.5, {
-                align: 'center',
-                maxWidth: phaseWidth - 1
-            });
+            let text = pp.phase['Phase'] || pp.phase['Type phase'] || '';
+            const maxTextWidth = phaseWidth - 1.5;
+            while (doc.getTextWidth(text) > maxTextWidth && text.length > 3) {
+                text = text.slice(0, -4) + '...';
+            }
+            if (doc.getTextWidth(text) <= maxTextWidth) {
+                doc.text(text, phaseStartX + phaseWidth / 2, yPos + laneHeight / 2 + 1, {
+                    align: 'center',
+                    maxWidth: maxTextWidth
+                });
+            }
         });
 
         // === LIGNE POINTILLÉE ROUGE pour date fin souhaitée ===
