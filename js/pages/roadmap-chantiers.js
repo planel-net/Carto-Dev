@@ -3849,11 +3849,9 @@ class RoadmapChantiersPage {
                 const isCollapsed = this.collapsedProgrammes.has(groupKey);
                 const label = this.getProgrammeLabel(groupKey);
                 const count = chantiersOfGroup.length;
-                const arrow = isCollapsed ? '▶' : '▼';
-
-                // Ligne header de programme : spanne toutes les colonnes
+                // Pas de flèche unicode (non supportée par helvetica) - on affiche juste le label et le compte
                 tableData.push([{
-                    content: `${arrow} ${label}   (${count})`,
+                    content: `${label}   (${count} chantier${count > 1 ? 's' : ''})`,
                     colSpan: totalWeekColumns + 1,
                     styles: {
                         fillColor: [230, 235, 245],
@@ -4010,42 +4008,42 @@ class RoadmapChantiersPage {
             const notesEndDate = new Date(notesDateFin);
             notesEndDate.setHours(23, 59, 59, 999);
 
-            // Regrouper les notes par chantier (clé = NumChantier, affichage = libellé)
+            // Regrouper les notes par chantier (clé = nom du chantier)
+            // Toujours afficher la roadmap par chantier ; les notes sont filtrées par période
             const notesByChantier = {};
             filteredChantiers.forEach(c => {
                 const chantierName = c['Chantier'];
                 const numChantier = c['NumChantier'] || '';
-                if (!numChantier) return;
-                const chantierNotes = allNotes
-                    .filter(n => {
-                        if (n['Chantier'] !== numChantier) return false;
-                        const noteDate = this.parseDate(n['Date']);
-                        return noteDate >= notesStartDate && noteDate <= notesEndDate;
-                    })
-                    .sort((a, b) => {
-                        const dateA = this.parseDate(a['Date']);
-                        const dateB = this.parseDate(b['Date']);
-                        return dateB - dateA; // Ordre décroissant
-                    });
-
-                if (chantierNotes.length > 0) {
-                    notesByChantier[chantierName] = chantierNotes;
-                }
+                const chantierNotes = numChantier
+                    ? allNotes
+                        .filter(n => {
+                            if (n['Chantier'] !== numChantier) return false;
+                            const noteDate = this.parseDate(n['Date']);
+                            return noteDate >= notesStartDate && noteDate <= notesEndDate;
+                        })
+                        .sort((a, b) => {
+                            const dateA = this.parseDate(a['Date']);
+                            const dateB = this.parseDate(b['Date']);
+                            return dateB - dateA;
+                        })
+                    : [];
+                notesByChantier[chantierName] = chantierNotes;
             });
 
-            const chantiersWithNotes = Object.keys(notesByChantier);
+            // Lister tous les chantiers filtrés (on affiche tous, même sans note)
+            const chantiersToRender = filteredChantiers.map(c => c['Chantier']).filter(Boolean);
 
-            if (chantiersWithNotes.length > 0) {
-                // Nouvelle page pour les notes
+            if (chantiersToRender.length > 0) {
+                // Nouvelle page pour la section "Chantiers en détail"
                 doc.addPage();
 
-                // Titre de la section notes
+                // Titre de la section
                 doc.setFontSize(16);
                 doc.setFont('helvetica', 'bold');
                 doc.setTextColor(0, 51, 102);
-                doc.text('Notes des Chantiers', pageWidth / 2, 12, { align: 'center' });
+                doc.text('Chantiers - Roadmap et Notes', pageWidth / 2, 12, { align: 'center' });
 
-                // Période des notes (uniquement ici)
+                // Période des notes
                 doc.setFontSize(10);
                 doc.setFont('helvetica', 'normal');
                 doc.setTextColor(100, 100, 100);
@@ -4053,17 +4051,16 @@ class RoadmapChantiersPage {
 
                 let yPosition = 26;
 
-                for (const chantierName of chantiersWithNotes) {
-                    const notes = notesByChantier[chantierName];
+                for (const chantierName of chantiersToRender) {
+                    const notes = notesByChantier[chantierName] || [];
 
-                    // Vérifier s'il faut une nouvelle page
-                    if (yPosition > pageHeight - 40) {
+                    // Vérifier s'il faut une nouvelle page avant de commencer un chantier
+                    if (yPosition > pageHeight - 50) {
                         doc.addPage();
-                        // Répéter le titre sur les nouvelles pages
                         doc.setFontSize(12);
                         doc.setFont('helvetica', 'bold');
                         doc.setTextColor(0, 51, 102);
-                        doc.text('Notes des Chantiers (suite)', pageWidth / 2, 10, { align: 'center' });
+                        doc.text('Chantiers - Roadmap et Notes (suite)', pageWidth / 2, 10, { align: 'center' });
                         yPosition = 18;
                     }
 
@@ -4074,40 +4071,46 @@ class RoadmapChantiersPage {
                     doc.text(chantierName, margin, yPosition);
                     yPosition += 6;
 
-                    // Dessiner la roadmap du chantier
+                    // Dessiner la roadmap du chantier (toujours)
                     yPosition = this.drawChantierRoadmapPDF(doc, chantierName, yPosition, pageWidth, pageHeight, margin);
 
-                    // Notes du chantier
-                    doc.setFontSize(9);
-                    doc.setTextColor(0, 0, 0);
+                    if (notes.length === 0) {
+                        // Indiquer qu'il n'y a pas de note dans la période
+                        doc.setFontSize(8);
+                        doc.setFont('helvetica', 'italic');
+                        doc.setTextColor(150, 150, 150);
+                        doc.text('Aucune note dans la période sélectionnée.', margin + 2, yPosition);
+                        yPosition += 5;
+                    } else {
+                        // Notes du chantier
+                        doc.setFontSize(9);
+                        doc.setTextColor(0, 0, 0);
 
-                    for (const note of notes) {
-                        // Vérifier s'il faut une nouvelle page
-                        if (yPosition > pageHeight - 20) {
-                            doc.addPage();
-                            doc.setFontSize(12);
+                        for (const note of notes) {
+                            if (yPosition > pageHeight - 20) {
+                                doc.addPage();
+                                doc.setFontSize(12);
+                                doc.setFont('helvetica', 'bold');
+                                doc.setTextColor(0, 51, 102);
+                                doc.text('Chantiers - Roadmap et Notes (suite)', pageWidth / 2, 10, { align: 'center' });
+                                yPosition = 18;
+                            }
+
+                            const noteDate = this.formatDateFull(this.parseDate(note['Date']));
+                            const noteHtml = note['Note'] || '';
+
                             doc.setFont('helvetica', 'bold');
                             doc.setTextColor(0, 51, 102);
-                            doc.text('Notes des Chantiers (suite)', pageWidth / 2, 10, { align: 'center' });
-                            yPosition = 18;
+                            doc.text(`${noteDate} :`, margin + 2, yPosition);
+                            yPosition += 4;
+
+                            yPosition = this.renderFormattedNote(doc, noteHtml, margin + 4, yPosition, pageWidth - margin * 2 - 8, pageHeight);
+
+                            yPosition += 3;
                         }
-
-                        const noteDate = this.formatDateFull(this.parseDate(note['Date']));
-                        const noteHtml = note['Note'] || '';
-
-                        // Date de la note
-                        doc.setFont('helvetica', 'bold');
-                        doc.setTextColor(0, 51, 102);
-                        doc.text(`${noteDate} :`, margin + 2, yPosition);
-                        yPosition += 4;
-
-                        // Rendu du contenu avec formatage
-                        yPosition = this.renderFormattedNote(doc, noteHtml, margin + 4, yPosition, pageWidth - margin * 2 - 8, pageHeight);
-
-                        yPosition += 3; // Espace entre les notes
                     }
 
-                    yPosition += 4; // Espace entre les chantiers
+                    yPosition += 6; // Espace entre les chantiers
                 }
             }
 
