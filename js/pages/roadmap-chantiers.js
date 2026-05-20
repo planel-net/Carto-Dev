@@ -4064,11 +4064,14 @@ class RoadmapChantiersPage {
                         yPosition = 18;
                     }
 
-                    // Nom du chantier
+                    // Nom du chantier avec son numéro
+                    const chantierObj = filteredChantiers.find(c => c['Chantier'] === chantierName);
+                    const chantierNum = chantierObj && chantierObj['NumChantier'] ? chantierObj['NumChantier'] : '';
+                    const chantierTitle = chantierNum ? `${chantierNum} - ${chantierName}` : chantierName;
                     doc.setFontSize(11);
                     doc.setFont('helvetica', 'bold');
                     doc.setTextColor(0, 51, 102);
-                    doc.text(chantierName, margin, yPosition);
+                    doc.text(chantierTitle, margin, yPosition);
                     yPosition += 6;
 
                     // Dessiner la roadmap du chantier (toujours)
@@ -4339,7 +4342,7 @@ class RoadmapChantiersPage {
         // Récupérer les phases du chantier
         const chantierPhases = this.phases.filter(p => p['Chantier'] === chantierName);
 
-        if (chantierPhases.length === 0 || this.sprints.length === 0) {
+        if (this.sprints.length === 0) {
             return yStart + 2;
         }
 
@@ -4347,54 +4350,14 @@ class RoadmapChantiersPage {
         const chantier = this.chantiers.find(c => c['Chantier'] === chantierName);
         const dateFin = chantier ? this.parseDate(chantier['Date fin souhaitée']) : null;
 
-        // Calculer la plage de sprints à afficher
-        const allSprintNames = this.sprints.map(s => s['Sprint']);
-        let minIdx = Infinity, maxIdx = -1;
-
-        chantierPhases.forEach(phase => {
-            const mode = phase['Mode'] || 'Sprint';
-            if (mode === 'Sprint') {
-                const sIdx = allSprintNames.indexOf(phase['Sprint début']);
-                const eIdx = allSprintNames.indexOf(phase['Sprint fin']);
-                if (sIdx >= 0 && sIdx < minIdx) minIdx = sIdx;
-                if (eIdx >= 0 && eIdx > maxIdx) maxIdx = eIdx;
-            } else {
-                const wStart = phase['Semaine début'] || '';
-                const wEnd = phase['Semaine fin'] || '';
-                this.sprints.forEach((s, idx) => {
-                    const weeks = this.getWeeksForSprint(s);
-                    if (weeks.length > 0 && weeks.some(w => w >= wStart && w <= wEnd)) {
-                        if (idx < minIdx) minIdx = idx;
-                        if (idx > maxIdx) maxIdx = idx;
-                    }
-                });
-            }
-        });
-
-        if (minIdx === Infinity || maxIdx === -1) {
+        // Utiliser la même période que le tableau principal (cohérence visuelle)
+        const visibleSprints = this.getVisibleSprints();
+        if (visibleSprints.length === 0) {
             return yStart + 2;
         }
 
-        // Limiter à max 10 sprints pour le PDF
-        if (maxIdx - minIdx > 9) {
-            maxIdx = minIdx + 9;
-        }
-
-        const visibleSprints = this.sprints.slice(minIdx, maxIdx + 1);
-
         // Construire la liste des semaines
-        const allWeeks = [];
-        visibleSprints.forEach(sprint => {
-            const weeks = this.getWeeksForSprint(sprint);
-            weeks.forEach((weekCode, idx) => {
-                allWeeks.push({
-                    weekCode,
-                    sprintName: sprint['Sprint'],
-                    sprint: sprint,
-                    isFirstOfSprint: idx === 0
-                });
-            });
-        });
+        const allWeeks = this.buildWeeksList(visibleSprints);
 
         if (allWeeks.length === 0) {
             return yStart + 2;
